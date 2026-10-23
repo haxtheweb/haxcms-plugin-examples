@@ -1,0 +1,574 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/plugin.schema.json",
+  "title": "HAXcms plugin manifest (plugin.yaml)",
+  "description": "Draft. Unknown keys are rejected. Keys described as reserved are validated but have no behavior yet. Decisions: https://github.com/haxtheweb/issues/issues/3176",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "specVersion",
+    "id",
+    "title",
+    "description",
+    "version"
+  ],
+  "properties": {
+    "specVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Spec version targeted; the loader refuses a newer one."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "maxLength": 64,
+      "description": "Folder name; kebab-case; unique within a tier."
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"
+    },
+    "kind": {
+      "enum": [
+        "plugin",
+        "pack"
+      ],
+      "default": "plugin",
+      "description": "pack = declarative only, no backend code."
+    },
+    "group": {
+      "type": "string"
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "haxcms": {
+          "type": "string",
+          "description": "Compatible platform semver range."
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/pluginRef"
+      }
+    },
+    "suggests": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/pluginRef"
+      }
+    },
+    "testDependencies": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/pluginRef"
+      }
+    },
+    "core": {
+      "type": "boolean",
+      "default": false
+    },
+    "required": {
+      "type": "boolean",
+      "default": false,
+      "description": "Core plugins only."
+    },
+    "defaultEnabled": {
+      "type": "boolean"
+    },
+    "hidden": {
+      "type": "boolean"
+    },
+    "lifecycle": {
+      "enum": [
+        "stable",
+        "experimental",
+        "deprecated",
+        "obsolete"
+      ],
+      "default": "stable"
+    },
+    "lifecycleLink": {
+      "type": "string",
+      "format": "uri"
+    },
+    "license": {
+      "type": "string"
+    },
+    "redistribution": {
+      "enum": [
+        "allowed",
+        "restricted"
+      ],
+      "default": "allowed"
+    },
+    "runtimes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "nodejs",
+          "php"
+        ]
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodejs": {
+          "type": "string"
+        },
+        "php": {
+          "type": "string"
+        }
+      }
+    },
+    "openapi": {
+      "type": "string"
+    },
+    "entities": {
+      "type": "string"
+    },
+    "contracts": {
+      "type": "string"
+    },
+    "datastores": {
+      "type": "string"
+    },
+    "settings": {
+      "type": "string"
+    },
+    "admin": {
+      "type": "string"
+    },
+    "implements": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+      }
+    },
+    "hooks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "entity.before.create",
+              "entity.after.create",
+              "entity.before.read",
+              "entity.after.read",
+              "entity.before.update",
+              "entity.after.update",
+              "entity.before.delete",
+              "entity.after.delete",
+              "rest.request",
+              "rest.response",
+              "plugin.before.install",
+              "plugin.after.install",
+              "plugin.before.enable",
+              "plugin.after.enable",
+              "plugin.before.disable",
+              "plugin.after.disable",
+              "plugin.before.uninstall",
+              "plugin.after.uninstall",
+              "plugin.before.upgrade",
+              "plugin.after.upgrade",
+              "site.before.create",
+              "site.after.create",
+              "site.before.duplicate",
+              "site.after.duplicate",
+              "site.before.archive",
+              "site.after.archive",
+              "site.before.delete",
+              "site.after.delete",
+              "site.before.export",
+              "site.after.export",
+              "user.before.login",
+              "user.after.login",
+              "user.before.logout",
+              "user.after.logout",
+              "register.routes",
+              "register.entities",
+              "register.contracts",
+              "output.alterHead",
+              "output.alterPage",
+              "rebuild.before",
+              "rebuild.after",
+              "schedule.run"
+            ]
+          },
+          "priority": {
+            "type": "integer",
+            "default": 0
+          },
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "registries": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Generated by `hax plugin build`.",
+      "properties": {
+        "themes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skeletons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "locales": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "description": "Generated by `hax plugin build`.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "hash",
+          "size",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^sha256-[A-Za-z0-9+/=_-]+$"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string"
+          },
+          "redistribution": {
+            "enum": [
+              "allowed",
+              "restricted"
+            ]
+          }
+        }
+      }
+    },
+    "tagPrefix": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*-$"
+    },
+    "staticCapable": {
+      "type": "boolean"
+    },
+    "egress": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "hostname"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "items:read",
+          "items:write",
+          "files:read",
+          "files:write",
+          "site:create",
+          "site:read",
+          "site:write",
+          "site:delete",
+          "users:read",
+          "userData:read",
+          "userData:write",
+          "network:egress",
+          "settings:secret",
+          "output:inject",
+          "output:managedFiles"
+        ]
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tracking": {
+          "type": "boolean"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cookies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recipients": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "hostname"
+          }
+        },
+        "requiresConsent": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "managedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "schedules": {
+      "type": "array",
+      "description": "Reserved.",
+      "items": {
+        "type": "object"
+      }
+    },
+    "legacy": {
+      "type": "object",
+      "description": "Reserved: aliases for extracted core routes, tags and registry paths."
+    },
+    "packaged": {
+      "type": "object",
+      "description": "Reserved: written by `hax plugin pack`."
+    },
+    "integrity": {
+      "type": "object",
+      "description": "Reserved: written by `hax plugin pack`."
+    }
+  },
+  "$defs": {
+    "pluginRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(@.+)?$",
+      "description": "Plugin id, optionally with a semver range; a bare id means any version."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "core"
+        ],
+        "properties": {
+          "core": {
+            "const": true
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "lifecycle"
+        ],
+        "properties": {
+          "lifecycle": {
+            "enum": [
+              "deprecated",
+              "obsolete"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "lifecycleLink"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "const": "pack"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "entry"
+              ]
+            },
+            {
+              "required": [
+                "runtimes"
+              ]
+            },
+            {
+              "required": [
+                "hooks"
+              ]
+            },
+            {
+              "required": [
+                "openapi"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "not": {
+              "required": [
+                "kind"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "plugin"
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "runtimes",
+          "entry"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "required"
+        ],
+        "properties": {
+          "required": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "runtimes": {
+            "minItems": 2
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "privacy"
+        ],
+        "properties": {
+          "privacy": {
+            "required": [
+              "tracking"
+            ],
+            "properties": {
+              "tracking": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "privacy": {
+            "required": [
+              "categories",
+              "requiresConsent"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

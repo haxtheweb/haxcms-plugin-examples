@@ -1,0 +1,8 @@
+specVersion: "0.1"
+id: bad
+title: Bad
+description: x
+version: 0.1.0
+required: true
+runtimes: [nodejs, php]
+entry: { nodejs: a.js, php: A.php }

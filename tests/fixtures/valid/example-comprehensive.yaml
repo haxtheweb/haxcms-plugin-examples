@@ -1,0 +1,16 @@
+specVersion: "0.1"
+id: example
+title: Example (awesome)
+description: Exercises every hook and extension point.
+version: 0.1.0
+defaultEnabled: false
+lifecycle: experimental
+runtimes: [nodejs, php]
+entry: { nodejs: src/nodejs/index.js, php: src/php/Plugin.php }
+tagPrefix: awesome-
+hooks:
+  - { name: entity.before.create, entities: [awesomeFile] }
+  - { name: entity.after.create, entities: [awesomeFile] }
+  - { name: plugin.before.enable }
+  - { name: plugin.after.enable }
+  - { name: output.alterPage }

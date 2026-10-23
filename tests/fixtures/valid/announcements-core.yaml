@@ -1,0 +1,14 @@
+specVersion: "0.1"
+id: announcements
+title: Announcements
+description: Curated release highlights and tips.
+version: 1.0.0
+core: true
+required: true
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+entities: config/entities.yaml
+capabilities: [site:read]
