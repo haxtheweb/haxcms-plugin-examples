@@ -15,8 +15,8 @@
   "properties": {
     "specVersion": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+$",
-      "description": "Spec version targeted; the loader refuses a newer one."
+      "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$",
+      "description": "Full semver of the spec targeted; the loader refuses a newer major (pre-1.0: a newer minor)."
     },
     "id": {
       "type": "string",
@@ -179,50 +179,9 @@
         ],
         "properties": {
           "name": {
-            "enum": [
-              "entity.before.create",
-              "entity.after.create",
-              "entity.before.read",
-              "entity.after.read",
-              "entity.before.update",
-              "entity.after.update",
-              "entity.before.delete",
-              "entity.after.delete",
-              "rest.request",
-              "rest.response",
-              "plugin.before.install",
-              "plugin.after.install",
-              "plugin.before.enable",
-              "plugin.after.enable",
-              "plugin.before.disable",
-              "plugin.after.disable",
-              "plugin.before.uninstall",
-              "plugin.after.uninstall",
-              "plugin.before.upgrade",
-              "plugin.after.upgrade",
-              "site.before.create",
-              "site.after.create",
-              "site.before.duplicate",
-              "site.after.duplicate",
-              "site.before.archive",
-              "site.after.archive",
-              "site.before.delete",
-              "site.after.delete",
-              "site.before.export",
-              "site.after.export",
-              "user.before.login",
-              "user.after.login",
-              "user.before.logout",
-              "user.after.logout",
-              "register.routes",
-              "register.entities",
-              "register.contracts",
-              "output.alterHead",
-              "output.alterPage",
-              "rebuild.before",
-              "rebuild.after",
-              "schedule.run"
-            ]
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z]*(\\.[a-z][a-zA-Z]*)+$",
+            "description": "Open vocabulary. Known names are listed in hooks.json; the loader warns on unknown but well-formed names."
           },
           "priority": {
             "type": "integer",
@@ -329,23 +288,9 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "enum": [
-          "items:read",
-          "items:write",
-          "files:read",
-          "files:write",
-          "site:create",
-          "site:read",
-          "site:write",
-          "site:delete",
-          "users:read",
-          "userData:read",
-          "userData:write",
-          "network:egress",
-          "settings:secret",
-          "output:inject",
-          "output:managedFiles"
-        ]
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z]*:[a-z][a-zA-Z]*$",
+        "description": "Open vocabulary (area:action). Starting vocabulary is documented in spec/08; the loader warns on unknown names."
       }
     },
     "privacy": {

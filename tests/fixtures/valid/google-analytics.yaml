@@ -1,4 +1,4 @@
-specVersion: "0.1"
+specVersion: "0.1.0"
 id: google-analytics
 title: Google Analytics
 description: Adds Google Analytics after visitor consent.

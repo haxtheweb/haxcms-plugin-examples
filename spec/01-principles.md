@@ -10,6 +10,8 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 
 **Load only what is used.** Nothing loads for a site that does not need it. Example: cookie consent exists as an optional core plugin, but its UI never loads unless an enabled plugin declares that it tracks users.
 
+**Written once, upgraded by machines.** A plugin written against a spec version should keep working. The goal is to eliminate human-driven maintenance of plugin code that must be upgraded for no business reason, as seen in WordPress and Drupal. The spec evolves additively once 1.0.0 is defined (until then it may change, and what 1.0.0 means is still being worked out). Conformance tests are the upgrade contract: an agent can upgrade a plugin and prove the result against the same suite. Security fixes are the exception, and they are found by auditing ahead of time.
+
 **Base contracts stay stable.** Core entities and routes keep their location (`/system/api/v1/sites`, `/themes`, `/languages`, `/skeletons`) even when a feature is extracted into a plugin. Extraction changes who provides the data, never the URL clients call. The `/entities` catalog is metadata and topology verification, not a data route.
 
 **Honest about trust.** Plugin backend code runs in the main process. Capabilities are declared, shown, audited and enforced on the host API, but code that is already installed cannot be fully sandboxed. The defenses are tier gating, signing, audit and review.

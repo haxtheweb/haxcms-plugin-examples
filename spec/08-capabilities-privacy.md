@@ -5,7 +5,7 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 ## Security model, capabilities, privacy
 
 ### 9.1 Capabilities
-Declared in `plugin.yaml` and shown when an admin enables a plugin, like OAuth scopes. First vocabulary: `items:read|write`, `files:read|write`, `site:create|read|write|delete`, `users:read`, `userData:read|write` (own stores), `network:egress` (hosts listed under `egress`), `settings:secret`, `output:inject`, `output:managedFiles`. Enforced on host API calls and entity access; audited. Plugins reach the platform through a controlled host API (create site, write files, guarded fetch, log, storage); the existing SSRF guard in PHP is the model for guarded outbound fetches.
+Declared in `plugin.yaml` and shown when an admin enables a plugin, like OAuth scopes. Open vocabulary while the platform settles (manifest accepts any well-formed `area:action` string; the loader warns on an unknown one). Starting vocabulary: `items:read|write`, `files:read|write`, `site:create|read|write|delete`, `users:read`, `userData:read|write` (own stores), `network:egress` (hosts listed under `egress`), `settings:secret`, `output:inject`, `output:managedFiles`. Enforced on host API calls and entity access; audited. Plugins reach the platform through a controlled host API (create site, write files, guarded fetch, log, storage); the existing SSRF guard in PHP is the model for guarded outbound fetches.
 
 ### 9.2 Privacy and consent (worked example)
 A plugin that tracks users declares `privacy.tracking: true`, its categories (`analytics`), cookies it sets, hosts that receive data, and `requiresConsent`. The `cookie-consent` plugin (optional core) defines the contract `consent.subject`. Trackers implement it. Flow:

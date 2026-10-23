@@ -35,7 +35,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 
 | Key | Meaning |
 |---|---|
-| `specVersion` | version of this spec the plugin targets; the loader refuses a newer one |
+| `specVersion` | full semver of this spec the plugin targets; the loader refuses a newer major (pre-1.0: a newer minor) |
 | `id`, `uuid`, `title`, `description`, `version` | identity; `version` is semver, distributed like an npm package |
 | `kind` | `plugin` or `pack` (declarative-only, no backend code; safe at any tier) |
 | `group` | dashboard grouping |
@@ -49,7 +49,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `hidden` | not listed in the dashboard (helpers, test fixtures) |
 | `lifecycle`, `lifecycleLink` | `stable` (default), `experimental`, `deprecated`, `obsolete`; deprecated and obsolete require a docs link. Dashboard badge and enable-time warning; obsolete is refused |
 | `license`, `redistribution` | `allowed` or `restricted` default for the plugin's assets (see 8.4) |
-| `runtimes` | `nodejs`, `php`; required core plugins list both |
+| `runtimes` | `nodejs`, `php`. Core required plugins must list both. First-party contrib plugins should (the audit warns when they do not). Other plugins may list one, for example a HAXiam-specific plugin with no Node variation |
 | `entry` | per-runtime entry file |
 | `openapi`, `entities`, `contracts`, `datastores`, `settings`, `admin` | pointers into `config/` |
 | `implements` | provider contracts this plugin implements |

@@ -4,7 +4,7 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 
 ## Hooks and provider contracts
 
-### 6.1 Hooks (final list)
+### 6.1 Hooks (current list; open vocabulary)
 Every lifecycle has a before hook and an after hook. **Before** hooks run before the system works with the thing and may modify input, veto, or warn. **After** hooks run after the system has worked and may annotate output, react, or warn; they cannot veto. Plugins declare subscriptions in the manifest, so unsubscribed hooks cost nothing. The comprehensive example implements every hook below, even if the body is a console log or a comment about what could be done there.
 
 | Group | Hooks |

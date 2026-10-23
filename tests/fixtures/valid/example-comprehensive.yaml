@@ -1,4 +1,4 @@
-specVersion: "0.1"
+specVersion: "0.1.0"
 id: example
 title: Example (awesome)
 description: Exercises every hook and extension point.
