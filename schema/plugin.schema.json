@@ -38,6 +38,84 @@
       "type": "string",
       "minLength": 1
     },
+    "category": {
+      "type": "string",
+      "description": "One category for the dashboard and registry. Known values in categories.json; use \"other\" when none fits. Unknown values warn (open vocabulary). Required by the audit."
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "description": "Free-form author tags for filtering. Derived tags (derived-tags.json) are computed from the manifest and always shown; they cannot be set or removed here."
+    },
+    "icon": {
+      "type": "string",
+      "description": "An icon name from a HAX iconset (e.g. \"icons:lightbulb-outline\") or a path to an SVG/PNG in the plugin. See https://github.com/haxtheweb/issues/issues/3173. Required by the audit."
+    },
+    "screenshots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "src",
+          "alt"
+        ],
+        "properties": {
+          "src": {
+            "type": "string"
+          },
+          "alt": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Images in the plugin folder for the dashboard and registry. Optional."
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readme": {
+          "type": "string",
+          "default": "README.md",
+          "description": "Path to the plugin README. Required by the audit."
+        },
+        "help": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional external help page the dashboard links to."
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "description": "Agent skills shipped in skills/<name>/SKILL.md (agentskills.io format). audience site: published into a site's .well-known/agent-skills index while the plugin is enabled for it. audience developer: ships with the package for people and agents working on the plugin or the system; never published to sites.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "audience"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Folder name under skills/; must start with the plugin id and a dash."
+          },
+          "audience": {
+            "enum": [
+              "site",
+              "developer"
+            ]
+          }
+        }
+      }
+    },
     "version": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$"

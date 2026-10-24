@@ -3,5 +3,7 @@ id: minimal-pack
 uuid: e9b0108d-f0ed-4164-96eb-4fd95307c958
 title: Minimal pack
 description: Smallest valid plugin; declarative only, safe at any tier.
+category: other
+icon: icons:extension
 version: 0.1.0
 kind: pack

@@ -1,0 +1,12 @@
+{
+  "needs-server": "staticCapable is false or the plugin has routes",
+  "runs-commands": "exec:run capability",
+  "sends-data-out": "network:egress capability",
+  "stores-secrets": "settings:secret capability",
+  "injects-output": "output:inject capability",
+  "writes-files": "output:managedFiles capability",
+  "reads-user-data": "users or userData capability",
+  "single-runtime": "only one of nodejs/php (non-pack)",
+  "tracks-users": "privacy.tracking is true",
+  "not-stable": "lifecycle is experimental, deprecated or obsolete"
+}

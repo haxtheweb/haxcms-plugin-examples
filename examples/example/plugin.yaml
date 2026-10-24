@@ -3,6 +3,20 @@ id: example
 uuid: 2f5d3a0e-7c1b-4a52-9d5a-3b1f6e8c9a10
 title: Example (awesome)
 description: Exercises every hook and extension point. Disabled by default.
+category: developer
+icon: frontend/dist/icon.svg
+tags: [example, reference]
+screenshots:
+  - src: frontend/dist/screenshot-dashboard.svg
+    alt: The example plugin's settings panel in the dashboard
+docs:
+  readme: README.md
+  help: https://github.com/haxtheweb/haxcms-plugin-examples
+skills:
+  - name: example-authoring
+    audience: site
+  - name: example-plugin-dev
+    audience: developer
 version: 0.1.0
 group: Examples
 defaultEnabled: false

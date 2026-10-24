@@ -28,3 +28,9 @@
   given: "any asset"
   when: "GET asset URL"
   then: "no version string"
+- id: asset-090
+  title: "site skills appear in the site's agent-skills index only while enabled"
+  spec: spec/07-registries-settings-assets.md
+  given: "plugin with a site skill and a developer skill"
+  when: "enable for the site, rebuild; then disable, rebuild"
+  then: "index lists the site skill with a sha256 digest, never the developer skill; after disable it is gone"

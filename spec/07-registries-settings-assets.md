@@ -81,3 +81,12 @@ HAX already has a format for what a plugin wants to add to the editor: the appst
 - `autoloader`: block availability. A `role: block` entry in `registries/elements/` generates its autoloader entry automatically (`tag -> { import, haxProperties }`), so a plugin does not repeat itself. Platform filtering still applies: HAXcms filters the autoloader by `settings/enabledBlocks.json` when that file exists, and the `onlineMedia` platform setting hides apps without an `add` operation.
 - Merge order is the same cascade as plugin loading: core system plugins first, then outward through the tiers. Built-in providers such as YouTube and NASA image search are expected to become plugins themselves.
 - Top-level keys only (`status`, `apps`, `stax`, `autoloader`); a payload wrapped in `data` is ignored by HAX, and the validator rejects it.
+
+## Skills
+
+Plugins ship agent skills in the agentskills.io `SKILL.md` format the site boilerplate already uses (`.well-known/agent-skills/index.json`, discovery schema 0.2.0), one folder per skill under `skills/<name>/`, declared in the manifest with an audience:
+
+- `audience: site`: helps an agent working on a site that has the plugin enabled (authoring with the plugin's elements, using its content types). When the plugin is enabled for a site, the site rebuild adds the skill to that site's `.well-known/agent-skills/` with a sha256 digest, next to the boilerplate skills, and removes it on disable. Only `.md`, `.json` and `.txt` files, matching the existing copy rules.
+- `audience: developer`: helps someone working on the plugin or the system (structure, `hax plugin add`, validation, upgrading). Ships in the package for tools such as `create` and coding agents; never published to sites.
+
+Rules the validator enforces: the name starts with the plugin id and a dash (one namespace per plugin), the frontmatter `name` equals the folder, a `description` is present, no machine-specific paths, and undeclared skill folders warn. The example ships one of each.

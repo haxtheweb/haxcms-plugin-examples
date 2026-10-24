@@ -45,6 +45,12 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `testDependencies` | only for running the plugin's tests |
 | `core` | shipped with the platform |
 | `required` | core only: auto-enabled, cannot be disabled, cannot be supplanted |
+| `category` | one category from `schema/categories.json` (`other` when none fits); required by the audit |
+| `tags` | free-form author tags for filtering. **Derived tags** (`schema/derived-tags.json`: needs-server, runs-commands, sends-data-out, stores-secrets, injects-output, writes-files, reads-user-data, single-runtime, tracks-users, not-stable) are computed from the manifest and always shown, because they carry security or longevity implications; authors cannot set or hide them |
+| `icon` | an iconset name or a path to an image in the plugin (see https://github.com/haxtheweb/issues/issues/3173); required by the audit |
+| `screenshots` | optional images (`src`, `alt`) for the dashboard and registry |
+| `docs` | `readme` (default `README.md`, required by the audit) and an optional `help` URL the dashboard links to |
+| `skills` | agent skills under `skills/<name>/SKILL.md` with an `audience` (spec/07, Skills) |
 | `defaultEnabled` | initial state when discovered (the example plugin: false) |
 | `hidden` | not listed in the dashboard (helpers, test fixtures) |
 | `lifecycle`, `lifecycleLink` | `stable` (default), `experimental`, `deprecated`, `obsolete`; deprecated and obsolete require a docs link. Dashboard badge and enable-time warning; obsolete is refused |

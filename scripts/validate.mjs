@@ -37,6 +37,31 @@ const validators = {
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const knownCaps = new Set(readJson(join(root, "schema/capabilities.json")));
+const knownCategories = new Set(readJson(join(root, "schema/categories.json")));
+const derivedTagNames = Object.keys(readJson(join(root, "schema/derived-tags.json")));
+
+// Derived tags: computed from the manifest so authors cannot hide security or longevity implications.
+function derivedTags(m) {
+  const caps = m.capabilities || [];
+  const has = (c) => caps.some((x) => x === c || x.startsWith(c + ":"));
+  const t = [];
+  if (m.staticCapable === false || m.openapi) t.push("needs-server");
+  if (has("exec")) t.push("runs-commands");
+  if (has("network")) t.push("sends-data-out");
+  if (has("settings:secret")) t.push("stores-secrets");
+  if (has("output:inject")) t.push("injects-output");
+  if (has("output:managedFiles")) t.push("writes-files");
+  if (has("users") || has("userData")) t.push("reads-user-data");
+  if (m.kind !== "pack" && (m.runtimes || []).length === 1) t.push("single-runtime");
+  if (m.privacy && m.privacy.tracking === true) t.push("tracks-users");
+  if (["experimental", "deprecated", "obsolete"].includes(m.lifecycle)) t.push("not-stable");
+  return t;
+}
+function frontmatter(text) {
+  const mt = /^---\n([\s\S]*?)\n---/.exec(text);
+  if (!mt) return null;
+  try { return parse(mt[1]); } catch { return null; }
+}
 
 // Optional external schemas (resolved from this package, then the cwd)
 const requireFrom = [join(here, "noop.js"), join(process.cwd(), "noop.js")];
@@ -175,7 +200,34 @@ function validatePlugin(manifestPath) {
     if (!v) warn(m.settings, "@haxtheweb/hax-schema not installed; settings not validated");
     else if (!v(readJson(settingsPath))) fmt(v.errors).forEach((e) => err(`${m.settings}${e.path === "/" ? "" : e.path}`, e.message));
   }
-  return { file: manifestPath, errors, warnings };
+  // audit requirements: category, icon, README
+  if (!m.category) err("/category", "category is required (use \"other\" when none fits)");
+  else if (!knownCategories.has(m.category)) warn("/category", `unknown category "${m.category}" (open vocabulary)`);
+  if (!m.icon) err("/icon", "icon is required (an iconset name or a path in the plugin)");
+  else if (!m.icon.includes(":") && !existsSync(join(dir, m.icon))) err("/icon", `icon file not found: ${m.icon}`);
+  const readme = (m.docs && m.docs.readme) || "README.md";
+  if (!existsSync(join(dir, readme))) err("/docs/readme", `README not found: ${readme}`);
+  for (const [i, sc] of (m.screenshots || []).entries()) if (!existsSync(join(dir, sc.src))) err(`/screenshots/${i}/src`, `file not found: ${sc.src}`);
+  for (const [i, tg] of (m.tags || []).entries()) if (derivedTagNames.includes(tg)) err(`/tags/${i}`, `"${tg}" is a derived tag; it is computed from the manifest and cannot be set by hand`);
+  // skills
+  const skillSeen = new Set();
+  for (const [i, sk] of (m.skills || []).entries()) {
+    const where = `/skills/${i}`;
+    if (m.id && !sk.name.startsWith(m.id + "-")) err(`${where}/name`, `skill "${sk.name}" must start with the plugin id "${m.id}-"`);
+    if (skillSeen.has(sk.name)) err(`${where}/name`, `duplicate skill "${sk.name}"`);
+    skillSeen.add(sk.name);
+    const sdir = join(dir, "skills", sk.name);
+    const md = join(sdir, "SKILL.md");
+    if (!existsSync(md)) { err(where, `skills/${sk.name}/SKILL.md not found`); continue; }
+    const fm = frontmatter(readFileSync(md, "utf8"));
+    if (!fm) { err(where, `skills/${sk.name}/SKILL.md has no YAML frontmatter`); continue; }
+    if (fm.name !== sk.name) err(where, `SKILL.md name "${fm.name}" must equal the folder "${sk.name}"`);
+    if (!fm.description) err(where, `SKILL.md needs a description`);
+    if (/\/(home|Users)\/|[A-Z]:\\/.test(readFileSync(md, "utf8"))) err(where, "skill contains a machine-specific path; published skills must stay generic");
+    if (sk.audience === "site") for (const f of readdirSync(sdir)) if (!/\.(md|json|txt)$/.test(f)) err(where, `site skills may only contain .md, .json or .txt files (found ${f})`);
+  }
+  for (const f of existsSync(join(dir, "skills")) ? readdirSync(join(dir, "skills")) : []) if (!skillSeen.has(f)) warn(`skills/${f}`, "skill folder not declared in the manifest; it will not be published");
+  return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m) };
 }
 
 const reports = [];
@@ -189,7 +241,7 @@ const failed = reports.some((r) => r.errors.length || (strict && r.warnings.leng
 if (asJson) console.log(JSON.stringify(reports, null, 2));
 else {
   for (const r of reports) {
-    console.log(`${r.errors.length ? "FAIL" : "PASS"} ${r.file}`);
+    console.log(`${r.errors.length ? "FAIL" : "PASS"} ${r.file}${r.derivedTags && r.derivedTags.length ? `  [${r.derivedTags.join(", ")}]` : ""}`);
     r.errors.forEach((e) => console.log(`  error   ${e.path}: ${e.message}`));
     r.warnings.forEach((w) => console.log(`  warning ${w.path}: ${w.message}`));
   }

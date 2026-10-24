@@ -45,6 +45,11 @@ const broken = [
   ["locale overlay with a non-string value", (d) => writeFileSync(join(d, "registries/locales/en.yaml"), "awesome.explode: { nested: true }\n")],
   ["spawns a process without declaring exec:run", (d) => { writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(', "exec:run"', "").replace("exec: [rsync]\n", "")); writeFileSync(join(d, "src/nodejs/extra.js"), "import { spawn } from 'node:child_process';\nspawn('ls');\n"); }],
   ["exec list without the capability", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(', "exec:run"', ""))],
+  ["missing category", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("category: developer\n", ""))],
+  ["missing README", (d) => rmSync(join(d, "README.md"))],
+  ["author sets a derived tag", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("tags: [example, reference]", "tags: [example, needs-server]"))],
+  ["skill name differs from its folder", (d) => writeFileSync(join(d, "skills/example-authoring/SKILL.md"), readFileSync(join(d, "skills/example-authoring/SKILL.md"), "utf8").replace("name: example-authoring", "name: other"))],
+  ["site skill with a script file", (d) => writeFileSync(join(d, "skills/example-authoring/run.sh"), "echo hi\n")],
   ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
 ];
 for (const [label, mutate] of broken) {
