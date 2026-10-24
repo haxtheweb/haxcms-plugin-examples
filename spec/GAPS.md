@@ -23,4 +23,3 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 
 ## Need a decision
 6. **Per-hook subject fields.** The hook list is fixed but each hook's context and return shape (veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.
-10. **Merlin `api` kind rows.** The `row` template and `map` fields are a first guess; the final shape should be confirmed with how real programs build rows.

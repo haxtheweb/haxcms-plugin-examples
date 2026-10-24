@@ -11,6 +11,14 @@ option:
     machineName: announcements-tip
 program:
   kind: api
-  operation: announcementsGetDailyTip
-  map: { title: label, description: description }
-  row: { eventName: super-daemon-noop, value: {} }
+  operation: announcementsListAll
+  query: { q: "{{input}}", "filter[kind]": tip, "page.limit": 10 }
+  items: items
+  row:
+    title: "{{label}}"
+    description: "{{description}}"
+    icon: "{{type.icon}}"
+    tags: ["{{type.key}}"]
+    path: "HAX/action/tips/{{slug}}"
+    eventName: super-daemon-noop
+    value: {}

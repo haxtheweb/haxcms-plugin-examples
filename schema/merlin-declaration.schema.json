@@ -43,16 +43,14 @@
           "type": "string",
           "description": "api: operation id from this plugin's own contract."
         },
-        "map": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "api: row field -> response field path. Rows get eventName and value from `row`."
-        },
         "row": {
           "type": "object",
-          "description": "api: template for the fixed parts of each row (eventName, value shape, path)."
+          "description": "api: per-item template; {{path}} reads fields of each item. Same fields as a MerlinOption row (title, description, icon, tags, path, eventName, value).",
+          "required": [
+            "title",
+            "eventName"
+          ],
+          "additionalProperties": true
         },
         "module": {
           "type": "string",
@@ -61,6 +59,15 @@
         "factory": {
           "type": "string",
           "description": "module: export name of the factory."
+        },
+        "query": {
+          "type": "object",
+          "description": "api: query parameters for the operation; {{input}} is the current search text.",
+          "additionalProperties": true
+        },
+        "items": {
+          "type": "string",
+          "description": "api: dot path to the array of results in the response."
         }
       },
       "allOf": [
@@ -103,7 +110,8 @@
           "then": {
             "required": [
               "operation",
-              "map"
+              "items",
+              "row"
             ],
             "not": {
               "anyOf": [
