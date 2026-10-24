@@ -62,6 +62,8 @@ const broken = [
   ["alias pointing at an unknown hook", (d) => writeFileSync(join(d, "config/hooks.yaml"), readFileSync(join(d, "config/hooks.yaml"), "utf8").replace("{ hook: entity.before.update, entities: [awesomeFile] }", "{ hook: entity.before.nope }"))],
   ["defined hook outside the plugin namespace", (d) => writeFileSync(join(d, "config/hooks.yaml"), readFileSync(join(d, "config/hooks.yaml"), "utf8").replace("name: example.after.explode", "name: other.after.explode"))],
   ["dashboard contribution calling an unknown operation", (d) => writeFileSync(join(d, "registries/dashboard/explosions.yaml"), readFileSync(join(d, "registries/dashboard/explosions.yaml"), "utf8").replace("operation: exampleListExplosions", "operation: exampleNope"))],
+  ["CLI command calling an unknown operation", (d) => writeFileSync(join(d, "registries/cli/explosions.yaml"), readFileSync(join(d, "registries/cli/explosions.yaml"), "utf8").replace("operation: exampleListExplosions", "operation: exampleNope"))],
+  ["Merlin api program calling an unknown operation", (d) => writeFileSync(join(d, "registries/merlin/list-explosions.yaml"), readFileSync(join(d, "registries/merlin/list-explosions.yaml"), "utf8").replace("operation: exampleListExplosions", "operation: exampleNope"))],
   ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
 ];
 for (const [label, mutate] of broken) {

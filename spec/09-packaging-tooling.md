@@ -46,3 +46,7 @@ The HAX schema packages are versioned with the rest of the ecosystem and publish
 ### Test stubs
 
 `hax plugin create` and every `hax plugin add` write a test case next to the code they generate: a basic passing case, **commented out**, so a person can read it and learn the shape while the suite stays honest. An agent then uncomments and fills it in, typically after the plugin fails the audit or conformance. A cases file holding only commented stubs counts as no tests.
+
+### Commands contributed by plugins
+
+A plugin adds CLI commands with `registries/cli/*.yaml` (`schema/cli-command.schema.json`): a command name, a summary, the operation it calls, fixed query parameters, flags mapped to query parameters, and a line template for human output (`--json` prints the raw response). They appear as `hax <plugin id> <command>` only while the plugin is enabled, so the core CLI never names a plugin. The CLI embeds the backend in-process, so these calls need no network or credentials. Announcements contributes `hax announcements whats-new`, `tips` and `tip`.

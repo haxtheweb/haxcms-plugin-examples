@@ -16,7 +16,7 @@ The announcements plugin serves curated release highlights (kind `update`) and e
 
 ## Ask
 
-- **CLI (planned in https://github.com/haxtheweb/create):** `hax whats-new --json` and `hax tips --daily --json`, reading the installed version in-process with no credentials. Use it when the installed `hax` has these commands.
+- **CLI:** `hax announcements whats-new --json`, `hax announcements tips --json`, `hax announcements tip --json`. Contributed by the plugin (they exist once the CLI loads plugin commands); they read the installed version in-process with no credentials.
 - **API:** `GET /system/api/v1/plugins/announcements/latest`, `/all`, `/tips`, `/tips/daily`, `/types`. Every route needs **both** the JWT (`Authorization: Bearer ...`) and the `X-HAXCMS-User-Token` header, because responses include the running version. Without both you get 401 and nothing else; do not try to infer the version another way.
 - **MCP:** when the MCP plugin is enabled, `announcementsListLatest`, `announcementsListAll` and `announcementsGetDailyTip` are offered as tools.
 

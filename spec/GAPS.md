@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+1g. **Separation made explicit.** Core never names a plugin: front-end extension points (dashboard slots and contributions, Merlin, blocks, appstore, contract-registered operations, generic events) and CLI commands contributed through `registries/cli/` as `hax <plugin id> <command>`. One contributions endpoint for the dashboard. Conformance cases: a disabled plugin leaves no trace; core source contains no plugin references. A small DDD chip element is the plan for badges; `accent-card` for modal cards for now.
 1f. **Plugins reuse platform UI.** Dashboard contributions (`registries/dashboard/`) are declared as data and rendered by app-hax with existing elements; announcements ships no front-end code. Merlin opens them with `hax-dashboard-open`. Rendering contributions is future app-hax work.
 1e. **Found while building announcements.** Routes needed a way to pick the system or site API: `x-hax-scope` (document default, per-operation override). Shipped read-only content needed a store: `package` scope under `data/`, read with `ctx.storage.read`, other data files with `ctx.package.read`. Dashboard elements needed a role: `admin`. Operation ids must start with the plugin id (now validated).
 1d. **No `defaultEnabled`.** Required core plugins are on; everything else is off until enabled; `--all-sites` is a CLI convenience. Skeletons are starting points with no later effect.
@@ -40,6 +41,7 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
+19. **Front-end work implied (webcomponents).** app-hax renders dashboard contributions and slots, registers operations from the unified contract, and listens for `hax-dashboard-open`; a small DDD chip element. Belongs to the later draft PRs.
 18. **Loader `ctx` surface.** The examples now assume `ctx.storage.read/write`, `ctx.package.read`, `ctx.haxcms.version`, `ctx.log.info/warn/error`, `ctx.veto`, `ctx.settings`, `ctx.transaction`, `ctx.pluginEnabled`; route handlers get `(ctx, { params, query, body, headers })` and return `{ status, headers?, body }`. Accepted for now; to be written down as part of the HAX backend platform contract.
 16. **HAX backend platform contract (named).** Backend-only: core config, file templates, plugin loader, hooks, stores, routes; separate from front-end asset production. Shape still to specify.
 17. **Skeleton `site.plugins`** needs a PR to https://github.com/haxtheweb/json-outline-schema.

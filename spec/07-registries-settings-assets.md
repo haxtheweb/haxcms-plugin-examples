@@ -121,3 +121,25 @@ Front-end assets are enabled in bunches, the way theme packs are: element packs 
 ## Dashboard contributions
 
 `registries/dashboard/*.yaml` (`schema/dashboard-contribution.schema.json`) declares UI a plugin adds to the dashboard (app-hax): a top-bar button or user-menu entry, an optional badge, and a modal of sections, each filled from one of the plugin's own operations and shown as cards. The dashboard renders it with the elements it already has (`simple-icon-button-lite`, `simple-tooltip`, `simple-modal`, `accent-card`, `hax-element-demo`, `simple-icon-lite`), through its API layer so the credentials are added, so plugins reuse the platform's UI instead of shipping their own buttons and dialogs. A badge keeps `{ seenVersion, dismissedVersion }` in user scaffold memory under its `dismissKey`. Merlin options open a contribution with `eventName: hax-dashboard-open` and `value: { plugin, contribution, anchor }`. The validator checks that every operation named exists in the plugin's contract. Announcements uses one for What's New; the example adds a user-menu entry.
+
+## Front-end extension points
+
+The front end mirrors the backend: core front-end code asks for what enabled plugins provide and renders it, the way the backend fires hooks and merges registries. It never imports, names or special-cases a plugin.
+
+| Extension point | Filled by | Where it renders |
+|---|---|---|
+| `dashboard.topbar`, `dashboard.userMenu` | dashboard contributions (`registries/dashboard/`), or `admin` elements placed with `slot="dashboard-topbar"` / `"dashboard-user-menu"` | app-hax top bar right group; user menu |
+| Merlin options and programs | `registries/merlin/` | super-daemon, in the contexts each option lists |
+| Editor blocks | `registries/elements/` with `role: block`, per-site packs | HAX block list and appstore |
+| Appstore apps and stax | `registries/appstore/` | HAX media and stax browsers |
+| Page output | `render.*` hooks (backend) | every rendered page; `injected` elements |
+| Themes, skeletons | `registries/themes/`, `registries/skeletons/` | theme picker, site creation |
+| Plugin operations | the unified contract | callable from app-hax as `@system/<operationId>` or `@site/<operationId>`, registered from the contract, not from per-plugin alias lists |
+
+**Where the front end gets the list.** One doubly authenticated call, `GET /system/api/v1/plugins/contributions`, returns what the enabled plugins provide for the dashboard (contributions, Merlin declarations, `admin` elements to load, locale overlays). Site-scope equivalents ride along with the editor's existing appstore and registry payloads. A disabled plugin is simply absent from these responses.
+
+**Events.** Contributions and Merlin rows open plugin UI with generic events (`hax-dashboard-open` with `{ plugin, contribution, anchor }`). A plugin that ships front-end code listens for and dispatches its own namespaced events; core code only dispatches generic ones.
+
+## Separation rule and how it is tested
+
+A disabled plugin leaves no trace: its routes 404 and leave the served contract; its entities, Merlin options, dashboard contributions, CLI commands, skills, prompts, blocks and themes are absent; its hooks do not run; nothing in core front-end or backend code refers to it. Two conformance cases enforce this in every backend: one disables each plugin in turn and checks every surface above; one scans core source for plugin ids, operation ids and tags outside the plugins folders.

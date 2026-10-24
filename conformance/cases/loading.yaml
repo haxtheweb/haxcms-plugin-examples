@@ -118,3 +118,15 @@
   given: "unsigned plugin copied in by hand, flagged not tested and not signed"
   when: "hax plugin verify <id> with passing checks"
   then: "not tested cleared; not signed remains; plugin screen still links the CLI docs"
+- id: load-115
+  title: "a disabled plugin leaves no trace"
+  spec: spec/07-registries-settings-assets.md
+  given: "each plugin in turn disabled (required core plugins included, in a test deployment)"
+  when: "inspect every surface"
+  then: "its routes 404 and are absent from the served contract; absent from entities, contributions, Merlin, CLI help, agent-skills, prompts, blocks, themes, appstore; its hooks never run; the rest of HAX works"
+- id: load-116
+  title: "core source never names a plugin"
+  spec: spec/01-principles.md
+  given: "backend and front-end source outside the plugins folders"
+  when: "scan for every plugin id, operationId, element tag and hook name a plugin defines"
+  then: "no matches, except the required core plugin list in deployment config"

@@ -1,0 +1,7 @@
+command: tip
+summary: Tip of the day
+operation: announcementsGetDailyTip
+options:
+  - { flag: --lang, param: lang }
+output:
+  line: "{{label}}: {{description}}"

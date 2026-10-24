@@ -4,9 +4,10 @@
 What's New and HAX Tips for HAXcms. Core and required: always on, both runtimes, first plugin on the new architecture.
 
 ## Layout
-`plugin.yaml`; `config/` (OpenAPI, entities, data stores); `data/` (types, entries, locales, visuals); `src/nodejs` and `src/php` (logic file plus entry, mirrored function for function); `registries/dashboard` (the What's New button and modal, as data); `registries/merlin`; `skills/`; `docs/prompts.yaml`; `tests/`.
+`plugin.yaml`; `config/` (OpenAPI, entities, data stores); `data/` (types, entries, locales, visuals); `src/nodejs` and `src/php` (logic file plus entry, mirrored function for function); `registries/dashboard` (the What's New button and modal, as data); `registries/merlin`; `registries/cli`; `skills/`; `docs/prompts.yaml`; `tests/`.
 
 ## Rules
+- Nothing in core may refer to this plugin. Every touchpoint is a generic extension point (contract, contributions, Merlin and CLI registries, skills index); see the Separation table in README.md.
 - Node and PHP must give identical results: change `announcements.js` and `Announcements.php` together and keep the parity run green.
 - Every route requires both the JWT and the user token. Never add a public route; the responses carry the running version.
 - Never serve `status`, `notes` or screenshot file names. Never serve drafts or versions newer than the running one.

@@ -38,6 +38,7 @@ const validators = {
   testCases: own("test-case.schema.json"),
   hookDefs: own("hook-contracts.schema.json"),
   dashboard: own("dashboard-contribution.schema.json"),
+  cli: own("cli-command.schema.json"),
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const hookContracts = Object.fromEntries(readJson(join(root, "schema/hook-contracts.json")).map((c) => [c.name, c]));
@@ -231,6 +232,18 @@ function validatePlugin(manifestPath) {
     if (!validators.dashboard(d)) { fmt(validators.dashboard.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
     const used = [d.badge && d.badge.operation, ...d.action.sections.map((x) => x.operation)].filter(Boolean);
     for (const o of used) if (!opIds.has(o)) err(rel(f), `operation "${o}" is not in ${m.openapi || "the plugin's openapi"}`);
+  }
+  const cmds = new Set();
+  for (const f of listFiles(join(dir, "registries/cli"), [".yaml", ".yml", ".json"])) {
+    const c = readAny(f);
+    if (!validators.cli(c)) { fmt(validators.cli.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
+    if (!opIds.has(c.operation)) err(rel(f), `operation "${c.operation}" is not in ${m.openapi || "the plugin's openapi"}`);
+    if (cmds.has(c.command)) err(rel(f), `duplicate command "${c.command}"`);
+    cmds.add(c.command);
+  }
+  for (const f of listFiles(join(dir, "registries/merlin"), [".yaml", ".yml", ".json"])) {
+    const d = readAny(f);
+    if (d && d.program && d.program.kind === "api" && d.program.operation && !opIds.has(d.program.operation)) err(rel(f), `operation "${d.program.operation}" is not in ${m.openapi || "the plugin's openapi"}`);
   }
   for (const f of listFiles(join(dir, "registries/locales"), [".yaml", ".yml", ".json"])) {
     if (!validators.locale(readAny(f))) fmt(validators.locale.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message));
