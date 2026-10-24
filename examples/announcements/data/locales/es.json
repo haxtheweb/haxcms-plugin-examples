@@ -1,0 +1,19 @@
+{
+  "3f1357e7-55af-485c-ba2f-7d034407cdc6": {
+    "label": "Idea",
+    "description": "Una forma de trabajar que creemos que te gustará."
+  },
+  "1d0d9f37-8a0d-4b35-98c5-5a2612df1370": {
+    "label": "Función",
+    "description": "Algo que HAX ahora puede hacer."
+  },
+  "b3235057-f7ed-4133-9623-88ffd1e3e03b": {
+    "label": "Los plugins tienen su propio panel",
+    "description": "Activa y desactiva plugins, mira lo que agrega cada uno y soluciona problemas desde una sola pantalla.",
+    "alt": "El panel de plugins con los indicadores de estado"
+  },
+  "cd32a5c1-fd1c-4121-b44c-820281410449": {
+    "label": "Pregunta a Merlin en lugar de buscar en los menús",
+    "description": "Merlin puede agregar páginas, insertar bloques y encontrar ajustes desde el teclado."
+  }
+}

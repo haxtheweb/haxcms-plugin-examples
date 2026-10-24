@@ -1,0 +1,4 @@
+# role: admin: the What's New / HAX Tips dialog the button opens (shown through simple-modal in app-hax).
+tag: announcements-dialog
+path: frontend/dist/announcements-dialog.js
+role: admin

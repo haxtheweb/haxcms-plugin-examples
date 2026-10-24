@@ -23,8 +23,10 @@
     "role": {
       "enum": [
         "block",
-        "injected"
-      ]
+        "injected",
+        "admin"
+      ],
+      "description": "block: authors insert it (needs haxProperties). injected: the plugin places it in pages itself. admin: loaded into the dashboard (app-hax) or editor chrome, never into page content."
     },
     "haxProperties": {
       "type": "string",

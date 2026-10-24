@@ -20,6 +20,9 @@ A store is declared in `config/datastores.yaml` and reuses the existing `datasto
 | `siteData` | `<HAXCMS_ROOT>/_config/siteData/<siteUuid>/<plugin>/<store>.json` | no; export can include it on request | comments, per-user records for that site |
 | `system` | `<HAXCMS_ROOT>/_config/systemData/<plugin>/<store>.json` | no | an RSS feed aggregated from 10 sites |
 | `manifest` | namespaced slot in `site.json` or the page (`metadata.plugins.<id>`) | yes | custom fields, OER metadata, plugin settings that belong to the site |
+| `package` | `<plugin>/data/<store>.json` (read-only; YAML also accepted) | no; part of the plugin itself | registries and curated content shipped with the plugin (announcements), seed data |
+
+Code reads stores through `ctx.storage.read(storeId)` (and writes with `ctx.storage.write` for every scope except `package`, which changes only when a new plugin version is installed). Other files under the plugin's `data/` folder, such as screenshots or locale overlays for package content, are read with `ctx.package.read(path)`, which refuses paths outside `data/`.
 
 Notes: `siteData` is keyed by the site UUID, not the name (the site UUID is the root `id` of `site.json`, a UUID v4 that HAXcms already generates), so a rename cannot orphan data. User data lives inside `siteData` or `system` records and never in the site folder. A store marked `personalData: true` supports export and erase by user id, which serves retention policy. Clone creates a new site UUID and copies no `siteData`. Archive keeps data under the old UUID, marked archived. Delete cascades. A site `_config` folder is private (deny rule), excluded from static publish templates, and handled by clone and export.
 

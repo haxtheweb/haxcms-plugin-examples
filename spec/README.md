@@ -7,7 +7,7 @@ Status: draft for review. Each document is a section of the decision issue https
 | [01-principles](01-principles.md) | pillars, core-vs-plugin test |
 | [02-anatomy-and-manifest](02-anatomy-and-manifest.md) | folder layout and `plugin.yaml` keys (schema in `../schema/`) |
 | [03-tiers-and-enablement](03-tiers-and-enablement.md) | five tiers, required/locked, failure isolation |
-| [04-entities-data-upgrades](04-entities-data-upgrades.md) | extends, annotations, four store kinds, upgrades |
+| [04-entities-data-upgrades](04-entities-data-upgrades.md) | extends, annotations, five store kinds, upgrades |
 | [05-routes-and-security](05-routes-and-security.md) | unified OpenAPI contract, fail-closed security |
 | [06-hooks-and-contracts](06-hooks-and-contracts.md) | before/after hooks, provider contracts |
 | [07-registries-settings-assets](07-registries-settings-assets.md) | registry merging, settings panels, assets |

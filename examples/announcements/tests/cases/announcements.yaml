@@ -1,0 +1,42 @@
+- id: announcements-001
+  title: "no credentials gives 401 and reveals nothing"
+  operation: announcementsListLatest
+  given: "no Authorization header"
+  when: "GET /system/api/v1/plugins/announcements/latest"
+  then: "401; body has no version and no entries"
+- id: announcements-002
+  title: "JWT without the user token is refused with the existing error"
+  operation: announcementsListLatest
+  given: "valid JWT, no X-HAXCMS-User-Token"
+  when: "GET /latest"
+  then: "the existing 'X-HAXCMS-User-Token header is required for this endpoint' error"
+- id: announcements-003
+  title: "drafts and unreleased versions are never served"
+  operation: announcementsListAll
+  given: "sample data on HAXcms 26.10.1"
+  when: "GET /all"
+  then: "no draft-template, no unreleased-theme; no status or notes fields"
+- id: announcements-004
+  title: "latestVersion only moves when a release has curated entries"
+  operation: announcementsListLatest
+  given: "running 26.10.3 with no entries for 26.10.2 or 26.10.3"
+  when: "GET /latest"
+  then: "latestVersion is 26.10.1"
+- id: announcements-005
+  title: "the daily tip is identical across Node and PHP for a date"
+  operation: announcementsGetDailyTip
+  given: "the same data and UTC date in both runtimes"
+  when: "GET /tips/daily"
+  then: "same uuid (tests/parity-calls.json is run in both)"
+- id: announcements-006
+  title: "enable is vetoed when an entry points at an unknown type"
+  hook: plugin.before.enable
+  given: "an announcement whose type uuid is not in data/types.json"
+  when: "enable"
+  then: "enable fails with the entry's slug in the message"
+- id: announcements-007
+  title: "lang falls back to English and ignores unsafe values"
+  operation: announcementsGet
+  given: "lang=es for a translated and an untranslated entry; lang=../../etc"
+  when: "GET /{uuid}"
+  then: "Spanish where translated, English otherwise; the unsafe value is ignored"

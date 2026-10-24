@@ -1,0 +1,37 @@
+# Announcements: What's New and HAX Tips. The first core plugin and the vehicle for the plugin architecture.
+# Plan: https://github.com/haxtheweb/issues/issues/3172  Spec: https://github.com/haxtheweb/issues/issues/3176
+specVersion: "0.1.0"
+id: announcements
+uuid: 8c1f4a62-3d9e-4b7a-a5f0-6e2d9c41b7d3
+title: Announcements
+description: Curated release highlights (What's New) and evergreen HAX Tips, in the dashboard, Merlin, the API and the CLI.
+version: 0.1.0
+category: administration
+icon: icons:new-releases
+tags: [whats-new, tips, onboarding]
+docs:
+  readme: README.md
+  agents: AGENTS.md
+  prompts: docs/prompts.yaml
+skills:
+  - name: announcements-whats-new
+    audience: system      # published on the system front end so agents can find out how to ask what's new
+  - name: announcements-curate
+    audience: developer   # how to add entries before a release
+core: true                # ships with HAXcms
+required: true            # always on, cannot be disabled; so both runtimes are required
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml       # system scope: /system/api/v1/plugins/announcements/...; every route needs JWT + user token
+entities: config/entities.yaml     # announcementType and announcement, backed by read-only package stores
+datastores: config/datastores.yaml # data/types.json and data/announcements.json ship inside the plugin
+tagPrefix: announcements-
+staticCapable: false               # dashboard and API feature; nothing is added to published sites
+privacy:
+  tracking: false                  # dismissal state stays in the browser (user scaffold memory); nothing is recorded server-side
+hooks:
+  - name: plugin.before.enable     # refuse to enable when the shipped data is inconsistent
+  - name: plugin.after.upgrade     # new entries arrive with new plugin versions; drop the cache

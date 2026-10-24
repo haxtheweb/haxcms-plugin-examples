@@ -1,0 +1,25 @@
+# Merlin: "What's new". kind: api lists entries from this plugin's own route with no JavaScript.
+# Choosing a row fires announcements-open with the entry uuid; the dialog opens on that entry.
+option:
+  title: What's new in HAX
+  icon: icons:new-releases
+  tags: [whats-new, announcements, help]
+  path: HAX/action/whatsNew
+  context: [CMS]
+  voice: what's new
+  eventName: super-daemon-run-program
+  value:
+    name: What's new in HAX
+    machineName: announcements-whats-new
+    placeholder: Filter what's new
+program:
+  kind: api
+  operation: announcementsListAll
+  query: { "filter[kind]": update, "page.limit": 20 }
+  items: items
+  row:
+    title: "{{label}}"
+    description: "{{description}}"
+    path: "HAX/action/whatsNew/{{slug}}"
+    eventName: announcements-open
+    value: { uuid: "{{uuid}}" }

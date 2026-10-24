@@ -28,14 +28,15 @@
               "site",
               "siteData",
               "system",
-              "manifest"
+              "manifest",
+              "package"
             ],
-            "description": "Where the store lives (spec/04)."
+            "description": "Where the store lives (spec/04). package: read-only data shipped in the plugin's data/ folder (registries, seed content); changes only by upgrading the plugin."
           },
           "file": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9._-]+\\.json$",
-            "description": "File name inside the scope's plugin folder; never a path."
+            "pattern": "^[A-Za-z0-9._-]+\\.(json|yaml|yml)$",
+            "description": "File name inside the scope's plugin folder; never a path. YAML is allowed only for package stores."
           },
           "personalData": {
             "type": "boolean",
@@ -67,6 +68,24 @@
               "required": [
                 "file"
               ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "scope": {
+                  "not": {
+                    "const": "package"
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "file": {
+                  "pattern": "^[A-Za-z0-9._-]+\\.json$"
+                }
+              }
             }
           }
         ]

@@ -1,0 +1,5 @@
+# role: admin: loaded into the dashboard (app-hax), never into page content. Placed in the top bar's right slot,
+# before the user menu, only while this plugin is enabled (it is required, so in practice always).
+tag: announcements-button
+path: frontend/dist/announcements-button.js
+role: admin

@@ -129,6 +129,12 @@ function validatePlugin(manifestPath) {
   }
   for (const rt of Object.keys(m.entry || {})) if (!(m.runtimes || []).includes(rt)) err("/entry", `entry.${rt} but runtime ${rt} is not in runtimes`);
   if (!m.core && m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") warn("/runtimes", "single runtime: first-party plugins should provide both nodejs and php");
+  if (m.openapi && existsSync(join(dir, m.openapi))) {
+    const api = readAny(join(dir, m.openapi));
+    const scopes = [api["x-hax-scope"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-scope"]))].filter((x) => x !== undefined);
+    for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && op.operationId && m.id && !op.operationId.startsWith(m.id)) err(`${m.openapi}/paths/${path}/${verb}`, `operationId "${op.operationId}" must start with the plugin id "${m.id}"`);
+  }
   if (m.openapi && m.staticCapable !== false) warn("/staticCapable", "plugin has routes: set staticCapable: false so it is tagged as needing a server (or explain how it degrades statically)");
   // plugin-defined hooks and aliases
   const ownHooks = {};
@@ -212,6 +218,7 @@ function validatePlugin(manifestPath) {
   };
   const stores = checkFile("datastores", validators.datastores);
   const ents = checkFile("entities", validators.entities);
+  if (stores) for (const st of stores.stores || []) if (st.scope === "package" && !existsSync(join(dir, "data", st.file))) err(`${m.datastores}`, `package store "${st.id}" file not found: data/${st.file}`);
   if (stores && ents && ents.entities) {
     const ids = new Set(stores.stores.map((x) => x.id));
     for (const [name, e] of Object.entries(ents.entities)) if (e.store && !ids.has(e.store)) err(`${m.entities}/entities/${name}/store`, `unknown store "${e.store}" (not in ${m.datastores})`);
