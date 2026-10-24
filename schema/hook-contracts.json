@@ -678,7 +678,7 @@
     "previous": "none",
     "returns": "the context (may change html)",
     "veto": false,
-    "detachable": true,
+    "detachable": false,
     "comment": "last chance to alter the final document; store it in a cache"
   },
   {
