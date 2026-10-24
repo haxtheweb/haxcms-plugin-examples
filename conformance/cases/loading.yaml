@@ -82,3 +82,15 @@
   given: "site.json lists plugin x 1.2.0; deployment lacks x"
   when: "site added to the deployment"
   then: "site works; warning in its log naming x and the version"
+- id: load-109
+  title: "disable clears render caches and rebuilds managed outputs"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin that injects a singleton, page cached"
+  when: "disable"
+  then: "cache cleared; page re-renders without the singleton; disable hooks ran; data kept"
+- id: load-110
+  title: "overlapping scheduled runs skip"
+  spec: spec/06-hooks-and-contracts.md
+  given: "schedule run in progress holding the lock"
+  when: "second hax plugin schedule run"
+  then: "second run exits without running jobs and logs that it skipped"

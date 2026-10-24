@@ -57,11 +57,11 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `registries` | generated summary of `registries/` (written by `hax plugin build`) |
 | `assets` | generated list of web-reachable files with hash, size, type, optional `redistribution` per asset |
 | `tagPrefix` | the only prefix the plugin's custom element tags may use; one namespace per plugin, by design |
-| `staticCapable` | whether the plugin's behavior works without a backend |
+| `staticCapable` | whether the plugin works on a statically published site. `false` is shown as a "needs a server" tag wherever the plugin is listed and the publish step warns, because it infringes the portable-static pillar. The validator warns when a plugin with routes leaves it unset or true |
 | `egress` | outbound hosts the plugin may call |
 | `capabilities` | permissions requested, shown at enable time (see 9.1) |
 | `privacy` | `tracking`, categories, cookies set, hosts that receive data, `requiresConsent` categories |
 | `managedFiles` | managed output paths the plugin owns |
-| `schedules` | reserved: recurring jobs |
+| `schedules` | recurring jobs run through `schedule.run` (spec/06) |
 | `legacy` | reserved: aliases for extracted core routes, tags and registry paths |
 | `packaged`, `integrity` | reserved: written by `hax plugin pack` (date, hash, signature reference) |

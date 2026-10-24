@@ -314,7 +314,8 @@
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*-$"
     },
     "staticCapable": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "Whether the plugin works on a statically published site with no backend. false is shown as a 'needs a server' tag on the plugin wherever it is listed, and the publish step warns, because it infringes the portable-static pillar. The validator warns when a plugin with routes does not set this to false."
     },
     "egress": {
       "type": "array",

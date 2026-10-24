@@ -98,6 +98,7 @@ function validatePlugin(manifestPath) {
   }
   for (const rt of Object.keys(m.entry || {})) if (!(m.runtimes || []).includes(rt)) err("/entry", `entry.${rt} but runtime ${rt} is not in runtimes`);
   if (!m.core && m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") warn("/runtimes", "single runtime: first-party plugins should provide both nodejs and php");
+  if (m.openapi && m.staticCapable !== false) warn("/staticCapable", "plugin has routes: set staticCapable: false so it is tagged as needing a server (or explain how it degrades statically)");
   for (const [i, h] of (m.hooks || []).entries()) if (!knownHooks.has(h.name)) warn(`/hooks/${i}/name`, `unknown hook "${h.name}" (open vocabulary; the loader will warn)`);
   for (const [i, c] of (m.capabilities || []).entries()) if (!knownCaps.has(c)) warn(`/capabilities/${i}`, `unknown capability "${c}" (open vocabulary; the loader will warn)`);
   if (m.dependencies && m.id && m.dependencies.some((d) => d.split("@")[0] === m.id)) err("/dependencies", "a plugin cannot depend on itself");

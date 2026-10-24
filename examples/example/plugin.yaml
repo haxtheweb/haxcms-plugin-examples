@@ -20,7 +20,8 @@ datastores: config/datastores.yaml
 settings: config/settings.schema.json
 admin: config/admin.yaml
 tagPrefix: awesome-
-staticCapable: true
+# routes and the Merlin api program need a backend, so this is tagged 'needs a server'
+staticCapable: false
 capabilities: ["items:read", "files:read", "output:inject", "settings:secret", "exec:run"]
 exec: [rsync]
 privacy:

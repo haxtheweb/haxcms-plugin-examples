@@ -24,6 +24,7 @@ Everything the dashboard can do, the CLI can do, at system level or for one site
 | `hax plugin move <id> --to site\|system [--site]` | Moves the installed copy between tiers, keeping data and enablement; updates both lock configs |
 | `hax plugin restore [--site]` | Installs exactly what the scope's lock config lists, like `npm ci` |
 | `hax plugin update <id> [--to <range>]` | Fetches a newer version within the recorded range (or `--to`), validates and scans it, runs upgrade steps, updates the lock config |
+| `hax plugin schedule run [--site]` | Runs due scheduled jobs once (meant for system cron) |
 | `hax plugin log [<id>] [--site] [--level]` | Reads the unified log (needs the log plugin) |
 | `hax plugin create`, `add <piece> <name>`, `build`, `validate`, `audit`, `pack` | Authoring commands (below) |
 

@@ -11,7 +11,7 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 | `themes/` | theme list (`coreConfig/themes.json` today) | one YAML or JSON file per theme, same fields |
 | `skeletons/` | skeleton list | existing skeleton JSON |
 | `elements/` | tag-to-file registry (`wc-registry.json`) | one file per tag; `role: block` (insertable, needs `haxProperties`) or `injected` (page singleton, none needed) |
-| `locales/` | languages and message overlays | `en.yaml` with only changed keys, merged per key with fallback |
+| `locales/` | languages and message overlays | `en.yaml` with only changed keys, merged per key with fallback; when two plugins set the same key, hook priority then the cascade decides, with an overwrite warning |
 | `merlin/` | Merlin (super-daemon) options and programs | one YAML declaration per option; `kind: static\|api\|module` (7.2) |
 | `appstore/` | the HAX editor appstore (media providers, upload targets, reusable stax, autoloaded blocks) | JSON fragments of the appstore payload, validated by https://github.com/haxtheweb/appstore-spec (7.4) |
 | `forms/` | reserved: extensions to existing core forms; plugin settings default to their own panel (see 7.1) | additional fields |

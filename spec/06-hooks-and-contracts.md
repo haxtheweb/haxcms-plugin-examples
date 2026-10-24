@@ -19,7 +19,7 @@ Every lifecycle has a before hook and an after hook. **Before** hooks run before
 | Registration (boot) | `register.routes`, `register.entities`, `register.contracts` |
 | Render | `render.before`, `render.head`, `render.content`, `render.body.start`, `render.body.end`, `render.after` (the page render pipeline; static publish runs the same stages) |
 | Managed files | `rebuild.before`, `rebuild.after` |
-| Schedule | `schedule.run` (hook defined; runner reserved) |
+| Schedule | `schedule.run` (runner below) |
 
 Semantics:
 - Chains run in order: required plugins first, then tier low to high, then `priority` (default 0), then alphabetical.
@@ -94,3 +94,11 @@ Plugins on the same hook run by `priority` (higher first; every subscription def
 ## Configuration hooks
 
 Plugin configuration (CMI) is on its way to being an entity like any other piece of core. `config.before.read`, `config.after.read`, `config.before.save` (validate, normalize or veto) and `config.after.save` (react, such as clearing a cache) fire for settings reads and writes from the dashboard, the CLI (`hax plugin config set`) or an install migration. A subscription's `config` list picks whose config it sees: omitted means the plugin's own; plugin ids for specific others (a plugin adjusting itself when another's setting changes); `["*"]` for every config read and write (a backup or audit plugin; uncommon, and read hooks on `*` are costly). The subject is `{ plugin, scope, values }` with `ctx.previous` holding the old values. `plugin.requirements` is re-evaluated after every save, so a plugin waiting on a setting activates as soon as it is set.
+
+## Disable cleanup
+
+On disable, core clears render caches and rebuilds managed outputs (registries, page shells, static files) without the plugin. Anything else the plugin set up is its own to tear down in `plugin.before.disable` / `plugin.after.disable`, and to set up again in the enable hooks. Data is kept until uninstall.
+
+## Scheduled jobs
+
+The preferred runner is the CLI from system cron: `hax plugin schedule run [--site]` runs due `schedule.run` subscriptions once and exits, with a lock so overlapping runs skip. For hosts without cron, an optional plugin can drive the same runner from page requests and a timer (like Drupal's automated cron). Jobs are idempotent, time-bounded and logged. A statically published site runs no schedules.
