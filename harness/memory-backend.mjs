@@ -569,7 +569,7 @@ export class MemoryBackend {
       const ctx = this.makeCtx(p, { subject: input });
       try {
         const r = await this.invoke(p, "contract", `${name}#${op}`, ctx, [input]);
-        if (!r.missing) results.push({ plugin: p.id, result: r.value });
+        if (!r.missing) results.push({ plugin: p.id, result: r.value ?? null });
       } catch (e) { this.log.push({ level: "error", plugin: p.id, message: `${name}.${op}: ${e.message}` }); }
     }
     return results;

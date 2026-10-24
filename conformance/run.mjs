@@ -30,7 +30,8 @@ async function runCase(c) {
   await backend.load((r.plugins || []).map(fx), r.load || {});
   const errors = [];
   if (r.expect) errors.push(...check({ statusOf: Object.fromEntries(backend.status().map((x) => [x.id, x.status])), log: backend.log }, r.expect));
-  for (const [i, s] of (r.steps || []).entries()) { const res = await step(backend, s); errors.push(...res.errors.map((e) => `step ${i + 1}: ${e}`)); }
+  const vars = {};
+  for (const [i, s] of (r.steps || []).entries()) { const res = await step(backend, s, vars); errors.push(...res.errors.map((e) => `step ${i + 1}: ${e}`)); }
   return errors;
 }
 

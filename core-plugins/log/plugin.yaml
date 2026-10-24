@@ -1,0 +1,27 @@
+# Log: new, core and optional. Health chips work without it (core keeps counts and the last message); this plugin
+# keeps the history. Core hands it every entry through the log.sink contract, so core never names it.
+specVersion: "0.1.0"
+id: log
+uuid: 2d4f6a8c-0e2a-4d4f-6a8c-0e2a4d6f8a0c
+title: Log
+description: Keeps a rotating history of warnings and errors from HAXcms and its plugins, with a page to read it.
+version: 0.1.0
+category: administration
+icon: icons:list
+tags: [log, health]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+datastores: config/datastores.yaml
+implements: [log.sink]
+staticCapable: false
+schedules:
+  - id: rotate
+    cron: "0 0 1 * *"      # monthly, as decided; the period is a setting below
+    handler: rotate

@@ -31,8 +31,9 @@ async function runCase(c, runtime) {
   const steps = r.steps || [{ ...(r.call ? { call: r.call } : {}), ...(r.fire ? { fire: r.fire } : {}), expect: r.expect || {} }];
   const errors = [];
   const outs = [];
+  const vars = {};
   for (const [i, s] of steps.entries()) {
-    const res = await step(backend, s);
+    const res = await step(backend, s, vars);
     errors.push(...res.errors.map((e) => (steps.length > 1 ? `step ${i + 1}: ${e}` : e)));
     const { log, statusOf, ...rest } = res.out;
     outs.push(rest);

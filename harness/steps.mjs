@@ -2,9 +2,11 @@
 // cases (conformance/run.mjs). Returns { out, errors }.
 import { check } from "./expect.mjs";
 
-export async function step(backend, s) {
+// vars: values captured by earlier steps (`capture: { name: "body.token" }`), substituted into later steps as {{name}}
+export async function step(backend, raw, vars = {}) {
+  const s = JSON.parse(JSON.stringify(raw).replace(/\{\{\$(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]).replace(/"/g, '\\"') : m)));
   const out = {};
-  if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {} }, { credentials: s.call.credentials || "both" }));
+  if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {}, headers: s.call.headers || {} }, { credentials: s.call.credentials || "both" }));
   else if (s.fire) {
     const tx = s.fire.transaction ? { id: "t-fire", origin: s.fire.transaction.origin || "case", bulk: !!s.fire.transaction.bulk, operations: [], marks: {} } : undefined;
     const r = await backend.fire(s.fire.hook, s.fire.subject ?? null, { previous: s.fire.previous, entity: s.fire.entity, transaction: tx });
@@ -24,11 +26,12 @@ export async function step(backend, s) {
   else if (s.asUser) { backend.user = s.asUser; }
   else if (s.transaction) {
     let marks;
-    await backend.transaction(async (tx) => { for (const inner of s.transaction.steps || []) { const r = await step(backend, inner); if (r.errors.length) throw new Error(r.errors.join("; ")); } marks = tx.marks; }, { bulk: s.transaction.bulk !== false, origin: s.transaction.origin || "case" });
+    await backend.transaction(async (tx) => { for (const inner of s.transaction.steps || []) { const r = await step(backend, inner, vars); if (r.errors.length) throw new Error(r.errors.join("; ")); } marks = tx.marks; }, { bulk: s.transaction.bulk !== false, origin: s.transaction.origin || "case" });
     out.marks = marks;
   }
   if (backend.flushLog) await backend.flushLog();
   out.statusOf = Object.fromEntries(backend.status().map((x) => [x.id, x.status]));
   out.log = backend.log;
+  for (const [name, path] of Object.entries(s.capture || {})) vars[name] = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), out);
   return { out, errors: check(out, s.expect || {}) };
 }
