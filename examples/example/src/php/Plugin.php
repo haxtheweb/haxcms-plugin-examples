@@ -319,6 +319,19 @@ class ExamplePlugin {
     $this->log("manifest.after.save", $ctx);
   }
 
+  // validate or normalize a settings change (any plugin's config, filter by $ctx->subject['plugin']); veto to refuse
+  // hook: config.before.save
+  public function configBeforeSave($ctx) {
+    $this->log("config.before.save", $ctx);
+    return $ctx->subject;
+  }
+
+  // react to a settings change, e.g. clear a cache; requirements are re-evaluated after this
+  // hook: config.after.save
+  public function configAfterSave($ctx) {
+    $this->log("config.after.save", $ctx);
+  }
+
   // last chance to add files or adjust the commit message
   // hook: git.before.commit
   public function gitBeforeCommit($ctx) {

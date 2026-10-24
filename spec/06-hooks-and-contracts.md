@@ -90,3 +90,7 @@ Plugins on the same hook run by `priority` (higher first; every subscription def
 ## Requirements
 
 `plugin.requirements` runs before install and whenever status is recalculated (enable, settings save, dashboard load). Its subject is the list of unmet requirements so far; a hook returns the list with its own entries added (`{ key, message }`). A plugin with unmet requirements is **enabled but not active**: its hooks, routes and registries do not run until the list is empty. Required settings and the presence of a companion plugin are the common cases.
+
+## Configuration hooks
+
+Plugin configuration (CMI) is on its way to being an entity like any other piece of core. `config.before.save` (validate, normalize or veto) and `config.after.save` (react, such as clearing a cache) fire for every settings write from the dashboard, the CLI (`hax plugin config set`) or an install migration. The subject is `{ plugin, scope, values }` with `ctx.previous` holding the old values. `plugin.requirements` is re-evaluated after every save, so a plugin waiting on a setting activates as soon as it is set.

@@ -11,6 +11,8 @@
   "page.after.save",
   "manifest.before.save",
   "manifest.after.save",
+  "config.before.save",
+  "config.after.save",
   "git.before.commit",
   "git.after.commit",
   "rest.request",

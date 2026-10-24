@@ -58,3 +58,21 @@
   given: "two plugins on render.after, priority 10 and 0"
   when: "render"
   then: "priority 10 runs first; equal priorities follow the cascade"
+- id: load-105
+  title: "a site copy of a plugin overrides the system copy with a warning"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin x 1.0.0 at system, 1.1.0 at site"
+  when: "load for the site"
+  then: "1.1.0 used; warning names both versions"
+- id: load-106
+  title: "uninstall is refused while enabled and purges data when run"
+  spec: spec/09-packaging-tooling.md
+  given: "plugin enabled on one site with stored data"
+  when: "uninstall; then disable and uninstall"
+  then: "first refused; second runs uninstall hooks and removes the data and files"
+- id: load-107
+  title: "setting a required value activates the plugin"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin enabled/inactive waiting on settings.greeting"
+  when: "config set greeting hello"
+  then: "config.before.save and config.after.save fire; requirements re-run; status active"

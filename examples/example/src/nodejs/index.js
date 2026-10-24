@@ -215,6 +215,15 @@ export default {
     "manifest.after.save": async (ctx) => {
       log("manifest.after.save", ctx);
     },
+    // validate or normalize a settings change (any plugin's config, filter by ctx.subject.plugin); veto to refuse
+    "config.before.save": async (ctx) => {
+      log("config.before.save", ctx);
+      return ctx.subject;
+    },
+    // react to a settings change, e.g. clear a cache; requirements are re-evaluated after this
+    "config.after.save": async (ctx) => {
+      log("config.after.save", ctx);
+    },
     // last chance to add files or adjust the commit message
     "git.before.commit": async (ctx) => {
       log("git.before.commit", ctx);

@@ -14,18 +14,18 @@ Everything the dashboard can do, the CLI can do, at system level or for one site
 
 | Command | What it does |
 |---|---|
-| `hax plugin install <@scope/name[@range]\|git-url\|path>` | Fetches the plugin and places it in the right plugins directory for the tier (`--tier site\|system`); validates; leaves it `available`, not enabled |
+| `hax plugin install <@scope/name[@range]\|git-url\|path>` | Fetches the plugin (npm, git, path, or a tarball from `hax plugin pack` for offline servers) and places it in the plugins directory for the tier. Without `--tier`, it asks, defaulting to system (also the default when not inside a site). Validates and runs the `exec` scan. Then asks whether to enable it, for this site when run inside one; `--enable [--site]` scripts that. Records the installed version and range in the CMI lock config for the scope it was installed in |
 | `hax plugin enable <id> [--site]` | Enables (auto-enables dependencies after confirmation); runs `plugin.requirements` and reports `active` or `inactive` with what is missing |
 | `hax plugin disable <id> [--site]` | Disables; refused with the dependents or sites using its theme |
-| `hax plugin uninstall <id>` | Runs uninstall hooks, removes plugin data after confirmation, removes the files; refused while enabled anywhere |
+| `hax plugin uninstall <id>` | Only after disable, and refused while enabled anywhere. Runs uninstall hooks and purges the plugin's data by design, then removes the files |
 | `hax plugin config get\|set\|unset <id> <key> [value] [--site]` | Reads or writes the plugin's CMI settings, validated against its settings schema; secrets are write-only |
 | `hax plugin status [<id>] [--site]` | Status, health, unmet requirements, dependents, conflicts |
 | `hax plugin list [--site] [--enabled\|--available]` | Plugins with tier, version, status and health |
-| `hax plugin update <id> [--to <range>]` | Fetches a newer version and runs upgrade steps |
+| `hax plugin update <id> [--to <range>]` | Fetches a newer version within the recorded range (or `--to`), validates and scans it, runs upgrade steps, updates the lock config |
 | `hax plugin log [<id>] [--site] [--level]` | Reads the unified log (needs the log plugin) |
 | `hax plugin create`, `add <piece> <name>`, `build`, `validate`, `audit`, `pack` | Authoring commands (below) |
 
-So `hax plugin install @haxtheweb/announcements` then `hax plugin enable announcements --site mysite` is the whole flow for one site.
+The typical flow is install at system, enable per site: from inside a site, `hax plugin install @haxtheweb/announcements --tier system --enable --site .` (or the same in two commands). The validator and `exec` scan run at install and update, so a plugin that would brick the system never lands; `enable` does not repeat them. The lock config (CMI, per scope) lists each plugin's source, installed version and accepted range.
 
 
 - **Dashboard:** a Plugins area under system admin, simple for now: every plugin with tier, version, group, lifecycle, enabled, required, locked, warnings, capabilities and privacy summary, pillar verdict, and a link to its configuration (settings form or admin panel). Locked plugins cannot be toggled.
