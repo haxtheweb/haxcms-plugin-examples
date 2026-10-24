@@ -1,0 +1,10 @@
+- id: data-store-001
+  title: "upgrade 0002 moves votes into the siteData store"
+  given: "site with votes in the 0.1.0 location"
+  when: "upgrade to 0.2.0 and enable"
+  then: "votes readable from the siteData store keyed by the site id; old location empty"
+- id: data-store-002
+  title: "user data is only readable by its owner"
+  given: "two users with stored preferences"
+  when: "user A reads user B's record"
+  then: "403"

@@ -89,6 +89,7 @@ hooks:
   - name: register.routes
   - name: register.entities
   - name: register.contracts
+  - name: register.prompts
   - name: render.before
   - name: render.head
   - name: render.content

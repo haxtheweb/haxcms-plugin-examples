@@ -47,6 +47,7 @@
   "register.routes",
   "register.entities",
   "register.contracts",
+  "register.prompts",
   "render.before",
   "render.head",
   "render.content",

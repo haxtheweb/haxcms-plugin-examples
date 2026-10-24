@@ -35,6 +35,7 @@ const validators = {
   entities: own("entities.schema.json"),
   locale: own("locale-overlay.schema.json"),
   prompts: own("prompts.schema.json"),
+  testCases: own("test-case.schema.json"),
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const knownCaps = new Set(readJson(join(root, "schema/capabilities.json")));
@@ -56,6 +57,7 @@ function derivedTags(m) {
   if (m.kind !== "pack" && (m.runtimes || []).length === 1) t.push("single-runtime");
   if (m.privacy && m.privacy.tracking === true) t.push("tracks-users");
   if (["experimental", "deprecated", "obsolete"].includes(m.lifecycle)) t.push("not-stable");
+  if (m.untested === true) t.push("untested");
   return t;
 }
 function frontmatter(text) {
@@ -218,6 +220,17 @@ function validatePlugin(manifestPath) {
       if (!validators.prompts(pd)) fmt(validators.prompts.errors).forEach((e) => err(`${m.docs.prompts}${e.path === "/" ? "" : e.path}`, e.message));
       else for (const [i, pr] of pd.prompts.entries()) if (pr.skill && !(m.skills || []).some((k) => k.name === pr.skill)) err(`${m.docs.prompts}/prompts/${i}/skill`, `unknown skill "${pr.skill}"`);
     }
+  }
+  // tests: required unless explicitly untested; code-free packs are exempt
+  const testsDir = join(dir, m.tests || "tests");
+  const hasCode = Object.keys(m.entry || {}).length || listFiles(join(dir, "frontend/dist"), [".js", ".mjs"]).length;
+  const caseFiles = listFiles(join(testsDir, "cases"), [".yaml", ".yml"]);
+  if (m.untested === true) { if (caseFiles.length) warn("/untested", "untested is true but test cases exist; remove the flag"); }
+  else if (hasCode && !caseFiles.length) err("/tests", `no test cases in ${m.tests || "tests"}/cases; add tests or set untested: true (shown as untested)`);
+  for (const f of caseFiles) {
+    const doc = readAny(f);
+    if (!validators.testCases(doc)) { fmt(validators.testCases.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
+    for (const [i, c] of doc.entries()) if (c.hook && !(m.hooks || []).some((h) => h.name === c.hook)) err(`${rel(f)}/${i}/hook`, `case tests "${c.hook}" but the plugin does not subscribe to it`);
   }
   for (const [i, sc] of (m.screenshots || []).entries()) if (!existsSync(join(dir, sc.src))) err(`/screenshots/${i}/src`, `file not found: ${sc.src}`);
   for (const [i, tg] of (m.tags || []).entries()) if (derivedTagNames.includes(tg)) err(`/tags/${i}`, `"${tg}" is a derived tag; it is computed from the manifest and cannot be set by hand`);

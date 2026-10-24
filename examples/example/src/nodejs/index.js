@@ -163,6 +163,12 @@ export default {
     "register.contracts": async (ctx) => {
       log("register.contracts", ctx);
     },
+    // fired by whatever shows prompts (the plugin screen, the optional MCP plugin); subject is the list loaded from docs/prompts.yaml
+    // return it with additions, e.g. a prompt that only makes sense in the current state
+    "register.prompts": async (ctx) => {
+      log("register.prompts", ctx);
+      return ctx.subject;
+    },
     // serve a cached document by returning ctx.respond(html), or prepare the render context (site, page, theme)
     "render.before": async (ctx) => {
       log("render.before", ctx);

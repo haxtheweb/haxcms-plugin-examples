@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haxtheweb.org/schema/haxcms-plugin/test-case.schema.json",
+  "title": "Plugin test cases",
+  "description": "The plugin's own behavior cases, in the same shape as the spec's conformance cases, run against both runtimes by the plugin test harness.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "title",
+      "given",
+      "when",
+      "then"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "hook": {
+        "type": "string",
+        "description": "Hook under test, when the case is about one."
+      },
+      "operation": {
+        "type": "string",
+        "description": "OpenAPI operationId under test."
+      },
+      "runtimes": {
+        "type": "array",
+        "items": {
+          "enum": [
+            "nodejs",
+            "php"
+          ]
+        },
+        "description": "Defaults to every runtime the plugin lists."
+      },
+      "given": {
+        "type": "string"
+      },
+      "when": {
+        "type": "string"
+      },
+      "then": {
+        "type": "string"
+      }
+    }
+  }
+}

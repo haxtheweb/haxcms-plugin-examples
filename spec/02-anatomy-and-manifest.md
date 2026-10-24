@@ -46,11 +46,12 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `core` | shipped with the platform |
 | `required` | core only: auto-enabled, cannot be disabled, cannot be supplanted |
 | `category` | one category from `schema/categories.json` (`other` when none fits); required by the audit |
-| `tags` | up to three free-form author tags for search and filtering (exactly one `category`, plus tags). **Derived tags** (`schema/derived-tags.json`: needs-server, runs-commands, sends-data-out, stores-secrets, injects-output, writes-files, reads-user-data, single-runtime, tracks-users, not-stable) are computed from the manifest and always shown, because they carry security or longevity implications; authors cannot set or hide them |
+| `tags` | up to three free-form author tags for search and filtering (exactly one `category`, plus tags). **Derived tags** (`schema/derived-tags.json`: needs-server, runs-commands, sends-data-out, stores-secrets, injects-output, writes-files, reads-user-data, single-runtime, tracks-users, not-stable, untested) are computed from the manifest and always shown, because they carry security or longevity implications; authors cannot set or hide them |
 | `icon` | an iconset name or a path to an image in the plugin (see https://github.com/haxtheweb/issues/issues/3173); required by the audit |
 | `screenshots` | optional images (`src`, `alt`) for the dashboard and registry |
 | `docs` | `readme` (default `README.md`) and `agents` (default `AGENTS.md`), both required by the audit; optional `prompts` file and `help` URL (spec/07, Plugin screen) |
 | `skills` | agent skills under `skills/<name>/SKILL.md` with an `audience` (spec/07, Skills) |
+| `tests`, `untested` | tests folder (default `tests`), required by the audit unless `untested: true`, shown as the derived tag `untested` (spec/07, Tests) |
 | `defaultEnabled` | initial state when discovered (the example plugin: false) |
 | `hidden` | not listed in the dashboard (helpers, test fixtures) |
 | `lifecycle`, `lifecycleLink` | `stable` (default), `experimental`, `deprecated`, `obsolete`; deprecated and obsolete require a docs link. Dashboard badge and enable-time warning; obsolete is refused |

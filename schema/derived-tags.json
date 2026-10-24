@@ -8,5 +8,6 @@
   "reads-user-data": "users or userData capability",
   "single-runtime": "only one of nodejs/php (non-pack)",
   "tracks-users": "privacy.tracking is true",
-  "not-stable": "lifecycle is experimental, deprecated or obsolete"
+  "not-stable": "lifecycle is experimental, deprecated or obsolete",
+  "untested": "untested is true"
 }

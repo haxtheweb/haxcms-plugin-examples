@@ -8,6 +8,8 @@ paths:
     get:
       operationId: exampleListExplosions
       summary: List explosions (authenticated)
+      # offered as an MCP tool when the optional MCP plugin is enabled; the caller's own permissions still apply
+      x-hax-mcp: true
       security:
         - bearerAuth: []
           userTokenHeader: []

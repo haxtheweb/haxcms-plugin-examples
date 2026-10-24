@@ -1,0 +1,18 @@
+- id: example-001
+  title: "a boring item is vetoed"
+  hook: entity.before.create
+  given: "item with name boring.awesome"
+  when: "create"
+  then: "operation fails with 'Too boring'"
+- id: example-002
+  title: "missing greeting keeps the plugin inactive"
+  hook: plugin.requirements
+  given: "settings.greeting empty"
+  when: "enable"
+  then: "status enabled/inactive with requirement settings.greeting"
+- id: example-003
+  title: "public ping answers without auth"
+  operation: examplePing
+  given: "no token"
+  when: "GET /v1/plugins/example/public/ping"
+  then: "200"

@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+0w. **MCP, prompts hook, upgrades, tests.** Optional core MCP plugin; operations opt in with `x-hax-mcp: true`. `register.prompts` collects prompts for the plugin screen and MCP. Generic upgrade skill plus optional per-plugin upgrade prompts. Tests required (`tests/cases/*.yaml` plus runtime tests) unless `untested: true`, shown as a derived tag.
 0v. **AGENTS.md, prompts, skill audiences, tag limit.** AGENTS.md required like the README. Plugin screen shows README, skill links and copyable prompts (`docs/prompts.yaml`), with diagnose prompts next to the health chip. Skills: site, system (front-end discovery) and developer (read from the package, not duplicated). One category plus up to three author tags.
 0u. **Discovery metadata and skills.** `category` (required, `other` allowed), `icon` (required), `docs.readme` (required), optional `screenshots`, author `tags` plus derived tags computed from the manifest that authors cannot set or hide. Plugin `skills` with `audience: site` (published into the site's `.well-known/agent-skills` while enabled) or `developer` (package only).
 0t. **Disable cleanup, static, locales, scheduler.** Core clears caches and rebuilds managed outputs on disable; plugins tear down their own setup in disable hooks. `staticCapable: false` is a visible "needs a server" tag and a publish warning; the validator warns when routes exist without it. Two plugins overriding one locale key: priority wins, with a warning. Scheduler: CLI from cron preferred; an optional plugin can drive it from page requests and a timer; none on static sites.
@@ -30,6 +31,7 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
+15. **Plugin test harness.** Case format is set; the runner that executes a plugin's cases in both runtimes (shared with the spec conformance runner, item 0k) is not written.
 14. **`defaultEnabled` meaning** for contrib plugins (core required plugins are simply on).
 12. **Roles and permissions** for who sees health, the log, and who may install, enable and configure plugins at each scope.
 13. **Merlin options from an endpoint.** Declarations stay and frontend registration is allowed. A backend-served option listing is future work.

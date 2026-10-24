@@ -181,6 +181,16 @@
         "$ref": "#/$defs/pluginRef"
       }
     },
+    "tests": {
+      "type": "string",
+      "default": "tests",
+      "description": "Folder with the plugin's tests: cases/*.yaml (test-case.schema.json) plus runtime tests (nodejs/, php/). Required by the audit unless untested is true."
+    },
+    "untested": {
+      "type": "boolean",
+      "default": false,
+      "description": "Explicitly ships without tests. Shown as the derived tag 'untested' on the plugin screen and in listings."
+    },
     "core": {
       "type": "boolean",
       "default": false

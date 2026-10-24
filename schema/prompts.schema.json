@@ -48,6 +48,11 @@
           "prompt": {
             "type": "string",
             "description": "Placeholders: {{plugin.id}}, {{plugin.version}}, {{haxcms.version}}, {{runtime}}, {{scope}}, {{status}}, {{requirements}}, {{log}} (recent entries for this plugin, secrets never included)."
+          },
+          "mcp": {
+            "type": "boolean",
+            "default": true,
+            "description": "Offer this prompt through the MCP plugin's prompts feature when it is enabled."
           }
         }
       }
