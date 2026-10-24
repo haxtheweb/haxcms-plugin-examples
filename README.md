@@ -13,6 +13,7 @@ The architecture decisions and their log live in https://github.com/haxtheweb/is
 | `examples/` | `announcements` (the first real plugin: core, required, both runtimes with a parity test), the comprehensive teaching `example`, `minimal-pack`, `data-store` |
 | `skills/` | draft agent skills for building, auditing, upgrading and porting plugins |
 | `scripts/gen-example-hooks.py`, `scripts/hook-table.mjs` | regenerate the example's hook stubs and the spec/06 table from the hook contracts |
+| `harness/` | the reference harness: an in-memory implementation of the backend platform contract (spec/13) that runs plugins' executable cases in Node and PHP (`hax-plugin-test`) |
 | `conformance/` | language-neutral cases every backend must pass (runners come later) |
 | `tests/` | fixtures and the checks `npm test` runs, including each example's own tests and the Node/PHP parity run |
 

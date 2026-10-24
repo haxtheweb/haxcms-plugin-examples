@@ -1,36 +1,93 @@
+# Behavior cases for the example plugin. Cases with a `run` block are executable: `node harness/run-cases.mjs examples/example`
+# runs them in Node and PHP and checks both give the same result.
 - id: example-001
-  title: "a boring item is vetoed"
+  title: "a boring file is vetoed"
   hook: entity.before.create
-  given: "item with name boring.awesome"
+  given: "an awesomeFile named boring.awesome"
   when: "create"
   then: "operation fails with 'Too boring'"
+  run:
+    settings: { greeting: Hi }
+    fire: { hook: entity.before.create, entity: awesomeFile, subject: { name: boring.awesome } }
+    expect: { veto: true, message: "Too boring" }
+- id: example-001b
+  title: "other files are not vetoed"
+  hook: entity.before.create
+  given: "an awesomeFile named loud.awesome"
+  when: "create"
+  then: "no veto"
+  run:
+    settings: { greeting: Hi }
+    fire: { hook: entity.before.create, entity: awesomeFile, subject: { name: loud.awesome } }
+    expect: { veto: false, subject: { name: loud.awesome } }
 - id: example-002
   title: "missing greeting keeps the plugin inactive"
   hook: plugin.before.requirements
   given: "settings.greeting empty"
-  when: "enable"
-  then: "status enabled/inactive with requirement settings.greeting"
+  when: "load"
+  then: "status inactive; its routes 404"
+  run:
+    call: { operation: examplePing }
+    expect: { status: 404, status_of: { example: inactive } }
 - id: example-003
-  title: "public ping answers without auth"
+  title: "public ping answers without credentials once active"
   operation: examplePing
-  given: "no token"
-  when: "GET /v1/plugins/example/public/ping"
-  then: "200"
+  given: "greeting set; no token"
+  when: "GET /x/api/v1/plugins/example/public/ping"
+  then: "200 { pong: true }"
+  run:
+    settings: { greeting: Hi }
+    call: { operation: examplePing, credentials: none }
+    expect: { status: 200, body: { pong: true }, status_of: { example: active } }
 - id: example-004
   title: "a bulk outline edit reindexes once"
   hook: page.after.save
-  given: "bulk transaction saving 20 pages"
-  when: "transaction ends"
-  then: "page.after.save marks example.reindex and returns; transaction.after.end logs one reindex"
+  given: "bulk transaction saving a page"
+  when: "page.after.save fires"
+  then: "the hook marks example.reindex instead of working"
+  run:
+    settings: { greeting: Hi }
+    fire: { hook: page.after.save, subject: { id: p1, title: One }, transaction: { bulk: true, origin: outline } }
+    expect: { marks: { example.reindex: true } }
 - id: example-005
   title: "the counter singleton carries the greeting from settings"
   hook: render.after.body
-  given: "settings.greeting is Hello"
+  given: "settings.greeting is Hello, apiKey is secret"
   when: "a page renders"
-  then: "body ends with <awesome-counter greeting=\"Hello\"> and no secret values appear in the HTML"
+  then: "body.end gets <awesome-counter greeting=\"Hello\">; the secret never appears"
+  run:
+    settings: { greeting: Hello, apiKey: s3cret-value }
+    fire: { hook: render.after.body, subject: { body: { start: [], end: [] } } }
+    expect: { contains: ["awesome-counter greeting=\\\"Hello\\\""], notContains: ["s3cret-value"] }
 - id: example-006
-  title: "explode fires the plugin's own hooks"
+  title: "explode fires the plugin's own hooks and another plugin can veto"
   operation: exampleExplode
-  given: "a subscriber vetoes example.before.explode"
-  when: "POST /v1/plugins/example/explosions"
-  then: "409 with the veto message; example.after.explode does not fire"
+  given: "the quiet-hours fixture subscribes to example.before.explode and vetoes"
+  when: "POST /x/api/v1/plugins/example/explosions"
+  then: "409 with the veto message; nothing stored"
+  runtimes: [nodejs]
+  run:
+    with: [harness/fixtures/quiet-hours]
+    settings: { greeting: Hi }
+    call: { operation: exampleExplode, body: { fileId: f1, size: 2 } }
+    expect: { status: 409, message: "Quiet hours" }
+- id: example-007
+  title: "explode stores an explosion when nobody vetoes"
+  operation: exampleExplode
+  given: "no subscribers"
+  when: "POST /explosions"
+  then: "200 with the new explosion"
+  run:
+    settings: { greeting: Hi }
+    call: { operation: exampleExplode, body: { fileId: f1, size: 2 } }
+    expect: { status: 200, body: { id: e1, fileId: f1, intensity: 2 } }
+- id: example-008
+  title: "the appstore broker refuses until an API key is set"
+  operation: exampleAppstoreBrowse
+  given: "no apiKey"
+  when: "GET /appstore/browse"
+  then: "503, no key leaked"
+  run:
+    settings: { greeting: Hi }
+    call: { operation: exampleAppstoreBrowse, query: { q: boom } }
+    expect: { status: 503, message: "not configured" }

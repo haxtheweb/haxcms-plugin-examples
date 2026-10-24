@@ -48,6 +48,167 @@
       },
       "then": {
         "type": "string"
+      },
+      "run": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Makes the case executable by any adapter (spec/13 section 9). Exactly one of call or fire.",
+        "properties": {
+          "haxcmsVersion": {
+            "type": "string",
+            "description": "Running HAXcms version for this case (default 26.10.1)."
+          },
+          "with": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other plugin folders to load alongside, relative to the repository root."
+          },
+          "settings": {
+            "type": "object",
+            "description": "Settings for the plugin under test."
+          },
+          "stores": {
+            "type": "object",
+            "description": "Store contents to start with, by store id (also replaces package stores)."
+          },
+          "call": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object"
+              },
+              "query": {
+                "type": "object"
+              },
+              "body": {},
+              "credentials": {
+                "enum": [
+                  "none",
+                  "jwt",
+                  "both"
+                ],
+                "default": "both",
+                "description": "none, JWT only, or JWT plus X-HAXCMS-User-Token."
+              }
+            }
+          },
+          "fire": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hook"
+            ],
+            "properties": {
+              "hook": {
+                "type": "string"
+              },
+              "subject": {},
+              "previous": {},
+              "entity": {
+                "type": "string"
+              },
+              "transaction": {
+                "type": "object",
+                "properties": {
+                  "bulk": {
+                    "type": "boolean"
+                  },
+                  "origin": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "expect": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "integer"
+              },
+              "body": {
+                "description": "Deep subset the response body must match."
+              },
+              "absent": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Keys that must not appear anywhere in the body or returned subject."
+              },
+              "contains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "notContains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "veto": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": "string",
+                "description": "Substring of the veto or error message."
+              },
+              "subject": {
+                "description": "Deep subset the returned subject must match."
+              },
+              "marks": {
+                "type": "object",
+                "description": "Subset of transaction marks after the hook."
+              },
+              "status_of": {
+                "type": "object",
+                "description": "Plugin status after loading, e.g. { example: inactive }."
+              }
+            }
+          }
+        },
+        "required": [
+          "expect"
+        ],
+        "not": {
+          "required": [
+            "call",
+            "fire"
+          ]
+        },
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "fire"
+            ]
+          },
+          {
+            "properties": {
+              "expect": {
+                "required": [
+                  "status_of"
+                ]
+              }
+            }
+          }
+        ]
       }
     }
   }

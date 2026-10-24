@@ -14,7 +14,7 @@ The goal is that plugins written once keep working, and that an agent can upgrad
 
 ## Before changing anything
 
-1. Run the plugin's tests and record the results. If they fail before you start, report that first; do not upgrade on a red baseline.
+1. Run the plugin's tests (`hax-plugin-test <folder>` plus any `node --test` files) and record the results. If they fail before you start, report that first; do not upgrade on a red baseline.
 2. Note the current `specVersion`, plugin `version`, and `requires.haxcms` range.
 3. Read every `spec/CHANGELOG.md` entry between the plugin's `specVersion` and the target. Each lists renamed keys, renamed hooks and the recipe to apply.
 4. Read the plugin's `AGENTS.md` "Upgrade notes" and any `kind: upgrade` prompts in `docs/prompts.yaml`.

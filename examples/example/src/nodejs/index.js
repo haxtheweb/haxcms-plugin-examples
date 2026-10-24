@@ -1,8 +1,37 @@
-// Example plugin (Node). Placeholder until the loader exists: every hook in schema/hooks.json is implemented.
-// Each body logs; the comment says what you could do there.
-const log = (name, ctx) => console.log(`[example] ${name}`, ctx && ctx.subject ? ctx.subject : "");
+// Example plugin (Node). Implements every operation in config/openapi.yaml and every hook in schema/hooks.json.
+// Most hook bodies only log; the comment says what you could do there. The contract for ctx is spec/13.
+const log = (name, ctx) => (ctx && ctx.log ? ctx.log.info(name) : console.log(`[example] ${name}`));
 
 export default {
+  // Route handlers, keyed by operationId: (ctx, request) => { status, headers?, body } or a plain body (200).
+  operations: {
+    // the tally store (site scope) keeps the explosions this site has had
+    async exampleListExplosions(ctx, req) {
+      const all = (await ctx.storage.read("tally")) || [];
+      const q = String(req.query.q || "").toLowerCase();
+      const items = q ? all.filter((e) => e.name.toLowerCase().includes(q)) : all;
+      return { items, total: items.length };
+    },
+    // fires this plugin's own hooks so other plugins can adjust or veto (config/hooks.yaml)
+    async exampleExplode(ctx, req) {
+      const before = await ctx.hooks.fire("example.before.explode", { fileId: req.body.fileId, size: Number(req.body.size) || 1 });
+      if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
+      const all = (await ctx.storage.read("tally")) || [];
+      const explosion = { id: `e${all.length + 1}`, name: `Explosion ${all.length + 1}`, fileId: before.subject.fileId, intensity: before.subject.size };
+      await ctx.storage.write("tally", [...all, explosion]);
+      await ctx.hooks.fire("example.after.explode", { fileId: explosion.fileId, size: explosion.intensity, at: explosion.id });
+      return explosion;
+    },
+    async examplePing() {
+      return { pong: true };
+    },
+    // brokers the appstore search so the API key never reaches the browser
+    async exampleAppstoreBrowse(ctx, req) {
+      if (!ctx.settings.apiKey) return { status: 503, body: { error: "The example appstore is not configured" } };
+      const res = await ctx.fetch(`https://example.invalid/api/explosions?q=${encodeURIComponent(req.query.q || "")}`, { headers: { "x-api-key": ctx.settings.apiKey } });
+      return { status: res.status, body: await res.json() };
+    },
+  },
   // scheduled job declared in plugin.yaml schedules; keep it idempotent and time-bounded
   async tidy(ctx) {
     log("schedule tidy", ctx);

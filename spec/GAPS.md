@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+1i. **Backend platform contract written** (spec/13: layout, loader lifecycle, entry points, `ctx` including `hooks.fire`, operations, hook dispatch, settings and secrets paths, served surfaces, adapters). **Reference harness** (`harness/`): executable `run` blocks in plugin test cases, run in Node and PHP with parity; announcements 30/30 and example 25/25 checks pass. The example now implements its operations in both runtimes and declares `network:egress` for the appstore broker.
 1h. **CLI aliases.** Plugin commands may declare a top-level `alias` (`hax whats-new`); core command names are reserved; colliding aliases between plugins are dropped with a warning.
 1g. **Separation made explicit.** Core never names a plugin: front-end extension points (dashboard slots and contributions, Merlin, blocks, appstore, contract-registered operations, generic events) and CLI commands contributed through `registries/cli/` as `hax <plugin id> <command>`. One contributions endpoint for the dashboard. Conformance cases: a disabled plugin leaves no trace; core source contains no plugin references. A small DDD chip element is the plan for badges; `accent-card` for modal cards for now.
 1f. **Plugins reuse platform UI.** Dashboard contributions (`registries/dashboard/`) are declared as data and rendered by app-hax with existing elements; announcements ships no front-end code. Merlin opens them with `hax-dashboard-open`. Rendering contributions is future app-hax work.
@@ -43,9 +44,7 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 
 ## Need a decision
 19. **Front-end work implied (webcomponents).** app-hax renders dashboard contributions and slots, registers operations from the unified contract, and listens for `hax-dashboard-open`; a small DDD chip element. Belongs to the later draft PRs.
-18. **Loader `ctx` surface.** The examples now assume `ctx.storage.read/write`, `ctx.package.read`, `ctx.haxcms.version`, `ctx.log.info/warn/error`, `ctx.veto`, `ctx.settings`, `ctx.transaction`, `ctx.pluginEnabled`; route handlers get `(ctx, { params, query, body, headers })` and return `{ status, headers?, body }`. Accepted for now; to be written down as part of the HAX backend platform contract.
-16. **HAX backend platform contract (named).** Backend-only: core config, file templates, plugin loader, hooks, stores, routes; separate from front-end asset production. Shape still to specify.
 17. **Skeleton `site.plugins`** needs a PR to https://github.com/haxtheweb/json-outline-schema.
-15. **Plugin test harness.** Case format is set; the runner that executes a plugin's cases in both runtimes (shared with the spec conformance runner, item 0k) is not written.
+15. **Backend adapters.** The reference harness runs executable cases in memory (Node and PHP). Adapters for the real haxcms-nodejs (in-process) and haxcms-php (CLI bridge) backends come with the draft backend PRs.
 12. **Roles and permissions** for who sees health, the log, and who may install, enable and configure plugins at each scope.
 13. **Merlin options from an endpoint.** Declarations stay and frontend registration is allowed. A backend-served option listing is future work.

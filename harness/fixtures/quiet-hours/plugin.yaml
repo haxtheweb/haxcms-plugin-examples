@@ -1,0 +1,18 @@
+# Test fixture: subscribes to a hook another plugin defines (example.before.explode) and vetoes it.
+# Used by examples/example/tests/cases to prove plugin-defined hooks reach other plugins.
+specVersion: "0.1.0"
+id: quiet-hours
+uuid: 5e0d2c7a-1b4f-4e8a-9c3d-7f6a2b1e0d94
+title: Quiet hours (test fixture)
+description: Vetoes explosions. Exists only for the harness tests.
+version: 0.1.0
+category: developer
+icon: icons:bedtime
+hidden: true
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+dependencies: [example]
+hooks:
+  - name: example.before.explode

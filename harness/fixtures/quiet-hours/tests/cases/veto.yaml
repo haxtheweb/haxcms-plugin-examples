@@ -1,0 +1,6 @@
+- id: quiet-hours-001
+  title: "vetoes explosions"
+  hook: example.before.explode
+  given: "any explosion"
+  when: "example fires example.before.explode"
+  then: "vetoed with the quiet hours message"

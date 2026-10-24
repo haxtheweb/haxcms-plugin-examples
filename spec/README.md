@@ -14,6 +14,7 @@ Status: draft for review. Each document is a section of the decision issue https
 | [08-capabilities-privacy](08-capabilities-privacy.md) | capabilities, privacy, cookie-consent flow |
 | [09-packaging-tooling](09-packaging-tooling.md) | packaging, dashboard, CLI, audit, pillar report |
 | [11-related-schemas](11-related-schemas.md) | existing HAX schemas the spec reuses |
+| [13-backend-platform-contract](13-backend-platform-contract.md) | what every backend implements: layout, loader lifecycle, entry points, `ctx`, operations, hook dispatch, settings, adapters |
 | [12-plugin-candidates](12-plugin-candidates.md) | candidate core and contrib plugins, what moves out of core, priority |
 | [GAPS](GAPS.md) | open decisions and holes found while building the examples |
 | [CHANGELOG](CHANGELOG.md) | spec changes with upgrade recipes |

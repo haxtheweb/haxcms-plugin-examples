@@ -47,7 +47,8 @@ Required for every plugin: `plugin.yaml`, `README.md` (people), `AGENTS.md` (age
 ## 4. Test
 
 - Uncomment and complete the generated cases in `tests/cases/*.yaml` (`hook` or `operation` under test, given, when, then).
-- Add runtime tests (`tests/nodejs/*.test.mjs`); for code in both runtimes add a parity run so Node and PHP must agree.
+- Give cases a `run` block (a `call` or a `fire` plus `expect`) so they execute: `hax-plugin-test <folder>` (or `node harness/run-cases.mjs <folder>` from the spec repo) runs them in Node and PHP and fails if the two disagree. See `harness/README.md`.
+- Add runtime unit tests (`tests/nodejs/*.test.mjs`) for logic worth testing directly.
 
 ## 5. Validate and hand off
 

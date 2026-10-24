@@ -15,7 +15,8 @@
     "url": "https://github.com/haxtheweb/issues/issues"
   },
   "bin": {
-    "hax-plugin-validate": "scripts/validate.mjs"
+    "hax-plugin-validate": "scripts/validate.mjs",
+    "hax-plugin-test": "harness/run-cases.mjs"
   },
   "files": [
     "schema/",
@@ -23,7 +24,8 @@
     "spec/",
     "conformance/",
     "examples/",
-    "skills/"
+    "skills/",
+    "harness/"
   ],
   "exports": {
     "./schema/*": "./schema/*",

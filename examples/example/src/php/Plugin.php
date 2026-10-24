@@ -1,8 +1,40 @@
 <?php
-// Example plugin (PHP). Placeholder until the loader exists: every hook in schema/hooks.json is implemented.
-// Each body logs; the comment says what you could do there.
+// Example plugin (PHP). Mirrors src/nodejs/index.js: one public method per operationId and per hook (spec/13).
+// Most hook bodies only log; the comment says what you could do there.
 class ExamplePlugin {
-  private function log($name, $ctx = null) { error_log("[example] " . $name); }
+  private function log($name, $ctx = null) {
+    if ($ctx && isset($ctx->log)) { $ctx->log->info($name); } else { error_log("[example] " . $name); }
+  }
+
+  // --- Route handlers, named by operationId ---------------------------------
+  public function exampleListExplosions($ctx, $req) {
+    $all = $ctx->storage->read('tally') ?: [];
+    $q = strtolower((string) ($req['query']['q'] ?? ''));
+    $items = $q === '' ? $all : array_values(array_filter($all, function ($e) use ($q) { return strpos(strtolower($e['name']), $q) !== false; }));
+    return ['items' => $items, 'total' => count($items)];
+  }
+
+  public function exampleExplode($ctx, $req) {
+    $before = $ctx->hooks->fire('example.before.explode', ['fileId' => $req['body']['fileId'] ?? null, 'size' => (int) ($req['body']['size'] ?? 1) ?: 1]);
+    if (!empty($before['veto'])) { return ['status' => $before['veto']['status'] ?? 409, 'body' => ['error' => $before['veto']['message']]]; }
+    $all = $ctx->storage->read('tally') ?: [];
+    $n = count($all) + 1;
+    $explosion = ['id' => "e$n", 'name' => "Explosion $n", 'fileId' => $before['subject']['fileId'], 'intensity' => $before['subject']['size']];
+    $all[] = $explosion;
+    $ctx->storage->write('tally', $all);
+    $ctx->hooks->fire('example.after.explode', ['fileId' => $explosion['fileId'], 'size' => $explosion['intensity'], 'at' => $explosion['id']]);
+    return $explosion;
+  }
+
+  public function examplePing($ctx, $req) {
+    return ['pong' => true];
+  }
+
+  public function exampleAppstoreBrowse($ctx, $req) {
+    if (empty($ctx->settings['apiKey'])) { return ['status' => 503, 'body' => ['error' => 'The example appstore is not configured']]; }
+    $res = $ctx->fetch('https://example.invalid/api/explosions?q=' . rawurlencode($req['query']['q'] ?? ''), ['headers' => ['x-api-key' => $ctx->settings['apiKey']]]);
+    return ['status' => $res['status'], 'body' => $res['json']];
+  }
 
   // scheduled job declared in plugin.yaml schedules; keep it idempotent and time-bounded
   public function tidy($ctx) {

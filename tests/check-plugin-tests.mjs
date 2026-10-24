@@ -32,4 +32,13 @@ for (const name of readdirSync(join(root, "examples"))) {
     console.log(`${diffs.length ? "FAIL" : "ok  "} ${name}: node/php parity (${n.length} calls${diffs.length ? `, differ at ${diffs.join(", ")}` : ""})`);
   }
 }
+// executable cases through the reference harness (Node and PHP, plus parity)
+for (const name of readdirSync(join(root, "examples"))) {
+  const dir = join(root, "examples", name);
+  if (!existsSync(join(dir, "tests/cases"))) continue;
+  const r = spawnSync(process.execPath, [join(root, "harness/run-cases.mjs"), dir], { encoding: "utf8" });
+  const summary = r.stdout.trim().split("\n").pop();
+  if (r.status !== 0) { failures++; console.log(r.stdout.split("\n").filter((l) => l.startsWith("FAIL") || l.startsWith("      ")).join("\n")); }
+  console.log(summary.replace(/^(ok  |FAIL) /, `$1harness: `));
+}
 process.exit(failures ? 1 : 0);

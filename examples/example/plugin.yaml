@@ -53,7 +53,8 @@ tagPrefix: awesome-                  # every element and theme tag it ships must
 
 # --- Safety and pillars (shown to admins; several become derived tags) -------
 staticCapable: false         # routes and the Merlin api program need a server: shown as "needs a server"
-capabilities: ["items:read", "files:read", "output:inject", "settings:secret", "exec:run"]
+capabilities: ["items:read", "files:read", "output:inject", "settings:secret", "exec:run", "network:egress"]
+egress: [example.invalid]      # the only host ctx.fetch may reach (the appstore broker)
 exec: [rsync]                # the only commands it may run (needs exec:run); the validator scans code for others
 privacy:
   tracking: false            # true would require categories and consent

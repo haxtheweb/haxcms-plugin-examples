@@ -15,7 +15,7 @@ Spec: https://github.com/haxtheweb/haxcms-plugin-examples. Diagnose only; hand f
 ## Run
 
 1. `hax plugin validate <folder>` (or `node scripts/validate.mjs <folder>` from the spec repo). Record errors, warnings and derived tags.
-2. Run the plugin's tests: `tests/nodejs/*.test.mjs` with `node --test`, and the Node/PHP parity run when present. Note `untested: true`.
+2. Run the plugin's tests: `hax-plugin-test <folder>` for executable cases in both runtimes (parity included), and `tests/nodejs/*.test.mjs` with `node --test`. Note `untested: true` and cases with no `run` block.
 3. `hax audit schema <folder>` when available, for the HAX schemas inside it (haxProperties, skeletons, appstore, Merlin).
 
 ## Check
