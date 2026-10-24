@@ -64,6 +64,8 @@ function derivedTags(m) {
   if (["experimental", "deprecated", "obsolete"].includes(m.lifecycle)) t.push("not-stable");
   if (m.untested === true) t.push("untested");
   if (has("users:full")) t.push("full-user-records");
+  if ((m.egress || []).some((e) => e && e.any === true)) t.push("reaches-any-host");
+  if ([...(m.egress || []), ...((m.privacy && m.privacy.recipients) || [])].some((e) => e && e.setting)) t.push("admin-chosen-hosts");
   return t;
 }
 function frontmatter(text) {
@@ -183,6 +185,7 @@ function validatePlugin(manifestPath) {
     }
     for (const [i, d] of Object.entries(Object.values(ownHooks))) for (const a of d.aliasOf || []) if (!knownHooks.has(a.hook) && !ownHooks[a.hook]) err(`${m.hookDefinitions}/${i}/aliasOf`, `alias target "${a.hook}" is not a core hook or one this plugin defines`);
   }
+  for (const [i, h] of (m.hooks || []).entries()) if (h.stage !== undefined) { const st = (hookContracts[h.name] || {}).stages; if (!st) err(`/hooks/${i}/stage`, `${h.name} has no stages`); else if (!st.includes(h.stage)) err(`/hooks/${i}/stage`, `${h.name} stages are ${st.join(", ")}`); }
   for (const [i, h] of (m.hooks || []).entries()) if (h.detached && hookContracts[h.name] && !hookContracts[h.name].detachable) err(`/hooks/${i}/detached`, `${h.name} cannot be detached (${hookContracts[h.name].phase === "before" ? "before hooks run in the save path" : "the caller waits for its result"})`);
   const related = new Set([...(m.dependencies || []), ...(m.suggests || [])].map((d) => d.split("@")[0]));
   for (const [i, h] of (m.hooks || []).entries()) {
@@ -283,7 +286,7 @@ function validatePlugin(manifestPath) {
   for (const f of listFiles(join(dir, "registries/dashboard"), [".yaml", ".yml", ".json"])) {
     const d = readAny(f);
     if (!validators.dashboard(d)) { fmt(validators.dashboard.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
-    const used = [d.badge && d.badge.operation, ...d.action.sections.map((x) => x.operation)].filter(Boolean);
+    const used = [d.badge && d.badge.operation, ...(d.action.sections || []).map((x) => x.operation)].filter(Boolean);
     for (const o of used) if (!opIds.has(o)) err(rel(f), `operation "${o}" is not in ${m.openapi || "the plugin's openapi"}`);
   }
   const cmds = new Set();
@@ -301,8 +304,19 @@ function validatePlugin(manifestPath) {
     const d = readAny(f);
     if (d && d.program && d.program.kind === "api" && d.program.operation && !opIds.has(d.program.operation)) err(rel(f), `operation "${d.program.operation}" is not in ${m.openapi || "the plugin's openapi"}`);
   }
+  // declarative UI strings are translated by key: <registry>.<file id>.<dot path> (dashboard.first-steps.action.steps.0.title)
+  const declared = (reg, key) => {
+    const [r, id, ...path] = key.split(".");
+    if (r !== reg) return null;
+    const f = listFiles(join(dir, `registries/${reg}`), [".yaml", ".yml", ".json"]).map((x) => readAny(x)).find((x) => (x.id || x.command) === id);
+    if (!f) return "no-entry";
+    const v = path.reduce((o, k) => (o == null ? undefined : o[k]), f);
+    return typeof v === "string";
+  };
   for (const f of listFiles(join(dir, "registries/locales"), [".yaml", ".yml", ".json"])) {
-    if (!validators.locale(readAny(f))) fmt(validators.locale.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message));
+    const o = readAny(f);
+    if (!validators.locale(o)) { fmt(validators.locale.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
+    for (const k of Object.keys(o)) for (const reg of ["dashboard", "cli", "merlin"]) { const r = declared(reg, k); if (r === "no-entry") err(`${rel(f)}/${k}`, `no ${reg} entry "${k.split(".")[1]}" in this plugin`); else if (r === null) continue; else if (!r) err(`${rel(f)}/${k}`, `${k} does not name a text in that ${reg} entry`); }
   }
   const settingsPath = m.settings && join(dir, m.settings);
   if (settingsPath && existsSync(settingsPath)) {
@@ -390,6 +404,15 @@ function validatePlugin(manifestPath) {
       const props = new Set((readJson(join(dir, m.settings)).configure || []).map((f) => f.property));
       for (const k of Object.keys(readJson(dp))) if (!props.has(k)) err(rel(dp), `default for "${k}", which is not a field in ${m.settings}`);
     }
+  }
+  for (const [i, e] of (m.egress || []).entries()) if (typeof e === "object" && e.any) warn(`/egress/${i}`, `reaches any public host (${e.reason}); core still refuses private and link-local addresses, and deployments may refuse the plugin`);
+  for (const [i, e] of (m.egress || []).entries()) if (typeof e === "object" && !e.any) {
+    const f = m.settings && existsSync(join(dir, m.settings)) ? (readJson(join(dir, m.settings)).configure || []).find((x) => x.property === e.setting) : null;
+    if (!f) err(`/egress/${i}`, `egress setting "${e.setting}" is not a field in the settings form`);
+    else warn(`/egress/${i}`, `destinations come from the "${e.setting}" setting: admins choose where data goes, and deployments may forbid that`);
+  }
+  if (m.entities && existsSync(join(dir, m.entities))) for (const [type, meta] of Object.entries(readAny(join(dir, m.entities)).metadata || {})) {
+    for (const [i, f] of (meta.form || []).entries()) if (!(meta.fields || {})[f.property]) err(`${m.entities}/metadata/${type}/form/${i}`, `"${f.property}" is not a declared ${type} metadata field`);
   }
   if (m.privacy && m.privacy.consentSetting) {
     const f = m.settings && existsSync(join(dir, m.settings)) ? (readJson(join(dir, m.settings)).configure || []).find((x) => x.property === m.privacy.consentSetting) : null;

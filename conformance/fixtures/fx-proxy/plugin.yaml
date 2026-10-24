@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-proxy
+uuid: d25b715a-9869-5a7d-afbd-8d75df4a7bc1
+title: fx-proxy (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+openapi: openapi.yaml
+settings: settings.schema.json
+capabilities: ["network:egress", "settings:secret"]
+egress: [api.example.org]

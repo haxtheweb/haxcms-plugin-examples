@@ -27,6 +27,7 @@ capabilities: []
 hooks:
   - name: render.before
   - name: render.after
+    stage: store               # after anything that changes or signs the document
   - name: page.after.save
   - name: page.after.delete
   - name: manifest.after.save

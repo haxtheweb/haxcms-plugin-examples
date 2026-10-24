@@ -1,0 +1,2 @@
+stores:
+  - { id: media, scope: site, file: media.json }   # travels with the site

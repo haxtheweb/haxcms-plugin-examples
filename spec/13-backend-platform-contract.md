@@ -80,6 +80,8 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `files.writeManaged(path, content)` / `files.readManaged(path)` | everywhere | write a generated file into the site (service worker, discovery index); needs `output:managedFiles` and a path matching the manifest's `managedFiles` patterns (`*` within a folder, `**` across folders); one plugin owns each path |
 | `haxcms` | everywhere | `{ version, runtime }` (`runtime` is `nodejs` or `php`) |
 | `plugin` | everywhere | `{ id, version, scope }` of the running plugin |
+| `registries.theme(element)` | everywhere | the merged theme registry entry (core and active plugins) for a theme element, or `null`; read-only. Lets a plugin check, for example, `colorSchemes` before offering a dark mode |
+| `entityType` | entity hooks | the concrete entity type of the record (`file`, or `mediaItem` when a subscription to `file` sees an extending entity); `null` elsewhere |
 | `site` | site-scope calls | `{ id, name, path, url }`, otherwise `null`. `url` is the public base URL with a trailing slash: `metadata.site.domain` from `site.json`, else the deployment's domain plus the site's base path (the fallback core uses for feeds today) |
 | `now()` | everywhere | the current time in milliseconds. Plugins use it instead of the runtime clock so generated output is reproducible: test harnesses freeze it, and both backends then write identical files |
 | `user` | when a user is involved | the limited record (`id, name, displayName, roles, avatar`), the full record only with `users:full`, otherwise `null` |

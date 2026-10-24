@@ -1,0 +1,11 @@
+openapi: 3.1.0
+info: { title: API docs, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /openapi:
+    get:
+      operationId: apiDocsContract
+      summary: The combined OpenAPI document of active plugins (optionally one scope)
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ name: scope, in: query, schema: { enum: [site, system] } }]
+      responses: { "200": { description: OpenAPI 3.1 document } }

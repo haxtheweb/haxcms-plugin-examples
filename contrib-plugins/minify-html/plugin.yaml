@@ -1,0 +1,21 @@
+# Minify HTML (fake community plugin). Removes whitespace between tags and HTML comments in the final document
+# (render.after, stage transform), including inside inline scripts' surroundings but never their contents.
+specVersion: "0.1.0"
+id: minify-html
+uuid: 4e6a8c9d-1f3b-4d5e-8a8c-9d1f3b5e7a8c
+title: Minify HTML
+description: Makes published pages smaller by removing comments and whitespace between tags.
+version: 0.1.0
+category: performance
+icon: icons:compare-arrows
+tags: [minify, speed]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+staticCapable: true
+capabilities: ["output:inject"]
+hooks:
+  - name: render.after
+    stage: transform

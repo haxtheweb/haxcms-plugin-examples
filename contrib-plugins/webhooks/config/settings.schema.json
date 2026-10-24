@@ -1,0 +1,4 @@
+{ "configure": [
+  { "property": "endpoints", "title": "Send to", "description": "One https URL per line", "inputMethod": "textarea", "required": true },
+  { "property": "secret", "title": "Signing secret", "description": "Each message carries X-HAX-Signature: sha256=<HMAC of the body>", "inputMethod": "textfield", "required": true, "x-secret": true }
+] }

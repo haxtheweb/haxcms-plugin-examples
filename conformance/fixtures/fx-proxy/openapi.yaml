@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info: { title: fx-proxy, version: 0.1.0 }
+paths:
+  /search:
+    get:
+      operationId: fxProxySearch
+      security: [{ bearerAuth: [] }]
+      x-hax-proxy: { url: "https://api.example.org/v1/search", query: { key: "{{settings.key}}" }, pass: [q] }
+      responses: { "200": { description: OK } }

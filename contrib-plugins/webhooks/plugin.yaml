@@ -1,0 +1,30 @@
+# Webhooks (fake community plugin). Exercises egress whose hosts are chosen by admins at run time ({ setting }), HMAC
+# signing with a secret, and detached after hooks on page and site saves.
+specVersion: "0.1.0"
+id: webhooks
+uuid: 5f7b9d0e-2a4c-4e6f-9b9d-0e2a4c6f8b9d
+title: Webhooks
+description: Sends a signed JSON message to your own URLs whenever a page or the site changes.
+version: 0.1.0
+category: integration
+icon: icons:settings-ethernet
+tags: [webhooks, automation]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+staticCapable: false
+capabilities: ["network:egress", "settings:secret"]
+egress:
+  - setting: endpoints          # hosts come from the URLs admins enter
+hooks:
+  - name: config.before.save
+  - name: page.after.save
+    detached: true
+  - name: page.after.delete
+    detached: true
+  - name: manifest.after.save
+    detached: true

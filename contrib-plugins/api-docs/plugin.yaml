@@ -1,0 +1,19 @@
+# API docs (fake community plugin). Exercises a system-scope route, reading the unified contract
+# (ctx.plugins.contract), and what must never leave the server (x-hax-proxy details).
+specVersion: "0.1.0"
+id: api-docs
+uuid: 8c0e2a3b-5d7f-4b9c-8e2a-3b5d7f9c1e2a
+title: API docs
+description: Publishes the combined API of every active plugin as one OpenAPI document for developers.
+version: 0.1.0
+category: developer
+icon: icons:code
+tags: [openapi, developers]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: config/openapi.yaml
+staticCapable: false
+capabilities: []

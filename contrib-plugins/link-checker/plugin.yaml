@@ -1,0 +1,27 @@
+# Link checker (fake community plugin). Exercises egress to hosts nobody can list in advance ({ any: true } with a
+# reason, derived tag reaches-any-host), the SSRF guard that still applies, and a weekly schedule writing a report.
+specVersion: "0.1.0"
+id: link-checker
+uuid: 4c6e8a9b-1d3f-4b5c-8e8a-9b1d3f5c7e8a
+title: Link checker
+description: Checks the outside links on your public pages every week and lists the broken ones.
+version: 0.1.0
+category: content
+icon: icons:link
+tags: [links, maintenance]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+staticCapable: false
+capabilities: ["items:read", "network:egress"]
+egress:
+  - any: true
+    reason: "It checks whatever outside links authors put on pages, so the hosts cannot be listed in advance."
+schedules:
+  - id: check
+    cron: "17 3 * * 1"         # Mondays at 03:17
+    handler: checkLinks

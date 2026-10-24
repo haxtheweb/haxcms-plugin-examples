@@ -519,7 +519,7 @@ class ExamplePlugin {
     return $ctx->subject;
   }
 
-  // last chance to alter the final document; store it in a cache
+  // last chance to alter the final document; store it in a cache. Stages: `transform` changes the document (minify, rewrite links), `seal` computes things over the final bytes (CSP hashes, signatures), `store` keeps the result (page caches, static publish)
   // hook: render.after
   public function renderAfter($ctx) {
     $this->log("render.after", $ctx);

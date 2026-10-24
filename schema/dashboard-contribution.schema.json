@@ -36,8 +36,6 @@
       "additionalProperties": false,
       "required": [
         "label",
-        "operation",
-        "field",
         "dismissKey"
       ],
       "description": "A chip on the button while there is something undismissed. The dashboard keeps { seenVersion, dismissedVersion } in user scaffold long-term memory under dismissKey; the chip shows while dismissedVersion is missing or older than the field's value (dotted-number compare).",
@@ -46,7 +44,8 @@
           "type": "string"
         },
         "operation": {
-          "type": "string"
+          "type": "string",
+          "description": "Omit for a badge that shows until dismissed (a tour)."
         },
         "field": {
           "type": "string"
@@ -58,113 +57,169 @@
       }
     },
     "action": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "title",
-        "sections"
-      ],
-      "properties": {
-        "kind": {
-          "const": "modal"
-        },
-        "title": {
-          "type": "string"
-        },
-        "filters": {
+      "oneOf": [
+        {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "field",
-            "from"
+            "kind",
+            "title",
+            "sections"
           ],
           "properties": {
-            "field": {
+            "kind": {
+              "const": "modal"
+            },
+            "title": {
               "type": "string"
             },
-            "from": {
-              "type": "string",
-              "description": "Dot path in the first section's response to a map of { id: { label, icon, color } } shown as filter chips."
+            "filters": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field",
+                "from"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "from": {
+                  "type": "string",
+                  "description": "Dot path in the first section's response to a map of { id: { label, icon, color } } shown as filter chips."
+                }
+              }
+            },
+            "sections": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "title",
+                  "operation"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "May use {{field}} from the badge operation's response."
+                  },
+                  "operation": {
+                    "type": "string"
+                  },
+                  "query": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean"
+                      ]
+                    }
+                  },
+                  "items": {
+                    "type": "string",
+                    "description": "Dot path to the array in the response; omit when the response is a single item."
+                  },
+                  "card": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "title": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "chip": {
+                        "type": "string",
+                        "description": "Dot path to a { label, icon, color } object, usually types[{{type}}]; rendered with label and icon, never color alone."
+                      },
+                      "visual": {
+                        "type": "string",
+                        "description": "Field holding { mode: element, tag } (rendered by hax-element-demo) or { mode: screenshot, url, alt } (url relative to the plugin's routes)."
+                      },
+                      "links": {
+                        "type": "string"
+                      },
+                      "anchor": {
+                        "type": "string",
+                        "description": "Field used as the card id, so Merlin can open the modal on one entry."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "dismiss": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "label"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                }
+              },
+              "description": "A footer button that records the badge value as dismissed and closes the modal. Closing without it records seen only."
             }
           }
         },
-        "sections": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "title",
-              "operation"
-            ],
-            "properties": {
-              "title": {
-                "type": "string",
-                "description": "May use {{field}} from the badge operation's response."
-              },
-              "operation": {
-                "type": "string"
-              },
-              "query": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean"
-                  ]
-                }
-              },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "title",
+            "steps"
+          ],
+          "description": "A guided tour: the dashboard highlights each anchor in turn with the step's title and text. Progress is kept in user scaffold memory under the contribution's badge dismissKey, so a tour needs no backend.",
+          "properties": {
+            "kind": {
+              "const": "tour"
+            },
+            "title": {
+              "type": "string"
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "description": "Dot path to the array in the response; omit when the response is a single item."
-              },
-              "card": {
                 "type": "object",
                 "additionalProperties": false,
+                "required": [
+                  "anchor",
+                  "title",
+                  "text"
+                ],
                 "properties": {
+                  "anchor": {
+                    "enum": [
+                      "topbar",
+                      "create-site",
+                      "site-list",
+                      "site-search",
+                      "site-card",
+                      "user-menu",
+                      "merlin",
+                      "plugins"
+                    ],
+                    "description": "Stable dashboard anchors app-hax promises to keep (data-hax-anchor attributes). Plugins never target other parts of the dashboard."
+                  },
                   "title": {
                     "type": "string"
                   },
-                  "description": {
+                  "text": {
                     "type": "string"
-                  },
-                  "chip": {
-                    "type": "string",
-                    "description": "Dot path to a { label, icon, color } object, usually types[{{type}}]; rendered with label and icon, never color alone."
-                  },
-                  "visual": {
-                    "type": "string",
-                    "description": "Field holding { mode: element, tag } (rendered by hax-element-demo) or { mode: screenshot, url, alt } (url relative to the plugin's routes)."
-                  },
-                  "links": {
-                    "type": "string"
-                  },
-                  "anchor": {
-                    "type": "string",
-                    "description": "Field used as the card id, so Merlin can open the modal on one entry."
                   }
                 }
               }
             }
           }
-        },
-        "dismiss": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "label"
-          ],
-          "properties": {
-            "label": {
-              "type": "string"
-            }
-          },
-          "description": "A footer button that records the badge value as dismissed and closes the modal. Closing without it records seen only."
         }
-      }
+      ]
     }
   }
 }

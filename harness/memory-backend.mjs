@@ -180,6 +180,33 @@ export class MemoryBackend {
     for (const w of warnings) this.log.push({ level: "warn", plugin: w.plugin, message: w.message });
     return warnings;
   }
+  // the unified contract (spec/05) as callers see it: every active plugin's operations mounted under its prefix;
+  // x-hax-proxy is a server-side detail (upstream URL, key templates) and never leaves the server
+  unifiedContract({ scope } = {}) {
+    const paths = {};
+    for (const p of this.plugins.filter((x) => x.status === "active" && x.manifest.openapi)) {
+      const api = readAny(join(p.dir, p.manifest.openapi));
+      for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
+        if (!op || !op.operationId) continue;
+        const sc = op["x-hax-scope"] || api["x-hax-scope"] || "site";
+        if (scope && sc !== scope) continue;
+        const { "x-hax-proxy": _hidden, ...pub } = op;
+        const full = `${sc === "system" ? "/system/api" : "/x/api"}/v1/plugins/${p.id}${path}`;
+        paths[full] = { ...(paths[full] || {}), [verb]: { ...pub, security: op.security || api.security || [], tags: [p.id] } };
+      }
+    }
+    return { openapi: "3.1.0", info: { title: "HAXcms plugins", version: this.haxcms.version }, paths: Object.fromEntries(Object.entries(paths).sort(([a], [b]) => a.localeCompare(b))) };
+  }
+  // the merged theme registry: core's themes (a stand-in list here) and active plugins' registries/themes entries
+  themeEntry(element) {
+    const core = { "clean-one": { element: "clean-one", name: "Clean one", colorSchemes: ["light", "dark"] }, "clean-two": { element: "clean-two", name: "Clean two", colorSchemes: ["light"] } };
+    for (const p of this.plugins.filter((x) => x.status === "active")) {
+      const d = join(p.dir, "registries/themes");
+      if (!existsSync(d)) continue;
+      for (const f of readdirSync(d).filter((x) => /\.(json|ya?ml)$/.test(x))) { const t = readAny(join(d, f)); if (t.element === element) return { colorSchemes: ["light"], ...t, plugin: p.id }; }
+    }
+    return core[element] ? { ...core[element], plugin: null } : null;
+  }
   // what an import screen (or any chooser) lists for a contract
   contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description })); }
   isListed(pg) {
@@ -258,12 +285,20 @@ export class MemoryBackend {
   // fakes by host; without a fake the network is simply off
   async fetchFor(p, url, init = {}) {
     const host = new URL(url).hostname;
-    if (!(p.manifest.capabilities || []).includes("network:egress") || !(p.manifest.egress || []).includes(host)) throw new Error(`fetch to ${host} not allowed`);
+    const hosts = this.egressHosts(p);
+    // the SSRF guard applies to every fetch; with { any: true } it is the only limit
+    if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith(".internal") || host.endsWith(".local")) throw new Error(`fetch to ${host} not allowed (private address)`);
+    if (!(p.manifest.capabilities || []).includes("network:egress") || !(hosts.includes("*") || hosts.includes(host))) throw new Error(`fetch to ${host} not allowed`);
     this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url });
     const fake = (this.fetchFakes || {})[host];
     if (!fake) throw new Error("network is disabled in the harness");
     const body = typeof fake.body === "string" ? fake.body : JSON.stringify(fake.body ?? null);
     return { status: fake.status ?? 200, ok: (fake.status ?? 200) < 400, headers: new Map(Object.entries(fake.headers || {})), text: async () => body, json: async () => JSON.parse(body) };
+  }
+  // egress: fixed hosts, plus hosts of the URLs in any setting named by { setting } (spec/08)
+  egressHosts(p) {
+    const eff = this.effectiveSettings(p);
+    return (p.manifest.egress || []).flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
   }
   // x-hax-proxy (spec/05): a GET operation answered by core from the declaration, with no plugin code. Templates may
   // read settings ({{settings.apiKey}}) and only the listed query parameters pass through from the caller.
@@ -413,6 +448,8 @@ export class MemoryBackend {
     const ctx = {
       subject: extras.subject,
       previous: extras.previous,
+      // entity hooks: the concrete type (a subscription to file also sees mediaItem, which extends it)
+      entityType: extras.entityType || null,
       request: extras.request,
       veto: (message, status = 409) => ({ __veto: true, message, status }),
       warn: (message, severity = "warning") => { warnings.push({ message, severity }); },
@@ -444,7 +481,9 @@ export class MemoryBackend {
       config: { save: async (values) => backend.saveConfig(p.id, values) },
       // the only sanctioned way to run a process (spec/13): commands outside the exec list are refused
       exec: async (cmd, args = [], opts = {}) => backend.execFor(p, cmd, args, opts),
-      plugins: { list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience), operations: async (filter = {}) => backend.pluginOperations(filter), prompts: async () => backend.pluginPrompts() },
+      // merged registries (core plus active plugins), read-only
+      registries: { theme: async (element) => backend.themeEntry(element) },
+      plugins: { contract: async (opts = {}) => backend.unifiedContract(opts), list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience), operations: async (filter = {}) => backend.pluginOperations(filter), prompts: async () => backend.pluginPrompts() },
       files: {
         writeManaged: async (path, content) => backend.writeManaged(p, path, content),
         readManaged: async (path) => (backend.managed.get(path) || {}).content ?? null,
@@ -746,9 +785,9 @@ export class MemoryBackend {
       capabilities: p.manifest.capabilities || [], records: this.records, listedPages: Object.values(this.records.page || {}).filter((pg) => this.isListed(pg)).map((pg) => pg.id), currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
-      fetch: { egress: (p.manifest.capabilities || []).includes("network:egress") ? p.manifest.egress || [] : [], fakes: this.fetchFakes || {} },
+      fetch: { egress: (p.manifest.capabilities || []).includes("network:egress") ? this.egressHosts(p) : [], fakes: this.fetchFakes || {} },
       exec: { allowed: (p.manifest.capabilities || []).includes("exec:run") ? p.manifest.exec || [] : [], fakes: this.execFakes || {} },
-      ctx: { now: this.now, subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
+      ctx: { now: this.now, entityType: ctx.entityType, subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
     };
     const r = spawnSync("php", [join(here, "php/bridge.php")], { input: JSON.stringify(input), encoding: "utf8" });
     if (r.status !== 0) throw new Error(`php bridge failed: ${r.stderr || r.stdout}`);
@@ -869,7 +908,10 @@ export class MemoryBackend {
         if (matches) out.push({ p, sub, order, depth: depthMatch });
       }
     });
-    return out.sort((a, b) => a.depth - b.depth || (b.sub.priority || 0) - (a.sub.priority || 0) || a.order - b.order);
+    // named stages first (contracts that define them, such as render.after), then priority, then the cascade
+    const stages = (this.hookContract(name) || {}).stages || [];
+    const stageOf = (x) => (stages.length ? Math.max(0, stages.indexOf(x.sub.stage || stages[0])) : 0);
+    return out.sort((a, b) => a.depth - b.depth || stageOf(a) - stageOf(b) || (b.sub.priority || 0) - (a.sub.priority || 0) || a.order - b.order);
   }
 
   requiredFieldsFor(entity) {
@@ -889,7 +931,7 @@ export class MemoryBackend {
       this.running = this.running || new Set();
       if (this.running.has(key)) { this.log.push({ level: "info", plugin: p.id, message: `${sub.name}: not re-entered while it is already running` }); continue; }
       this.running.add(key);
-      const ctx = this.makeCtx(p, { subject: structuredClone(current), previous: opts.previous, transaction: opts.transaction });
+      const ctx = this.makeCtx(p, { subject: structuredClone(current), previous: opts.previous, transaction: opts.transaction, entityType: opts.entity });
       try {
         const limit = sub.timeout || this.hookTimeout;
         const r = await withTimeout(this.invoke(p, "hook", sub.name, ctx), limit, `${p.id} ${sub.name}`);

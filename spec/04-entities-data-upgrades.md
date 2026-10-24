@@ -7,9 +7,10 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 ### 4.1 Entities
 - A plugin entity has a `uuid` primary key like every entity.
 - **Extension** creates a new entity: `extends: <existing entity>`. It inherits the parent's fields and may add fields, operations, validators and its own storage. The loader enforces that it never breaks the parent: no removed or retyped fields, the same primary key, no dropped operations, auth at least as strict. A violating extension is rejected and the plugin is disabled with the reason shown.
+- **Plugin fields on core records.** A plugin may keep values on a page, site or file record it does not own, under `metadata.plugins.<plugin id>` in the record itself (so they travel with the site, like a manifest store). It declares them in `entities.yaml` (`metadata.<type>.fields`, with an optional `form` shown in that record's settings dialog under the plugin's title). On every save core drops fields in a plugin's namespace that the plugin did not declare, or of the wrong type, with a warning; data of a plugin that is not installed is left as it is. publish-scheduler, reading-time and seo-meta use this.
 - **Annotation** enriches an entity in transit: namespaced fields (for example `ext.awesome.fireworks`) added on the way out, never stored, ignored if sent back on a write. Persisting anything requires an extending entity with its own storage.
 - Plugin entities are listed in `GET /system/api/v1/entities` (with `extends` and the providing plugin) only to callers holding both credentials.
-- Entity hooks subscribed to a parent entity also fire for entities that extend it, with the concrete type in context, parent before child.
+- Entity hooks subscribed to a parent entity also fire for entities that extend it, with the concrete type in `ctx.entityType`, parent before child. A plugin that both extends an entity and subscribes to its parent checks `ctx.entityType` so it does not react to its own records (media-library).
 
 ### 4.2 Data stores
 A store is declared in `config/datastores.yaml` and reuses the existing `datastore` storage type with a location template. The loader accepts only locations inside the plugin's own folder under these roots. Plugins never build paths; they call a storage helper (`storage.site(...)`, `storage.siteData(...)`, `storage.system(...)`).

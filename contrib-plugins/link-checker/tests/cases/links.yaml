@@ -1,0 +1,17 @@
+- id: link-checker-001
+  title: "every distinct outside link is checked once; broken and private ones are reported"
+  given: "links to a working host, a 404, an unknown host and a private address; one link repeated on two pages"
+  when: "the weekly check runs"
+  then: "four URLs checked; three reported broken with their pages; the private address was never requested"
+  run:
+    now: "2026-05-04T03:17:00Z"
+    fetch: { ok.example.org: { status: 200, body: "" }, gone.example.org: { status: 404, body: "" } }
+    records:
+      page:
+        - { id: a, title: A, content: '<a href="https://ok.example.org/x">ok</a> <a href="https://gone.example.org/y">gone</a>' }
+        - { id: b, title: B, content: '<a href="https://ok.example.org/x">again</a> <a href="https://nowhere.example.net/">?</a> <a href="http://169.254.169.254/latest">meta</a>' }
+    steps:
+      - schedule: { plugin: link-checker, id: check }
+        expect: { status: 200, body: { result: { checked: 4, broken: 3 } }, fetch: { count: 3, notContains: ["169.254.169.254"] } }
+      - call: { operation: linkCheckerReport }
+        expect: { body: { checkedAt: "2026-05-04T03:17:00.000Z", broken: [{ url: "http://169.254.169.254/latest", status: refused, pages: [b] }, { url: "https://gone.example.org/y", status: 404, pages: [a] }, { url: "https://nowhere.example.net/", status: unreachable, pages: [b] }] } }

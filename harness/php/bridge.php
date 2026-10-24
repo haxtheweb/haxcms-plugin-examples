@@ -118,12 +118,13 @@ class HarnessHooks {
 }
 
 class HarnessCtx {
-  public $subject; public $previous; public $request; public $settings; public $haxcms; public $plugin; public $site; public $user;
+  public $entityType = null; public $subject; public $previous; public $request; public $settings; public $haxcms; public $plugin; public $site; public $user;
   public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $config; public $plugins; public $assets; public $files; public $warnings = []; private $enabled;
   public function __construct($in) {
     $c = $in['ctx'];
     $this->subject = $c['subject'] ?? null;
     $this->previous = $c['previous'] ?? null;
+    $this->entityType = $c['entityType'] ?? null;
     $this->settings = $c['settings'] ?? [];
     $this->haxcms = (object) $c['haxcms'];
     $this->haxcms->runtime = 'php';
@@ -158,7 +159,8 @@ class HarnessCtx {
   public $fetchCalls = []; public $fetchSpec = ['egress' => [], 'fakes' => []];
   public function fetch($url, $init = []) {
     $host = parse_url($url, PHP_URL_HOST);
-    if (!in_array($host, $this->fetchSpec['egress'], true)) { throw new Exception("fetch to $host not allowed"); }
+    if (preg_match('/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/', $host) || preg_match('/\.(internal|local)$/', $host)) { throw new Exception("fetch to $host not allowed (private address)"); }
+    if (!in_array('*', $this->fetchSpec['egress'], true) && !in_array($host, $this->fetchSpec['egress'], true)) { throw new Exception("fetch to $host not allowed"); }
     $this->fetchCalls[] = ['method' => strtoupper($init['method'] ?? 'GET'), 'url' => $url];
     $fake = $this->fetchSpec['fakes'][$host] ?? null;
     if (!$fake) { throw new Exception('network is disabled in the harness'); }

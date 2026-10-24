@@ -74,6 +74,18 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)+$",
       "description": "PROPOSED: element tag of a parent theme. Lets a child theme fall back to its parent's registry entry and regions."
+    },
+    "colorSchemes": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "light",
+          "dark"
+        ]
+      },
+      "description": "Color schemes the theme supports through DDD tokens. Plugins that switch schemes (a dark mode toggle) act only on themes that list more than one. Omitted means light only."
     }
   }
 }

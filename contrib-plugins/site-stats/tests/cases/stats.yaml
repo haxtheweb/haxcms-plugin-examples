@@ -1,0 +1,16 @@
+- id: site-stats-001
+  title: "counts pages, words and custom-element blocks"
+  given: "two public pages and an unpublished one"
+  when: "the report runs, then with --public"
+  then: "3 then 2 pages; blocks counted by tag, most used first"
+  run:
+    records:
+      page:
+        - { id: a, title: A, content: "<p>one two</p><video-player source=x></video-player><video-player></video-player>" }
+        - { id: b, title: B, content: "<p>three</p><music-staff notes=C4></music-staff>" }
+        - { id: c, title: C, content: "<p>four five six</p>", metadata: { published: false } }
+    steps:
+      - call: { operation: siteStatsReport }
+        expect: { status: 200, body: { pages: 3, words: 6, blockTypes: 2, blocks: [{ tag: video-player, count: 2 }, { tag: music-staff, count: 1 }] } }
+      - call: { operation: siteStatsReport, query: { public: "1", top: 1 } }
+        expect: { body: { pages: 2, words: 3, blocks: [{ tag: video-player }] } }

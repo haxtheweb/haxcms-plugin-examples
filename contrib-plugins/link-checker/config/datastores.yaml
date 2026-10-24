@@ -1,0 +1,2 @@
+stores:
+  - { id: report, scope: siteData, file: report.json }

@@ -357,7 +357,7 @@ export default {
       ctx.subject.body.end.push(`<awesome-counter greeting="${greeting}"></awesome-counter>`);
       return ctx.subject;
     },
-    // last chance to alter the final document; store it in a cache
+    // last chance to alter the final document; store it in a cache. Stages: `transform` changes the document (minify, rewrite links), `seal` computes things over the final bytes (CSP hashes, signatures), `store` keeps the result (page caches, static publish)
     "render.after": async (ctx) => {
       log("render.after", ctx);
     },

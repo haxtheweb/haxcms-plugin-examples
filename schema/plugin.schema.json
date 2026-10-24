@@ -335,6 +335,10 @@
               "type": "string"
             },
             "description": "config.* hooks only: which plugins' config this subscription sees. Omitted means the plugin's own config; plugin ids for specific others; [\"*\"] for every config read and write (uncommon: backups, auditing)."
+          },
+          "stage": {
+            "type": "string",
+            "description": "For hooks whose contract lists stages (render.after: transform, seal, store): which stage this subscription belongs to. Stages run in the contract's order; priority orders subscriptions within a stage. Default: the contract's first stage."
           }
         }
       }
@@ -440,9 +444,45 @@
       "type": "array",
       "uniqueItems": true,
       "items": {
-        "type": "string",
-        "format": "hostname"
-      }
+        "anyOf": [
+          {
+            "type": "string",
+            "format": "hostname"
+          },
+          {
+            "type": "object",
+            "required": [
+              "setting"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "setting": {
+                "type": "string",
+                "description": "A settings field holding URLs (one per line); their hosts are allowed. The admin who saves the setting is shown the hosts, and deployment policy can forbid setting-based egress."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "any",
+              "reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "any": {
+                "const": true
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Why the plugin must reach hosts it cannot list (a link checker). Shown to admins; deployments may refuse such plugins."
+              }
+            }
+          }
+        ]
+      },
+      "description": "Hosts ctx.fetch may reach (with network:egress). A host is fixed here, or comes from a setting when admins choose the destination (webhooks)."
     },
     "capabilities": {
       "type": "array",
@@ -475,9 +515,26 @@
         "recipients": {
           "type": "array",
           "items": {
-            "type": "string",
-            "format": "hostname"
-          }
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "hostname"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "setting"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "setting": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "description": "Hosts that receive data. A host chosen by admins is named by its setting, as in egress."
         },
         "requiresConsent": {
           "type": "array",

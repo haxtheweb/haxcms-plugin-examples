@@ -1,0 +1,24 @@
+# Content security policy (fake community plugin). Exercises render.after stages: the policy hashes every inline
+# script in the final document, so it must run after anything that changes the document (minify-html, stage
+# transform) and before anything that stores it (page-cache, stage store).
+specVersion: "0.1.0"
+id: csp-headers
+uuid: 3d5f7b8c-0e2a-4c4d-9f7b-8c0e2a4d6f7b
+title: Content security policy
+description: Adds a strict content security policy to published pages, allowing only the scripts the page carries.
+version: 0.1.0
+category: security
+icon: icons:verified-user
+tags: [csp, security-headers]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+staticCapable: true            # a meta tag works on static hosting too
+capabilities: ["output:inject"]
+hooks:
+  - name: render.after
+    stage: seal

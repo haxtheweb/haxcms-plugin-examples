@@ -123,6 +123,10 @@ Front-end assets are enabled in bunches, the way theme packs are: element packs 
 
 `registries/dashboard/*.yaml` (`schema/dashboard-contribution.schema.json`) declares UI a plugin adds to the dashboard (app-hax): a top-bar button or user-menu entry, an optional badge, and a modal of sections, each filled from one of the plugin's own operations and shown as cards. The dashboard renders it with the elements it already has (`simple-icon-button-lite`, `simple-tooltip`, `simple-modal`, `accent-card`, `hax-element-demo`, `simple-icon-lite`), through its API layer so the credentials are added, so plugins reuse the platform's UI instead of shipping their own buttons and dialogs. A badge keeps `{ seenVersion, dismissedVersion }` in user scaffold memory under its `dismissKey`. Merlin options open a contribution with `eventName: hax-dashboard-open` and `value: { plugin, contribution, anchor }`. The validator checks that every operation named exists in the plugin's contract. Announcements uses one for What's New; the example adds a user-menu entry.
 
+An action is either a `modal` (sections of cards) or a `tour`: steps that highlight dashboard anchors in turn. Anchors come from a fixed list app-hax promises to keep (`topbar`, `create-site`, `site-list`, `site-search`, `site-card`, `user-menu`, `merlin`, `plugins`, as `data-hax-anchor` attributes); plugins never target other parts of the dashboard. A tour keeps its progress in the user's scaffold memory under the badge's `dismissKey`, so it needs no backend (onboarding-tour is a pack).
+
+Declarative strings (dashboard, CLI and Merlin entries) are translated through the plugin's locale overlays by key: `<registry>.<entry id>.<dot path>`, for example `dashboard.first-steps.action.steps.0.title`. The validator rejects overlay keys that name no text in an entry.
+
 ## Front-end extension points
 
 The front end mirrors the backend: core front-end code asks for what enabled plugins provide and renders it, the way the backend fires hooks and merges registries. It never imports, names or special-cases a plugin.

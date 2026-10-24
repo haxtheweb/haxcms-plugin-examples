@@ -1136,8 +1136,13 @@
     "returns": "the context (may change html)",
     "veto": false,
     "detachable": false,
-    "comment": "last chance to alter the final document; store it in a cache",
-    "example": "**page-cache** stores the final document; **minify** compresses it"
+    "comment": "last chance to alter the final document; store it in a cache. Stages: `transform` changes the document (minify, rewrite links), `seal` computes things over the final bytes (CSP hashes, signatures), `store` keeps the result (page caches, static publish)",
+    "example": "**page-cache** stores the final document; **minify** compresses it",
+    "stages": [
+      "transform",
+      "seal",
+      "store"
+    ]
   },
   {
     "name": "rebuild.before",

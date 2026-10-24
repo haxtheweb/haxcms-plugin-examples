@@ -1,0 +1,47 @@
+- id: xapi-statements-001
+  title: "statements queue, then go to the LRS in one batch with the caller as actor"
+  given: "an LRS endpoint and key"
+  when: "two statements are recorded and the flush job runs"
+  then: "one POST to the LRS with both; the queue is empty"
+  run:
+    settings: { endpoint: "https://lrs.example.org/xapi/statements", auth: "key:secret" }
+    fetch: { lrs.example.org: { status: 200, body: ["st-1", "st-2"] } }
+    steps:
+      - call: { operation: xapiStatementsRecord, body: { verb: completed, object: "https://course.example/p1" } }
+        expect: { status: 200 }
+      - call: { operation: xapiStatementsRecord, body: { verb: answered, object: "https://course.example/q1", result: { success: true } } }
+      - schedule: { plugin: xapi-statements, id: flush }
+        expect: { status: 200, body: { result: { sent: 2 } }, fetch: { count: 1, contains: ['"method":"POST"', "https://lrs.example.org/xapi/statements"] } }
+      - schedule: { plugin: xapi-statements, id: flush }
+        expect: { body: { result: { sent: 0 } } }
+- id: xapi-statements-002
+  title: "export and erase cover both the queue and the copies in the LRS"
+  given: "u1 has one statement queued and two already sent; u2 has one queued"
+  when: "export then erase u1"
+  then: "export lists the queued statement (core) and the sent ids with the LRS host (plugin); erase removes 3 and warns that the LRS keeps its copies"
+  run:
+    settings: { endpoint: "https://lrs.example.org/xapi/statements", auth: "k:s" }
+    stores:
+      queue: [{ id: q1, userId: u1, verb: completed, object: o }, { id: q2, userId: u2, verb: completed, object: o }]
+      sent: { u1: [s1, s2] }
+    steps:
+      - exportUser: u1
+        expect: { body: { xapi-statements.queue: [{ id: q1 }], xapi-statements: { sentToLrs: { host: lrs.example.org, statementIds: [s1, s2] } } }, notContains: [q2] }
+      - eraseUser: u1
+        expect: { body: { removed: 3 }, log: { contains: ["2 statements for an erased user remain in the LRS at lrs.example.org"] } }
+      - exportUser: u1
+        expect: { body: {}, notContains: [q1, s1] }
+- id: xapi-statements-003
+  title: "an LRS error keeps the queue for the next run"
+  given: "the LRS answers 503"
+  when: "flush"
+  then: "the job fails and the statement is still queued"
+  run:
+    settings: { endpoint: "https://lrs.example.org/xapi/statements", auth: "k:s" }
+    fetch: { lrs.example.org: { status: 503, body: busy } }
+    stores: { queue: [{ id: q1, userId: u1, verb: completed, object: o }] }
+    steps:
+      - schedule: { plugin: xapi-statements, id: flush }
+        expect: { status: 500, body: { error: "LRS answered 503" } }
+      - exportUser: u1
+        expect: { body: { xapi-statements.queue: [{ id: q1 }] } }

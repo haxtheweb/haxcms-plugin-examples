@@ -10,5 +10,7 @@
   "tracks-users": "privacy.tracking is true",
   "not-stable": "lifecycle is experimental, deprecated or obsolete",
   "untested": "untested is true",
-  "full-user-records": "users:full capability (email and profile fields)"
+  "full-user-records": "users:full capability (email and profile fields)",
+  "reaches-any-host": "egress lists { any: true } (destinations cannot be listed in advance)",
+  "admin-chosen-hosts": "egress or privacy.recipients name a setting (admins choose where data goes)"
 }

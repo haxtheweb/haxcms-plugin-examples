@@ -4,6 +4,12 @@
   "name": "Neon glow",
   "thumbnail": "frontend/dist/neon.svg",
   "description": "Dark background, glowing headings, high contrast.",
-  "category": ["Fun", "Website"],
-  "priority": 50
+  "category": [
+    "Fun",
+    "Website"
+  ],
+  "priority": 50,
+  "colorSchemes": [
+    "dark"
+  ]
 }
