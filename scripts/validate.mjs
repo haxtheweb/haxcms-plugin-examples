@@ -136,7 +136,8 @@ function validatePlugin(manifestPath) {
     const api = readAny(join(dir, m.openapi));
     const scopes = [api["x-hax-scope"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-scope"]))].filter((x) => x !== undefined);
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
-    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && op.operationId && m.id && !op.operationId.startsWith(m.id)) err(`${m.openapi}/paths/${path}/${verb}`, `operationId "${op.operationId}" must start with the plugin id "${m.id}"`);
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && typeof op === "object" && op.operationId && op["x-hax-public"] !== true && !op.security && !api.security) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" declares no security; add security or x-hax-public: true (fail-closed)`);
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && op.operationId && m.id && !op.operationId.startsWith(m.id.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()))) err(`${m.openapi}/paths/${path}/${verb}`, `operationId "${op.operationId}" must start with the plugin id "${m.id}"`);
   }
   if (m.openapi && m.staticCapable !== false) warn("/staticCapable", "plugin has routes: set staticCapable: false so it is tagged as needing a server (or explain how it degrades statically)");
   // plugin-defined hooks and aliases

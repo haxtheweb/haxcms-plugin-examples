@@ -18,7 +18,8 @@
     "properties": {
       "name": {
         "type": "string",
-        "pattern": "^[a-z][a-zA-Z]*(\\.[a-z][a-zA-Z]*)+$"
+        "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-zA-Z]*)+$",
+        "description": " The first segment may be a plugin id with dashes (google-analytics.before.track)."
       },
       "phase": {
         "enum": [

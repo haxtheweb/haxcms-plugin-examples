@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-contrib-required
+uuid: b34e3267-c3e7-56e8-b218-4d403d9a0e70
+title: fx-contrib-required (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+required: true

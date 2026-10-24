@@ -296,8 +296,8 @@
         "properties": {
           "name": {
             "type": "string",
-            "pattern": "^[a-z][a-zA-Z]*(\\.[a-z][a-zA-Z]*)+$",
-            "description": "Open vocabulary. Known names are listed in hooks.json; the loader warns on unknown but well-formed names."
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-zA-Z]*)+$",
+            "description": "Open vocabulary. Known names are listed in hooks.json; the loader warns on unknown but well-formed names. The first segment may be a plugin id with dashes (google-analytics.before.track)."
           },
           "priority": {
             "type": "integer",

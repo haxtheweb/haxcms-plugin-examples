@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-users
+uuid: 154e6d97-205a-5b3f-bef1-16a2ff640261
+title: fx-users (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: user.after.login

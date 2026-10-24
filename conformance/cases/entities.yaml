@@ -10,6 +10,11 @@
   given: "hooks on file and awesomeFile"
   when: "create awesomeFile"
   then: "file hook then awesomeFile hook; concrete type in context"
+  run:
+    plugins: [fx-notes, fx-inherit]
+    steps:
+      - fire: { hook: entity.before.create, entity: specialNote, subject: { title: Hi } }
+        expect: { log: { count: { "fx-inherit:entity.before.create": 2 } } }
 - id: entities-003
   title: "annotations are never stored and are ignored on write"
   spec: spec/04-entities-data-upgrades.md

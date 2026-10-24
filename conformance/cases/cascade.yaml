@@ -4,12 +4,21 @@
   given: "same id at system-core and site"
   when: "load"
   then: "site copy active; warning names both"
+  run:
+    plugins: [{ path: fx-probe-a, tier: system-core }, { path: fx-probe-a, tier: site }]
+    expect: { log: { contains: ["overrides system-core copy"] } }
 - id: cascade-002
   title: "a required core plugin cannot be disabled"
   spec: spec/03-tiers-and-enablement.md
   given: "announcements required: true"
   when: "disable"
   then: "refused"
+  run:
+    plugins: [fx-required]
+    load: { disabled: [fx-required] }
+    steps:
+      - disable: fx-required
+        expect: { status: 409, message: "required plugins cannot be disabled", status_of: { fx-required: active } }
 - id: cascade-003
   title: "a required core plugin cannot be supplanted"
   spec: spec/03-tiers-and-enablement.md
@@ -22,6 +31,11 @@
   given: "B depends on A"
   when: "disable A"
   then: "409 listing B"
+  run:
+    plugins: [fx-probe-a, fx-dependent]
+    steps:
+      - disable: fx-probe-a
+        expect: { status: 409, body: { dependents: [fx-dependent] } }
 - id: cascade-005
   title: "enabling auto-enables dependencies only after confirmation"
   spec: spec/03-tiers-and-enablement.md
@@ -34,6 +48,9 @@
   given: "core: false, required: true"
   when: "load"
   then: "manifest rejected"
+  run:
+    validate: fx-contrib-required
+    expect: { errors: ["core"] }
 - id: cascade-007
   title: "auth is supplied only by the highest-order context of the deployment profile"
   spec: spec/03-tiers-and-enablement.md

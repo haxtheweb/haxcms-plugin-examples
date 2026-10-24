@@ -3,7 +3,7 @@
   "type": "module",
   "description": "Spec, schema, conformance fixtures and example plugins for HAXcms plugins",
   "scripts": {
-    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node tests/check-plugin-tests.mjs"
+    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node tests/check-plugin-tests.mjs && node conformance/run.mjs"
   },
   "version": "0.1.0",
   "license": "Apache-2.0",

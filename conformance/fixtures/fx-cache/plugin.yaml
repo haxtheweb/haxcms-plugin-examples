@@ -1,0 +1,14 @@
+specVersion: "0.1.0"
+id: fx-cache
+uuid: 57445e00-4b0d-5b61-92e4-db679bf4dd27
+title: fx-cache (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+datastores: config/datastores.yaml
+hooks:
+  - name: render.before
+  - name: render.after
+  - name: page.after.save

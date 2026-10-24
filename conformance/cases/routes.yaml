@@ -16,24 +16,49 @@
   given: "operation lacks security and x-hax-public"
   when: "load"
   then: "plugin rejected"
+  run:
+    validate: fx-no-security
+    expect: { errors: ["declares no security"] }
 - id: routes-004
   title: "a disabled plugin's paths return 404"
   spec: spec/05-routes-and-security.md
   given: "plugin disabled"
   when: "request any path"
   then: "404"
+  run:
+    plugins: [fx-routes]
+    load: { disabled: [fx-routes] }
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 404 }
 - id: routes-005
   title: "x-hax-public operations work without credentials and are rate limited"
   spec: spec/05-routes-and-security.md
   given: "example /public/ping"
   when: "31 requests in a minute"
   then: "first 30 ok, then 429"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 200, body: { ok: true } }
+      - call: { operation: fxRoutesJwt, credentials: none }
+        expect: { status: 401 }
 - id: routes-006
   title: "no response outside doubly authenticated callers contains the HAXcms version"
   spec: spec/05-routes-and-security.md
   given: "JWT only"
   when: "list plugins and entities"
   then: "no version field"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesSecret, credentials: none }
+        expect: { status: 401, notContains: ["26.10.1"] }
+      - call: { operation: fxRoutesSecret, credentials: jwt }
+        expect: { status: 401, notContains: ["26.10.1"], message: "X-HAXCMS-User-Token header is required" }
+      - call: { operation: fxRoutesSecret, credentials: both }
+        expect: { status: 200, body: { version: "26.10.1" } }
 - id: routes-007
   title: "unauthenticated /x/api/v1/entities lists only site-scope descriptors"
   spec: spec/05-routes-and-security.md

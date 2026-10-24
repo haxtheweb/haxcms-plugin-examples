@@ -1,0 +1,9 @@
+specVersion: "0.1.0"
+id: fx-spawn
+uuid: 5c65a135-cd82-5ac9-bcd6-087acc8f7315
+title: fx-spawn (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js

@@ -16,6 +16,9 @@
   given: "privacy.tracking true without categories"
   when: "load"
   then: "manifest rejected"
+  run:
+    validate: fx-tracker
+    expect: { errors: ["categories"] }
 - id: privacy-004
   title: "legacy gaID is read as a fallback and migrated by upgrade"
   spec: spec/08-capabilities-privacy.md
