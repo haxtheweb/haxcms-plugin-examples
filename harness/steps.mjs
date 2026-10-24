@@ -23,6 +23,7 @@ export async function step(backend, raw, vars = {}) {
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
   else if (s.contract) { try { Object.assign(out, { status: 200, body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) }); } catch (e) { Object.assign(out, { status: 400, body: { error: e.message } }); } }
+  else if (s.schedule) Object.assign(out, await backend.runSchedule(s.schedule.plugin, s.schedule.id));
   else if (s.implementers) Object.assign(out, { status: 200, body: backend.contractImplementers(s.implementers) });
   else if (s.managed) Object.assign(out, { body: (backend.managed.get(s.managed) || {}).content ?? null, status: backend.managed.has(s.managed) ? 200 : 404 });
   else if (s.exportUser) Object.assign(out, await backend.exportUser(s.exportUser));

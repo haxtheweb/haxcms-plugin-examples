@@ -1,0 +1,4 @@
+{ "configure": [
+  { "property": "maxLinks", "title": "Links allowed in a comment", "inputMethod": "number" },
+  { "property": "blockedWords", "title": "Hold comments containing", "description": "One word or phrase per line; matching comments wait for review", "inputMethod": "textarea" }
+] }

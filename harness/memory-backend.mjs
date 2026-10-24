@@ -104,7 +104,7 @@ export class MemoryBackend {
         }
       }
       if (m.datastores) for (const s of readAny(join(p.dir, m.datastores)).stores) p.stores[s.id] = s;
-      if (m.entities) { const e = readAny(join(p.dir, m.entities)); p.entities = e.entities || {}; for (const [name, def] of Object.entries(p.entities)) if (def.extends) this.entityParents[name] = def.extends; }
+      if (m.entities) { const e = readAny(join(p.dir, m.entities)); p.entities = e.entities || {}; p.entityMeta = e.metadata || {}; for (const [name, def] of Object.entries(p.entities)) if (def.extends) this.entityParents[name] = def.extends; }
       if (m.hookDefinitions) for (const h of readAny(join(p.dir, m.hookDefinitions))) p.hookDefs[h.name] = h;
       // defaults: config/settings.defaults.json next to the settings form (haxProperties fields carry no default)
       if (m.settings) { const dp = join(p.dir, dirname(m.settings), "settings.defaults.json"); if (existsSync(dp)) Object.assign(p.settings, readAny(dp)); }
@@ -139,6 +139,47 @@ export class MemoryBackend {
   }
 
   get(id) { return this.plugins.find((x) => x.id === id); }
+  // scheduled jobs (spec/13): the CLI or a timer plugin runs them; schedule.before.run may skip one
+  async runSchedule(pluginId, jobId) {
+    const p = this.get(pluginId);
+    const job = p && (p.manifest.schedules || []).find((j) => j.id === jobId);
+    if (!job) return { status: 404, body: { error: `no schedule ${jobId} in ${pluginId}` } };
+    if (p.status !== "active") return { status: 409, body: { error: `${pluginId} is ${p.status}` } };
+    const subject = { job: jobId, plugin: pluginId, scope: job.scope || "site", siteId: this.site.id, lastRun: (this.lastRuns || {})[`${pluginId}:${jobId}`] ?? null };
+    const before = await this.fire("schedule.before.run", subject);
+    if (before.veto) return { status: 200, body: { ran: false, skipped: before.veto.message } };
+    const started = this.now;
+    let ok = true, error, value;
+    try {
+      const r = await this.transaction(async () => this.invoke(p, "schedule", job.handler, this.makeCtx(p, {}), []), { bulk: true, origin: `schedule:${pluginId}:${jobId}` });
+      if (r.missing) throw new Error(`handler ${job.handler} is not implemented in ${this.runtime}`);
+      value = r.value;
+    } catch (e) { ok = false; error = e.message; this.log.push({ level: "error", plugin: pluginId, message: `schedule ${jobId}: ${e.message}` }); }
+    this.lastRuns = { ...(this.lastRuns || {}), [`${pluginId}:${jobId}`]: this.now };
+    await this.fire("schedule.after.run", { job: jobId, plugin: pluginId, scope: subject.scope, siteId: this.site.id, ok, durationMs: this.now - started, ...(error ? { error } : {}) });
+    return { status: ok ? 200 : 500, body: { ran: true, ok, ...(value != null ? { result: value } : {}), ...(error ? { error } : {}) } };
+  }
+  // metadata.plugins.<id> on core records (spec/04): only fields that plugin declared (entities.yaml metadata), with
+  // the declared type; anything else is dropped with a warning. A plugin that is not installed keeps its data untouched.
+  checkPluginMetadata(type, record) {
+    const warnings = [];
+    const bag = record && record.metadata && record.metadata.plugins;
+    if (!bag || typeof bag !== "object") return warnings;
+    const typeOk = (t, v) => (t === "any" ? true : t === "integer" ? Number.isInteger(v) : t === "array" ? Array.isArray(v) : t === "object" ? v && typeof v === "object" && !Array.isArray(v) : typeof v === t);
+    for (const [pid, fields] of Object.entries(bag)) {
+      const p = this.get(pid);
+      if (!p || !fields || typeof fields !== "object") continue;
+      const decl = { ...(((p.entityMeta || {})[type] || {}).fields || {}) };
+      // a plugin's manifest stores live in site.json under the same namespace
+      if (type === "site") for (const st of Object.values(p.stores)) if (st.scope === "manifest") decl[st.id] = { type: "any" };
+      for (const [k, v] of Object.entries(fields)) {
+        if (!decl[k]) { delete fields[k]; warnings.push({ message: `metadata.plugins.${pid}.${k} is not declared by ${pid} for ${type}; dropped`, severity: "warning", plugin: pid }); }
+        else if (v !== null && !typeOk(decl[k].type, v)) { delete fields[k]; warnings.push({ message: `metadata.plugins.${pid}.${k} must be ${decl[k].type}; dropped`, severity: "warning", plugin: pid }); }
+      }
+    }
+    for (const w of warnings) this.log.push({ level: "warn", plugin: w.plugin, message: w.message });
+    return warnings;
+  }
   // what an import screen (or any chooser) lists for a contract
   contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description })); }
   isListed(pg) {
@@ -577,12 +618,13 @@ export class MemoryBackend {
     const op = previous ? "update" : "create";
     const before = await this.fire(`entity.before.${op}`, { ...record, id }, { entity: type, previous });
     if (before.veto) return { record: previous || null, veto: before.veto, warnings: before.warnings || [] };
+    const metaWarnings = this.checkPluginMetadata(type, before.subject);
     store[id] = structuredClone(before.subject);
     this.bump(type, id);
     this.writeToDisk(type, store[id]);
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
     // before-hook warnings travel back to whoever saved (the editor shows them; spec/06)
-    return { record: after.subject, warnings: before.warnings || [] };
+    return { record: after.subject, warnings: [...(before.warnings || []), ...metaWarnings] };
   }
 
   async deleteEntity(type, id) {
@@ -841,6 +883,12 @@ export class MemoryBackend {
     const setBy = {}; // top-level field -> plugin that last set it
     const phase = (this.hookContract(name) || {}).phase || (name.includes(".after") || name.endsWith(".after") ? "after" : "before");
     for (const { p, sub } of this.subscribers(name, { ...opts, subject })) {
+      // no re-entry (spec/06): a subscriber already running this hook further up the stack is skipped for the nested
+      // event (changelog saving a page from git.after.commit makes git commit and fire git.after.commit again)
+      const key = `${p.id}\u0000${sub.name}`;
+      this.running = this.running || new Set();
+      if (this.running.has(key)) { this.log.push({ level: "info", plugin: p.id, message: `${sub.name}: not re-entered while it is already running` }); continue; }
+      this.running.add(key);
       const ctx = this.makeCtx(p, { subject: structuredClone(current), previous: opts.previous, transaction: opts.transaction });
       try {
         const limit = sub.timeout || this.hookTimeout;
@@ -869,6 +917,8 @@ export class MemoryBackend {
       } catch (e) {
         this.log.push({ level: "error", plugin: p.id, message: `${sub.name}: ${e && e.message}` });
         if (opts.strict) throw e;
+      } finally {
+        this.running.delete(key);
       }
     }
     return { subject: current, warnings, transaction: opts.transaction };

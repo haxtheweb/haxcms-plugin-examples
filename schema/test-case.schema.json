@@ -188,7 +188,7 @@
           },
           "steps": {
             "type": "array",
-            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, delete, record, clock (moves ctx.now()), exportUser, eraseUser, asUser, transaction).",
+            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, delete, record, clock (moves ctx.now()), schedule (runs a job), implementers, exportUser, eraseUser, asUser, transaction).",
             "items": {
               "type": "object"
             }

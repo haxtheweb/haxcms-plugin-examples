@@ -20,14 +20,18 @@ class CommentsPlugin {
     if (!$ctx->entities->get('page', $req['params']['pageId'])) { return ['status' => 404, 'body' => ['error' => 'no such page']]; }
     $body = trim((string) ($req['body']['body'] ?? ''));
     if ($body === '' || mb_strlen($body) > 2000) { return ['status' => 422, 'body' => ['error' => 'a comment needs 1 to 2000 characters']]; }
-    $list = $this->all($ctx);
-    $comment = [
-      'id' => 'c' . (count($list) + 1), 'pageId' => $req['params']['pageId'], 'authorId' => $ctx->user['id'],
+    $draft = ['pageId' => $req['params']['pageId'], 'authorId' => $ctx->user['id'],
       'authorName' => ($ctx->user['displayName'] ?? '') !== '' ? $ctx->user['displayName'] : $ctx->user['name'],
-      'body' => $body, 'status' => (!empty($ctx->settings['moderation']) && !$this->isMod($ctx->user)) ? 'pending' : 'approved',
-    ];
+      'body' => $body, 'status' => (!empty($ctx->settings['moderation']) && !$this->isMod($ctx->user)) ? 'pending' : 'approved'];
+    $before = $ctx->hooks->fire('comments.before.create', $draft);
+    if (!empty($before['veto'])) { return ['status' => $before['veto']['status'] ?? 422, 'body' => ['error' => $before['veto']['message']]]; }
+    $s = $before['subject'];
+    $list = $this->all($ctx);
+    $comment = ['id' => 'c' . (count($list) + 1), 'pageId' => $draft['pageId'], 'authorId' => $draft['authorId'], 'authorName' => $draft['authorName'],
+      'body' => (string) ($s['body'] ?? $draft['body']), 'status' => ($s['status'] ?? '') === 'pending' ? 'pending' : $draft['status']];
     $list[] = $comment;
     $ctx->storage->write('comments', $list);
+    $ctx->hooks->fire('comments.after.create', $comment);
     return $comment;
   }
 

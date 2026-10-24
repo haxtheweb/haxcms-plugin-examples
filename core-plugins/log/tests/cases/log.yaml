@@ -44,3 +44,16 @@
         expect: {}
       - call: { operation: logList }
         expect: { body: { total: 2, items: [{ message: three }, { message: two }] } }
+- id: log-004
+  title: "the rotate schedule trims a backlog to maxEntries"
+  given: "three stored entries, maxEntries 2"
+  when: "the rotate job runs"
+  then: "the two newest remain"
+  run:
+    settings: { maxEntries: 2 }
+    stores: { entries: [{ time: "2025-01-01T00:00:00.000Z", level: info, plugin: x, message: one }, { time: "2025-06-01T00:00:00.000Z", level: info, plugin: x, message: two }, { time: "2026-01-01T00:00:00.000Z", level: info, plugin: x, message: three }] }
+    steps:
+      - schedule: { plugin: log, id: rotate }
+        expect: { status: 200, body: { ran: true, ok: true } }
+      - call: { operation: logList }
+        expect: { body: { total: 2, items: [{ message: three }, { message: two }] } }

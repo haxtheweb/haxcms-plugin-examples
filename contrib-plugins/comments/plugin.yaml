@@ -21,6 +21,7 @@ settings: config/settings.schema.json
 settingsScope: site
 datastores: config/datastores.yaml
 openapi: config/openapi.yaml
+hookDefinitions: config/hooks.yaml   # comments.before.create / comments.after.create for other plugins
 capabilities: ["userData:read", "userData:write", "items:read", "output:inject"]
 staticCapable: true
 staticFallback: Static copies show the approved comments as they were at publish time; posting and moderation need the server.

@@ -16,12 +16,15 @@ export default {
       if (!(await ctx.entities.get("page", req.params.pageId))) return { status: 404, body: { error: "no such page" } };
       const body = String((req.body && req.body.body) || "").trim();
       if (!body || body.length > 2000) return { status: 422, body: { error: "a comment needs 1 to 2000 characters" } };
+      const draft = { pageId: req.params.pageId, authorId: ctx.user.id, authorName: ctx.user.displayName || ctx.user.name, body, status: ctx.settings.moderation && !isMod(ctx.user) ? "pending" : "approved" };
+      // other plugins may hold (status pending), edit or refuse it
+      const before = await ctx.hooks.fire("comments.before.create", draft);
+      if (before.veto) return { status: before.veto.status || 422, body: { error: before.veto.message } };
       const list = await all(ctx);
-      const comment = {
-        id: `c${list.length + 1}`, pageId: req.params.pageId, authorId: ctx.user.id, authorName: ctx.user.displayName || ctx.user.name,
-        body, status: ctx.settings.moderation && !isMod(ctx.user) ? "pending" : "approved",
-      };
+      const s = before.subject;
+      const comment = { id: `c${list.length + 1}`, pageId: draft.pageId, authorId: draft.authorId, authorName: draft.authorName, body: String(s.body ?? draft.body), status: s.status === "pending" ? "pending" : draft.status };
       await ctx.storage.write("comments", [...list, comment]);
+      await ctx.hooks.fire("comments.after.create", comment);
       return comment;
     },
     async commentsModerate(ctx, req) {

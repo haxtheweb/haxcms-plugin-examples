@@ -1,0 +1,22 @@
+# Changelog (fake community plugin). Keeps a "Changes" page listing recent commits. Exercises re-entrancy: saving the
+# page from git.after.commit would make git commit again, forever. The platform never re-enters a subscriber that is
+# already running a hook, so git (still inside page.after.save) does not commit the Changes page on its own.
+specVersion: "0.1.0"
+id: changelog
+uuid: 9e1a3c4d-6f8b-4d0e-9a3c-4d6f8b0e2a3c
+title: Changelog page
+description: Keeps a Changes page listing the site's recent commits, updated after every commit.
+version: 0.1.0
+category: content
+icon: icons:history
+tags: [git, history]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+dependencies: [git]
+staticCapable: true
+capabilities: ["items:read", "items:write"]
+hooks:
+  - name: git.after.commit

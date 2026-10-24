@@ -132,6 +132,51 @@
           }
         }
       }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Fields this plugin keeps on core records it does not own, stored in the record itself under metadata.plugins.<plugin id> (so they travel with the site, like a manifest store). Keyed by entity type (page, site, file). Core checks every save: fields under a plugin's namespace that the plugin did not declare here, or of the wrong type, are dropped with a warning.",
+      "propertyNames": {
+        "enum": [
+          "page",
+          "site",
+          "file"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fields"
+        ],
+        "properties": {
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "string",
+                    "integer",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object"
+                  ]
+                },
+                "note": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

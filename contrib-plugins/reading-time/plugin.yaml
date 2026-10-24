@@ -1,0 +1,25 @@
+# Reading time (fake community plugin). Exercises a before-save hook that adds a declared field to the page
+# (metadata.plugins.reading-time.minutes), in both runtimes, and a render hook that reads it back.
+specVersion: "0.1.0"
+id: reading-time
+uuid: 1b3d5f6a-8c0e-4a2b-9d5f-6a8c0e2b4d5f
+title: Reading time
+description: Shows an estimated reading time at the top of each page.
+version: 0.1.0
+category: content
+icon: icons:timer
+tags: [reading, estimate]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+entities: config/entities.yaml
+staticCapable: true
+capabilities: ["output:inject"]
+hooks:
+  - name: page.before.save
+  - name: render.before.content
