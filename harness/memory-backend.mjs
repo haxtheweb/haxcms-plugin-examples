@@ -45,6 +45,8 @@ export class MemoryBackend {
     if (!site.path || site.path === "/sites/test-site") site = { ...site, path: mkdtempSync(join(tmpdir(), "hax-site-")) };
     this.runtime = runtime;
     this.site = site;
+    // fixed clock for byte-identical output across runtimes (ctx.now); a case may set run.now
+    this.now = Date.parse("2026-01-01T00:00:00Z");
     this.user = user;
     this.hookTimeout = hookTimeout;
     this.plugins = []; // in cascade order
@@ -137,6 +139,24 @@ export class MemoryBackend {
   }
 
   get(id) { return this.plugins.find((x) => x.id === id); }
+  // what an import screen (or any chooser) lists for a contract
+  contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description })); }
+  isListed(pg) {
+    const m = pg.metadata || {};
+    const no = (v) => v === false || v === 0 || ["false", "0", "no", "off"].includes(String(v).toLowerCase());
+    const yes = (v) => v === true || v === 1 || ["true", "1", "yes", "on"].includes(String(v).toLowerCase());
+    return !("published" in m && no(m.published)) && !("hideInMenu" in m && yes(m.hideInMenu)) && !(this.fragments || []).includes(pg.id);
+  }
+  listRecords(type, query = {}) {
+    const { listed, ...rest } = query;
+    return Object.values(this.records[type] || {}).filter((r) => (listed === undefined || (type === "page" && this.isListed(r) === listed)) && Object.entries(rest).every(([k, v]) => r[k] === v));
+  }
+  siteInfo() {
+    const rec = (this.records.site || {})[this.site.id] || {};
+    const domain = rec.metadata && rec.metadata.site && rec.metadata.site.domain;
+    const url = String(domain || `https://haxcms.example.invalid/sites/${this.site.name}/`).replace(/\/?$/, "/");
+    return { ...this.site, url };
+  }
   elements(p) {
     const d = join(p.dir, "registries/elements");
     return existsSync(d) ? readdirSync(d).filter((f) => /\.(ya?ml|json)$/.test(f)).sort().map((f) => readAny(join(d, f))) : [];
@@ -374,7 +394,9 @@ export class MemoryBackend {
       },
       haxcms: { ...backend.haxcms },
       plugin: { id: p.id, version: p.manifest.version, scope: "system" },
-      site: backend.site,
+      // site.url: the public base URL with a trailing slash (site.json metadata.site.domain, else the deployment's)
+      site: backend.siteInfo(),
+      now: () => backend.now,
       user: backend.userFor(p),
       log: Object.fromEntries(["info", "warn", "error"].map((level) => [level, (message, data) => backend.log.push({ level, plugin: p.id, message, data })])),
       fetch: async (url, init = {}) => backend.fetchFor(p, url, init),
@@ -398,7 +420,9 @@ export class MemoryBackend {
           readRevs.set(`${type}:${key}`, backend.rev(type, key));
           return r ? structuredClone(r) : null;
         },
-        list: async (type, query = {}) => { backend.requireCap(p, type, "read"); return Object.values(backend.records[type] || {}).filter((r) => Object.entries(query).every(([k, v]) => r[k] === v)).map((r) => structuredClone(r)); },
+        // query `listed: true` on pages: what an anonymous visitor can open (published, not hidden from the menu, not a
+        // fragment such as region content); feeds, sitemaps, search and llms.txt all use the same rule (spec/13)
+        list: async (type, query = {}) => { backend.requireCap(p, type, "read"); return backend.listRecords(type, query).map((r) => structuredClone(r)); },
         delete: async (type, id) => { backend.requireCap(p, type, "write"); return backend.deleteEntity(type, id); },
         save: async (type, record) => {
           backend.requireCap(p, type, "write");
@@ -448,7 +472,7 @@ export class MemoryBackend {
   writeManaged(p, path, content) {
     const caps = p.manifest.capabilities || [];
     if (!caps.includes("output:managedFiles")) throw new Error(`${p.id} needs output:managedFiles to write ${path}`);
-    const ok = (p.manifest.managedFiles || []).some((pat) => new RegExp("^" + pat.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*") + "$").test(path));
+    const ok = (p.manifest.managedFiles || []).map((x) => (typeof x === "string" ? x : x.path)).some((pat) => new RegExp("^" + pat.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*") + "$").test(path));
     if (!ok || path.includes("..")) throw new Error(`${p.id} may not write ${path}: not in its managedFiles`);
     const owner = this.managed.get(path);
     if (owner && owner.plugin !== p.id) throw new Error(`${path} is managed by ${owner.plugin}`);
@@ -513,14 +537,18 @@ export class MemoryBackend {
     const before = await this.fire("rebuild.before", { scope: "site", siteId: this.site.id, reason, fragments: [] });
     if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     const fragments = [...new Set(before.subject.fragments || [])];
+    this.fragments = fragments;
     const pages = Object.values(this.records.page || {});
-    const listed = pages.filter((pg) => !fragments.includes(pg.id) && pg.published !== false);
-    const llms = listed.map((pg) => `- [${pg.title}](${pg.slug || pg.id})`).join("\n");
+    const listed = pages.filter((pg) => this.isListed(pg));
+    let llms = listed.map((pg) => `- [${pg.title}](${pg.slug || pg.id})`).join("\n");
     // authoring side: the block list comes from active plugins only; the element registry keeps every installed
     // element so placed blocks keep hydrating after their pack is turned off (spec/07)
     const blocks = this.plugins.filter((x) => x.status === "active").flatMap((x) => this.elements(x).filter((e) => e.role === "block").map((e) => e.tag)).sort();
     const registry = Object.fromEntries(this.plugins.filter((x) => x.status !== "refused").flatMap((x) => this.elements(x).map((e) => [e.tag, e.path.startsWith("frontend/dist/") ? this.assetUrl(x, e.path) : e.path])).sort(([a], [b]) => a.localeCompare(b)));
     await this.fire("rebuild.after", { scope: "site", siteId: this.site.id, reason, files: ["llms.txt", "wc-registry.json", "appstore.json"] });
+    // advertised managed files of active plugins (written during rebuild.after) are listed; core names none itself
+    const resources = this.plugins.filter((x) => x.status === "active").flatMap((x) => (x.manifest.managedFiles || []).filter((e) => typeof e === "object" && e.title && this.managed.has(e.path)).map((e) => `- [${e.title}](${e.path})`));
+    if (resources.length) llms += `\n\n## Resources\n${resources.join("\n")}`;
     const appstore = this.plugins.filter((x) => x.status === "active").flatMap((x) => { const d = join(x.dir, "registries/appstore"); return existsSync(d) ? readdirSync(d).filter((f) => f.endsWith(".json")).sort().flatMap((f) => readAny(join(d, f)).apps || []) : []; });
     return { status: 200, body: { fragments, llms, blocks, registry, apps: appstore.map((a) => a.details && a.details.title).filter(Boolean) } };
   }
@@ -673,12 +701,12 @@ export class MemoryBackend {
     for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package") storeState[id] = this.readStore(p, id);
     const input = {
       entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : kind === "contract" ? contractMethod(...name.split("#")) : name, args,
-      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
+      capabilities: p.manifest.capabilities || [], records: this.records, listedPages: Object.values(this.records.page || {}).filter((pg) => this.isListed(pg)).map((pg) => pg.id), currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
       fetch: { egress: (p.manifest.capabilities || []).includes("network:egress") ? p.manifest.egress || [] : [], fakes: this.fetchFakes || {} },
       exec: { allowed: (p.manifest.capabilities || []).includes("exec:run") ? p.manifest.exec || [] : [], fakes: this.execFakes || {} },
-      ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
+      ctx: { now: this.now, subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
     };
     const r = spawnSync("php", [join(here, "php/bridge.php")], { input: JSON.stringify(input), encoding: "utf8" });
     if (r.status !== 0) throw new Error(`php bridge failed: ${r.stderr || r.stdout}`);
@@ -708,6 +736,8 @@ export class MemoryBackend {
   // ---- contracts: core (or a plugin) calls every active implementer (spec/06, spec/13) ----
   async callContract(name, op, input, { only } = {}) {
     const results = [];
+    const def = CORE_CONTRACTS[name] || {};
+    if (def.dispatch === "chosen" && !only) throw new Error(`${name} calls one implementer the caller picks; choose one of: ${this.contractImplementers(name).map((x) => x.id).join(", ") || "none active"}`);
     for (const p of this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name) && (!only || x.id === only))) {
       const ctx = this.makeCtx(p, { subject: input });
       try {
@@ -847,7 +877,8 @@ export class MemoryBackend {
   // ---- render pipeline (spec/06): the same stages run for live pages and static publish ----
   // mode: dynamic (served by the server), preview (the editor's preview) or publish (static output); spec/06
   async render(page, { theme = "clean-one", mode = "dynamic" } = {}) {
-    const ctx0 = { site: { id: this.site.id, name: this.site.name }, page, theme, mode, head: [], content: page.content || "", body: { start: [], end: [] }, html: null };
+    // cacheable: a plugin whose output differs per visitor sets it to false, so caches skip the page (spec/06)
+    const ctx0 = { site: { id: this.site.id, name: this.site.name }, page, theme, mode, cacheable: true, head: [], content: page.content || "", body: { start: [], end: [] }, html: null };
     const before = await this.fire("render.before", ctx0);
     if (before.respond !== undefined) return { html: before.respond, cached: true };
     let c = before.subject;

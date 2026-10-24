@@ -188,7 +188,7 @@
           },
           "steps": {
             "type": "array",
-            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, delete, record, exportUser, eraseUser, asUser, transaction).",
+            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, delete, record, clock (moves ctx.now()), exportUser, eraseUser, asUser, transaction).",
             "items": {
               "type": "object"
             }
@@ -228,6 +228,11 @@
               },
               "additionalProperties": false
             }
+          },
+          "now": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time ctx.now() returns during the case (default 2026-01-01T00:00:00Z)."
           }
         },
         "required": [],

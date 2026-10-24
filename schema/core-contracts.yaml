@@ -1,16 +1,24 @@
 # Contracts core defines and calls. A plugin implements one by listing it in `implements` and providing each operation:
 # Node: contracts["<name>"].<operation>(ctx, input); PHP: a method named camel(<name>) + Studly(<operation>),
 # e.g. import.platform convert -> importPlatformConvert($ctx, $input).
+# dispatch: `all` calls every active implementer; `chosen` calls only the one the caller picked (the import screen lists
+# implementers by plugin title and description), so two importers never both convert the same upload.
 contracts:
   import.platform:
     description: Turn content from another platform into pages for a new site
-    operations: [convert]   # input { html?, url?, files? } -> { title, items: [{ id, title, slug, parent, content }] }
+    dispatch: chosen
+    # input { html?, xml?, url?, files? } -> { title, items: [{ id, title, slug, parent, order, content, metadata? }], files?: [{ path, url }] }
+    # or { error }. `files` lists media for core to fetch into the new site's files/ folder (the importer never downloads).
+    operations: [convert]
   log.sink:
     description: Receive every entry core and plugins write to the log
+    dispatch: all
     operations: [write]     # input { time, level, plugin, message, scope } -> nothing
   privacy.export:
     description: Export what a plugin keeps about a user outside personalData stores
+    dispatch: all
     operations: [export]    # input { userId } -> records
   privacy.delete:
     description: Erase what a plugin keeps about a user outside personalData stores
+    dispatch: all
     operations: [delete]    # input { userId } -> { removed }

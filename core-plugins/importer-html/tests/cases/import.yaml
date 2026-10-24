@@ -8,6 +8,7 @@
       - contract:
           name: import.platform
           op: convert
+          plugin: importer-html
           input: { html: "<html><body><h1>My Course</h1><p>Welcome</p><script>alert(1)</script><h2>Week 1</h2><p onclick=\"x()\">Read</p><h2>Week 1</h2><p>More</p></body></html>" }
         expect:
           body: [{ plugin: importer-html, result: { title: My Course, items: [{ title: Introduction, slug: introduction }, { title: Week 1, slug: week-1, content: "<p>Read</p>" }, { title: Week 1, slug: week-1-2 }] } }]
@@ -19,5 +20,5 @@
   then: "an error result"
   run:
     steps:
-      - contract: { name: import.platform, op: convert, input: {} }
+      - contract: { name: import.platform, op: convert, plugin: importer-html, input: {} }
         expect: { body: [{ result: { error: "html is required" } }] }

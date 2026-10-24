@@ -7,7 +7,7 @@ uuid: 5e6f7081-92a3-44b5-86c7-d8e9fa0b1c2d
 title: rsync deploy
 description: Copies the published site to your own server with rsync, by hand or after every commit.
 version: 0.1.0
-category: integration
+category: publishing
 icon: icons:cloud-upload
 tags: [deploy, rsync, ssh]
 docs: { readme: README.md, agents: AGENTS.md }

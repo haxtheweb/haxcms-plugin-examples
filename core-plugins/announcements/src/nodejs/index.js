@@ -39,7 +39,7 @@ export const operations = {
   },
   async announcementsGetDailyTip(ctx, req) {
     const exclude = req.query.exclude ? String(req.query.exclude).split(",") : [];
-    const tip = A.dailyTip(await data(ctx), ctx.haxcms.version, new Date(), { exclude, seed: req.query.seed || "" }, await overlay(ctx, req.query.lang));
+    const tip = A.dailyTip(await data(ctx), ctx.haxcms.version, new Date(ctx.now()), { exclude, seed: req.query.seed || "" }, await overlay(ctx, req.query.lang));
     return tip ? ok(tip) : notFound();
   },
   async announcementsGet(ctx, req) {

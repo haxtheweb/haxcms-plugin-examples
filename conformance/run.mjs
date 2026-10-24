@@ -30,6 +30,7 @@ async function runCase(c) {
   await backend.load((r.plugins || []).map(fx), r.load || {});
   backend.execFakes = r.exec || {};
   backend.fetchFakes = r.fetch || {};
+  if (r.now) backend.now = Date.parse(r.now);
   const errors = [];
   if (r.expect) errors.push(...check({ statusOf: Object.fromEntries(backend.status().map((x) => [x.id, x.status])), log: backend.log }, r.expect));
   const vars = {};

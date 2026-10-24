@@ -7,7 +7,7 @@ const HEADER = "x-hax-mcp-token";
 async function findToken(ctx, raw) {
   if (!raw) return null;
   const t = ((await ctx.storage.read("tokens")) || []).find((x) => x.hash === hash(raw));
-  if (!t || t.revoked || (t.expires && t.expires < Date.now())) return null;
+  if (!t || t.revoked || (t.expires && t.expires < ctx.now())) return null;
   return t;
 }
 const allowed = (t, op) => (!t.plugins || !t.plugins.length || t.plugins.includes(op.plugin)) && (!t.readOnly || op.method === "GET") && op.mcp;
@@ -17,7 +17,7 @@ export default {
     async mcpTokenCreate(ctx, req) {
       const b = req.body || {};
       const token = `hax_mcp_${randomBytes(24).toString("hex")}`;
-      const record = { id: `tok-${randomBytes(4).toString("hex")}`, label: String(b.label || ""), site: b.site || null, readOnly: b.readOnly ?? ctx.settings.readOnlyDefault !== false, plugins: b.plugins || [], expires: b.expiresInDays ? Date.now() + b.expiresInDays * 86400000 : null, hash: hash(token) };
+      const record = { id: `tok-${randomBytes(4).toString("hex")}`, label: String(b.label || ""), site: b.site || null, readOnly: b.readOnly ?? ctx.settings.readOnlyDefault !== false, plugins: b.plugins || [], expires: b.expiresInDays ? ctx.now() + b.expiresInDays * 86400000 : null, hash: hash(token) };
       await ctx.storage.write("tokens", [...((await ctx.storage.read("tokens")) || []), record]);
       return { id: record.id, token, readOnly: record.readOnly, plugins: record.plugins, site: record.site };
     },

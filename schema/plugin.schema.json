@@ -494,8 +494,34 @@
     "managedFiles": {
       "type": "array",
       "items": {
-        "type": "string"
-      }
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Pattern (* within a folder, ** across folders)."
+              },
+              "title": {
+                "type": "string",
+                "description": "When set, the file is advertised: listed under Resources in llms.txt (and wherever core lists a site's machine-readable files) while the plugin is active and the file exists."
+              },
+              "type": {
+                "type": "string",
+                "description": "Media type of an advertised file (application/rss+xml)."
+              }
+            }
+          }
+        ]
+      },
+      "description": "Generated files the plugin owns in the site folder (written with ctx.files.writeManaged; never hand-edited; removed when the plugin is disabled). An entry may be an object with a title to advertise the file, so core never names a plugin's files itself."
     },
     "schedules": {
       "type": "array",

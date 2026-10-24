@@ -208,6 +208,8 @@ function validatePlugin(manifestPath) {
     for (const f of walk(srcDir).filter((x) => /\.(m?js|cjs|php)$/.test(x))) {
       const code = readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
       if ((f.endsWith(".php") ? execPatternPhp : execPatternJs).test(code) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
+      // the runtime clock makes generated output differ between runs and backends; ctx.now() is frozen in tests
+      if ((f.endsWith(".php") ? /(?<![>\w:$])(time|microtime)\s*\(|new\s+DateTime\(\s*['"]now['"]/ : /\bDate\.now\s*\(/).test(code)) warn(rel2(f), "reads the runtime clock; use ctx.now() so output is reproducible and testable");
       // the command named in the call must be in the exec list; a computed command name cannot be checked
       const callRe = f.endsWith(".php") ? /(?:\bproc_open\(\s*\[|\$ctx->exec\()\s*['"]([^'"]+)['"]/g : /\b(?:spawn|execFile|spawnSync|execFileSync|ctx\.exec)\(\s*(?:(["'`])([^"'`]+)\1|([A-Za-z_$][\w$.]*))/g;
       for (const mm of code.matchAll(callRe)) {

@@ -1,0 +1,6 @@
+{
+  "configure": [
+    { "property": "limit", "title": "Pages in the feed", "description": "The newest pages by creation date", "inputMethod": "number" },
+    { "property": "fullContent", "title": "Full page content in Atom", "description": "Off: Atom carries the summary only", "inputMethod": "boolean" }
+  ]
+}

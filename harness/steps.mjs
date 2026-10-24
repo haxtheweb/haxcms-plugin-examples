@@ -22,11 +22,13 @@ export async function step(backend, raw, vars = {}) {
   else if (s.delete) { const r = await backend.deleteEntity(s.delete.type, s.delete.id); Object.assign(out, { body: { deleted: r.deleted }, veto: r.veto || null }); }
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
-  else if (s.contract) Object.assign(out, { body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) });
+  else if (s.contract) { try { Object.assign(out, { status: 200, body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) }); } catch (e) { Object.assign(out, { status: 400, body: { error: e.message } }); } }
+  else if (s.implementers) Object.assign(out, { status: 200, body: backend.contractImplementers(s.implementers) });
   else if (s.managed) Object.assign(out, { body: (backend.managed.get(s.managed) || {}).content ?? null, status: backend.managed.has(s.managed) ? 200 : 404 });
   else if (s.exportUser) Object.assign(out, await backend.exportUser(s.exportUser));
   else if (s.eraseUser) Object.assign(out, await backend.eraseUser(s.eraseUser));
-  else if (s.asUser) { backend.user = s.asUser; }
+  else if (s.asUser !== undefined && "asUser" in s) { backend.user = s.asUser; }
+  else if (s.clock) { backend.now = Date.parse(s.clock); }
   else if (s.transaction) {
     let marks;
     await backend.transaction(async (tx) => { for (const inner of s.transaction.steps || []) { const r = await step(backend, inner, vars); if (r.errors.length) throw new Error(r.errors.join("; ")); } marks = tx.marks; }, { bulk: s.transaction.bulk !== false, origin: s.transaction.origin || "case" });

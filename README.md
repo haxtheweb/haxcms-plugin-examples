@@ -10,7 +10,7 @@ The architecture decisions and their log live in https://github.com/haxtheweb/is
 | `schema/` | JSON Schemas (`plugin.yaml`, Merlin declarations, theme and element registry entries, stores, entities, prompts, test cases, hook contracts; appstore fragments use https://github.com/haxtheweb/appstore-spec), the hook contracts (`hook-contracts.json`, source of the spec/06 table), capabilities, categories and derived tags |
 | `scripts/validate.mjs` | `hax-plugin-validate`: validates a plugin folder and its registries |
 | `scripts/check-core-config.mjs` | checks a live HAXcms `coreConfig` folder against the schemas |
-| `core-plugins/` | drafts of real core plugins, extracted from today's HAXcms or new, to prove the spec: announcements, cookie-consent, google-analytics, regions, author-profile, pwa, youtube, git, agent-skills, outline, files, log, mcp, importer-html (Node and PHP code, tests, parity) and game-pack |
+| `core-plugins/` | drafts of real core plugins, extracted from today's HAXcms or new, to prove the spec: announcements, cookie-consent, google-analytics, regions, author-profile, pwa, git, agent-skills, outline, files, log, mcp, importer-html, importer-wordpress, feeds, sitemap, search, page-cache (Node and PHP code, tests, parity); youtube, vimeo, giphy, unsplash, flickr (declarative `x-hax-proxy`, no code); game-pack and open-media-apps (packs) |
 | `contrib-plugins/` | fake community plugins that probe the topology: neon-theme-pack, workshop-skeleton-pack, music-blocks (packs), comments, plausible-analytics, rsync-deploy, a11y-check (the last three Node only) |
 | `examples/` | the comprehensive teaching `example`, `data-store`, `minimal-pack` |
 | `skills/` | draft agent skills for building, auditing, upgrading and porting plugins |

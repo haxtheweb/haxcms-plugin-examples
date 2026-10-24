@@ -55,9 +55,17 @@ class HarnessEntities {
     }
   }
   public function get($type, $id = null) { $this->need($type, 'read'); $id = $type === 'site' ? ($id ?: $this->site) : $id; return $this->records[$type][$id] ?? null; }
+  public $listed = [];
   public function list($type, $query = []) {
     $this->need($type, 'read');
-    return array_values(array_filter($this->records[$type] ?? [], function ($r) use ($query) { foreach ($query as $k => $v) { if (($r[$k] ?? null) !== $v) { return false; } } return true; }));
+    $listed = $this->listed;
+    return array_values(array_filter($this->records[$type] ?? [], function ($r) use ($query, $type, $listed) {
+      foreach ($query as $k => $v) {
+        if ($k === 'listed') { if ($type !== 'page' || in_array($r['id'] ?? null, $listed, true) !== $v) { return false; } continue; }
+        if (($r[$k] ?? null) !== $v) { return false; }
+      }
+      return true;
+    }));
   }
   public $deletes = [];
   public function delete($type, $id) { $this->need($type, 'write'); unset($this->records[$type][$id]); $this->deletes[] = ['type' => $type, 'id' => $id]; return ['deleted' => true]; }
@@ -125,6 +133,7 @@ class HarnessCtx {
     $this->transaction = $c['transaction'] ?? ['marks' => []];
     if (!isset($this->transaction['marks']) || !is_array($this->transaction['marks'])) { $this->transaction['marks'] = []; }
     $this->enabled = $c['enabled'] ?? [];
+    $this->nowMs = $c['now'] ?? 0;
     $this->storage = new HarnessStorage($c['stores'] ?? [], $in['pluginDir'], $in['packageStores'] ?? [], $in['overrides'] ?? []);
     $this->package = new HarnessPackage($in['pluginDir']);
     $this->log = new HarnessLog();
@@ -134,6 +143,7 @@ class HarnessCtx {
     $this->files = new HarnessFiles($in['managedFiles'] ?? []);
     $this->assets = new HarnessAssets($in['pluginId'] ?? '');
     $this->entities = new HarnessEntities($in['records'] ?? [], $in['capabilities'] ?? [], $in['currentSite'] ?? null, $in['pluginId'] ?? '');
+    $this->entities->listed = $in['listedPages'] ?? [];
   }
   public $bulk = null;
   // PHP spelling of ctx.transaction.run(): the harness applies this call's saves inside one bulk transaction
@@ -141,6 +151,8 @@ class HarnessCtx {
   public function veto($message, $status = 409) { return ['__veto' => true, 'message' => $message, 'status' => $status]; }
   public function warn($message, $severity = 'warning') { $this->warnings[] = ['message' => $message, 'severity' => $severity]; }
   public function respond($html) { return ['__respond' => $html]; }
+  private $nowMs = 0;
+  public function now() { return $this->nowMs; }
   public function pluginEnabled($id) { return in_array($id, $this->enabled, true); }
   // ctx->fetch: egress checked, call recorded, answered from the case's fakes by host (spec/13 PHP shape)
   public $fetchCalls = []; public $fetchSpec = ['egress' => [], 'fakes' => []];

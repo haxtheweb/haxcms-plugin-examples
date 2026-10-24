@@ -29,6 +29,7 @@ async function runCase(c, runtime) {
   await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} }, records: r.records });
   backend.execFakes = r.exec || {};
   backend.fetchFakes = r.fetch || {};
+  if (r.now) backend.now = Date.parse(r.now);
   // a single call/fire with expect, or a list of steps each with its own expect
   const steps = r.steps || [{ ...(r.call ? { call: r.call } : {}), ...(r.fire ? { fire: r.fire } : {}), expect: r.expect || {} }];
   const errors = [];

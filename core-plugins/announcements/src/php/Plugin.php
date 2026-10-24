@@ -38,7 +38,7 @@ class AnnouncementsPlugin {
   }
   public function announcementsGetDailyTip($ctx, $req) {
     $exclude = !empty($req['query']['exclude']) ? explode(',', $req['query']['exclude']) : [];
-    $tip = Announcements::dailyTip($this->data($ctx), $ctx->haxcms->version, new DateTime('now', new DateTimeZone('UTC')), $exclude, $req['query']['seed'] ?? '', $this->overlay($ctx, $req['query']['lang'] ?? null));
+    $tip = Announcements::dailyTip($this->data($ctx), $ctx->haxcms->version, (new DateTime('@' . intdiv($ctx->now(), 1000)))->setTimezone(new DateTimeZone('UTC')), $exclude, $req['query']['seed'] ?? '', $this->overlay($ctx, $req['query']['lang'] ?? null));
     return $tip ? $this->ok($tip) : $this->notFound();
   }
   public function announcementsGet($ctx, $req) {

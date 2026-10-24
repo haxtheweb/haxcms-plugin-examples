@@ -7,7 +7,7 @@ class McpPlugin {
     if (!$raw) { return null; }
     foreach ($ctx->storage->read('tokens') ?: [] as $t) {
       if ($t['hash'] === $this->hash($raw)) {
-        if (!empty($t['revoked']) || (!empty($t['expires']) && $t['expires'] < round(microtime(true) * 1000))) { return null; }
+        if (!empty($t['revoked']) || (!empty($t['expires']) && $t['expires'] < $ctx->now())) { return null; }
         return $t;
       }
     }
@@ -20,7 +20,7 @@ class McpPlugin {
   public function mcpTokenCreate($ctx, $req) {
     $b = $req['body'] ?? [];
     $token = 'hax_mcp_' . bin2hex(random_bytes(24));
-    $record = ['id' => 'tok-' . bin2hex(random_bytes(4)), 'label' => (string) ($b['label'] ?? ''), 'site' => $b['site'] ?? null, 'readOnly' => $b['readOnly'] ?? (($ctx->settings['readOnlyDefault'] ?? true) !== false), 'plugins' => $b['plugins'] ?? [], 'expires' => !empty($b['expiresInDays']) ? round(microtime(true) * 1000) + $b['expiresInDays'] * 86400000 : null, 'hash' => $this->hash($token)];
+    $record = ['id' => 'tok-' . bin2hex(random_bytes(4)), 'label' => (string) ($b['label'] ?? ''), 'site' => $b['site'] ?? null, 'readOnly' => $b['readOnly'] ?? (($ctx->settings['readOnlyDefault'] ?? true) !== false), 'plugins' => $b['plugins'] ?? [], 'expires' => !empty($b['expiresInDays']) ? $ctx->now() + $b['expiresInDays'] * 86400000 : null, 'hash' => $this->hash($token)];
     $tokens = $ctx->storage->read('tokens') ?: [];
     $tokens[] = $record;
     $ctx->storage->write('tokens', $tokens);

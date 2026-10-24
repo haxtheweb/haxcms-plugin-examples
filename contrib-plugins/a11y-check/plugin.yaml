@@ -7,7 +7,7 @@ uuid: 8a9b0c1d-2e3f-4405-9617-28394a5b6c7d
 title: Accessibility check
 description: Flags common accessibility problems when pages are saved and in the preview, with a report for the whole site.
 version: 0.1.0
-category: content
+category: accessibility
 icon: icons:accessibility
 tags: [accessibility, a11y, wcag]
 docs: { readme: README.md, agents: AGENTS.md, prompts: docs/prompts.yaml }

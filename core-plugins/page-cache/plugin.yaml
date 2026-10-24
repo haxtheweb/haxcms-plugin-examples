@@ -1,0 +1,36 @@
+# Page cache (new, core optional). Exercises the render pipeline's cache points: render.before may answer with a stored
+# document (ctx.respond), render.after stores it. It caches only dynamic, anonymous, cacheable renders and clears on
+# anything that can change output: page and site saves, any plugin's settings, and plugins being turned on or off.
+specVersion: "0.1.0"
+id: page-cache
+uuid: 4f6b8d0e-2a4c-4e6f-9b8d-0f2a4c6e8b0d
+title: Page cache
+description: Serves rendered pages from a cache for visitors who are not signed in, and clears it when anything changes.
+version: 0.1.0
+category: performance
+icon: icons:cached
+tags: [cache, speed]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+staticCapable: true
+staticFallback: Static copies are already plain files served as they are; there is nothing to cache or clear.
+capabilities: []
+hooks:
+  - name: render.before
+  - name: render.after
+  - name: page.after.save
+  - name: page.after.delete
+  - name: manifest.after.save
+  - name: config.after.save
+    config: ["*"]              # any plugin's settings can change what pages look like
+  - name: plugin.after.enable
+  - name: plugin.after.disable
