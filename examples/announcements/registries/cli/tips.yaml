@@ -1,5 +1,6 @@
 # `hax announcements tips` lists tips; `hax announcements tip` gives the tip of the day (same for everyone that UTC day).
 command: tips
+alias: tips                # so `hax tips` works too
 summary: HAX tips
 operation: announcementsListTips
 options:

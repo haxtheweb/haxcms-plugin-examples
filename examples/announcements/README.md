@@ -13,7 +13,7 @@ What's New and HAX Tips: curated release highlights and evergreen tips, shown in
 | Route handlers and hooks | `src/nodejs/index.js`, `src/php/Plugin.php` |
 | Dashboard button, "New" chip and dialog, declared as data and rendered by app-hax with its existing elements (no plugin front-end code) | `registries/dashboard/whats-new.yaml` |
 | Merlin "What's new" and "HAX tips" (`api` programs, no JS) | `registries/merlin/` |
-| CLI: `hax announcements whats-new`, `tips`, `tip` | `registries/cli/` |
+| CLI: `hax whats-new`, `hax tips`, `hax tip` (aliases of `hax announcements ...`) | `registries/cli/` |
 | Skills: ask what's new (system), curate entries (developer); prompts | `skills/`, `docs/prompts.yaml` |
 | Tests: Node unit tests, a Node/PHP parity run, behavior cases | `tests/` |
 
@@ -36,7 +36,7 @@ Announcements is required, so it is never disabled in practice, but nothing in c
 | Dashboard | top-bar button, chip, modal | app-hax renders dashboard contributions from `GET /system/api/v1/plugins/contributions` with its own elements | not in the response, nothing rendered |
 | Dashboard data calls | `@system/announcementsListLatest`, ... | app-hax registers operations from the contract | not registered |
 | Merlin | "What's new", "HAX tips" | Merlin loads declarations of enabled plugins | options absent |
-| CLI | `hax announcements ...` | CLI loads `registries/cli` of enabled plugins | commands absent from help |
+| CLI | `hax whats-new` (alias of `hax announcements whats-new`), `tips`, `tip` | CLI loads `registries/cli` of enabled plugins, aliases included | commands and aliases absent from help |
 | Agents | system skill, prompts | agent-skills index and `register.*.prompts` built from enabled plugins | unpublished |
 | Hooks | `plugin.before.enable`, `plugin.after.upgrade` | hook dispatcher | never run |
 | Published sites | none | n/a | n/a |
@@ -50,7 +50,7 @@ From this folder: `node --test tests/nodejs/announcements.test.mjs`. The reposit
 ## Differences from the plan
 
 - No plugin elements: the button, chip and dialog are a dashboard contribution that app-hax renders with elements it already has (the plan proposed a new `hax-whats-new` element). Merlin rows open it with `hax-dashboard-open`.
-- CLI commands are contributed by the plugin and namespaced: `hax announcements whats-new`, `tips`, `tip` (the plan had core commands `hax whats-new` and `hax tips` added to create).
+- CLI commands are contributed by the plugin (`hax announcements whats-new`, `tips`, `tip`) with aliases `hax whats-new`, `hax tips` and `hax tip`; nothing is added to create's own command list.
 - Dashboard calls use operations registered from the contract, not entries added to app-hax's alias list.
 - Data is JSON in package stores so both runtimes read it without a YAML dependency.
 - The sample entries are for development only (`notes: SAMPLE ENTRY`); the curation skill replaces them.

@@ -130,3 +130,9 @@
   given: "backend and front-end source outside the plugins folders"
   when: "scan for every plugin id, operationId, element tag and hook name a plugin defines"
   then: "no matches, except the required core plugin list in deployment config"
+- id: load-117
+  title: "colliding CLI aliases are dropped, namespaced commands still work"
+  spec: spec/09-packaging-tooling.md
+  given: "plugins A and B both declare alias tips"
+  when: "hax tips; hax A tips; hax B tips"
+  then: "hax tips is not registered and the CLI warns naming both; the namespaced forms run"

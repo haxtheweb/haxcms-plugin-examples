@@ -4,7 +4,7 @@ prompts:
     kind: howto
     skill: announcements-whats-new
     prompt: |
-      My HAXcms is version {{haxcms.version}}. Using `hax announcements whats-new --json` if available (or GET /system/api/v1/plugins/announcements/latest
+      My HAXcms is version {{haxcms.version}}. Using `hax whats-new --json` if available (or GET /system/api/v1/plugins/announcements/latest
       with my JWT and X-HAXCMS-User-Token), summarize what is new for a site author, grouped by type, with one line each.
   - id: diagnose-announcements
     title: The What's New button shows nothing or fails

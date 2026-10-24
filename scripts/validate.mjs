@@ -43,6 +43,7 @@ const validators = {
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const hookContracts = Object.fromEntries(readJson(join(root, "schema/hook-contracts.json")).map((c) => [c.name, c]));
 const knownCaps = new Set(readJson(join(root, "schema/capabilities.json")));
+const cliReserved = new Set(readJson(join(root, "schema/cli-reserved.json")));
 const knownCategories = new Set(readJson(join(root, "schema/categories.json")));
 const derivedTagNames = Object.keys(readJson(join(root, "schema/derived-tags.json")));
 
@@ -239,6 +240,9 @@ function validatePlugin(manifestPath) {
     if (!validators.cli(c)) { fmt(validators.cli.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
     if (!opIds.has(c.operation)) err(rel(f), `operation "${c.operation}" is not in ${m.openapi || "the plugin's openapi"}`);
     if (cmds.has(c.command)) err(rel(f), `duplicate command "${c.command}"`);
+    if (c.alias && cliReserved.has(c.alias)) err(`${rel(f)}/alias`, `alias "${c.alias}" is a core hax command`);
+    if (c.alias && cmds.has("alias:" + c.alias)) err(`${rel(f)}/alias`, `alias "${c.alias}" is used twice in this plugin`);
+    if (c.alias) cmds.add("alias:" + c.alias);
     cmds.add(c.command);
   }
   for (const f of listFiles(join(dir, "registries/merlin"), [".yaml", ".yml", ".json"])) {
