@@ -1,6 +1,13 @@
 {
   "configure": [
     {
+      "property": "greeting",
+      "title": "Greeting",
+      "description": "Required before the plugin activates (see plugin.before.requirements in src/). Shown by the awesome-counter singleton.",
+      "inputMethod": "textfield",
+      "required": true
+    },
+    {
       "property": "intensity",
       "title": "Intensity",
       "description": "How big the explosions are.",

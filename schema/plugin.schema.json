@@ -202,15 +202,13 @@
     },
     "core": {
       "type": "boolean",
-      "default": false
+      "default": false,
+      "description": "Ships with HAXcms. Core plugins that are not required are off until someone enables them (for example google-analytics)."
     },
     "required": {
       "type": "boolean",
       "default": false,
-      "description": "Core plugins only."
-    },
-    "defaultEnabled": {
-      "type": "boolean"
+      "description": "Core only. Always enabled and cannot be disabled. There is no separate default-enabled flag: required core plugins are on, everything else is off until enabled."
     },
     "hidden": {
       "type": "boolean"

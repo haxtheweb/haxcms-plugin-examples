@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+1d. **No `defaultEnabled`.** Required core plugins are on; everything else is off until enabled; `--all-sites` is a CLI convenience. Skeletons are starting points with no later effect.
 1c. **Transactions join, packs are authoring-only.** Nested transactions join the outer one; any plugin can open or add to a bulk transaction. The abstraction is named the HAX backend platform contract. Packs shape the authoring appstore and block list at rebuild time; `wc-registry.json` and CDN hydration are unchanged. Disabling a pack in use is allowed with a notice listing affected pages.
 1b. **Soft hook subscriptions, no core filters, transactions, packs.** Subscribers choose dependencies or suggests for another plugin's hooks; core offers no criteria filters. Transactions with mark-and-defer (`transaction.*` hooks). Required core plugins declare dependencies (`outline` → `git`). Core plugins mirrored into each backend's core plugins folder; Node first, then PHP. Element packs enabled per site, chosen by skeletons; `siteTypes` reserved for recommendations.
 1a. **Aliases, plugin-defined hooks, required core plugins.** Hook definitions share `hook-contracts.schema.json`; `aliasOf` with `entities` and `changed` filters; new aliases `page.*.delete`, `file.*.save` / `.delete`, `theme.*.change`. Plugins define namespaced hooks via `hookDefinitions`. `outline`, `git` and `files` proposed as required core plugins (structure, not optionality). Health chips live on the plugin dashboard and work without the optional log plugin.
@@ -40,6 +41,5 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 16. **HAX backend platform contract (named).** Backend-only: core config, file templates, plugin loader, hooks, stores, routes; separate from front-end asset production. Shape still to specify.
 17. **Skeleton `site.plugins`** needs a PR to https://github.com/haxtheweb/json-outline-schema.
 15. **Plugin test harness.** Case format is set; the runner that executes a plugin's cases in both runtimes (shared with the spec conformance runner, item 0k) is not written.
-14. **`defaultEnabled` meaning** for contrib plugins (core required plugins are simply on).
 12. **Roles and permissions** for who sees health, the log, and who may install, enable and configure plugins at each scope.
 13. **Merlin options from an endpoint.** Declarations stay and frontend registration is allowed. A backend-served option listing is future work.

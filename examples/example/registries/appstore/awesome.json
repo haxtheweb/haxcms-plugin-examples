@@ -15,14 +15,11 @@
       },
       "connection": {
         "protocol": "https",
-        "url": "example.invalid/api",
-        "data": {
-          "key": "{{AWESOME_API_KEY}}"
-        },
+        "url": "/v1/plugins/example/appstore",
         "operations": {
           "browse": {
             "method": "GET",
-            "endPoint": "explosions",
+            "endPoint": "browse",
             "pagination": {
               "style": "page",
               "props": {

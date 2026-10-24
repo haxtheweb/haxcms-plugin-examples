@@ -1,3 +1,6 @@
+# The plugin's admin panel: where its settings form (config/settings.schema.json) and screen appear
+# in the dashboard at admin/plugins/example/settings. The screen also shows the README, skill links,
+# prompts, status, health chip and derived tags.
 panel:
   title: Example (awesome)
   group: Examples

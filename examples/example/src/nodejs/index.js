@@ -307,7 +307,10 @@ export default {
     },
     // inject singletons and scripts at the end of the body, with settings baked in from the plugin's config
     "render.after.body": async (ctx) => {
-      log("render.after.body", ctx);
+      // bake the setting into the markup; the element never asks the server. Never put secrets here.
+      const greeting = String(ctx.settings.greeting || "").replace(/[<>"&]/g, "");
+      ctx.subject.body.end.push(`<awesome-counter greeting="${greeting}"></awesome-counter>`);
+      return ctx.subject;
     },
     // last chance to alter the final document; store it in a cache
     "render.after": async (ctx) => {

@@ -1,2 +1,8 @@
+# Where this plugin keeps data. Four scopes exist (see examples/data-store for all of them):
+#   site      travels with the site folder (exported, git committed): <site>/_config/data/example/tally.json
+#   siteData  stays on the server, keyed by the site UUID (per-user or private data)
+#   system    one store for the whole deployment
+#   manifest  a small object inside site.json at metadata.plugins.example
+# Code reads and writes through ctx.storage, never by path. Uninstall purges these stores.
 stores:
-  - { id: tally, scope: site, file: tally.json }
+  - { id: tally, scope: site, file: tally.json }   # how many explosions each page has had

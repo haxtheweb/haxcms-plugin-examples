@@ -1,3 +1,5 @@
+# A Merlin (super-daemon) option declared as data. kind: module runs a program from a plain ES module:
+# the host lazily imports frontend/dist/explode-program.js and calls createExplodeProgram(context).
 option:
   title: Explode the page
   icon: icons:flare

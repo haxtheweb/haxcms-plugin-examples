@@ -1,3 +1,4 @@
+# role: injected means the plugin places it itself (render.after.body); authors never insert it, so no haxProperties.
 tag: awesome-counter
 path: frontend/dist/awesome-counter.js
 role: injected

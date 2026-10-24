@@ -16,3 +16,21 @@
   given: "no token"
   when: "GET /v1/plugins/example/public/ping"
   then: "200"
+- id: example-004
+  title: "a bulk outline edit reindexes once"
+  hook: page.after.save
+  given: "bulk transaction saving 20 pages"
+  when: "transaction ends"
+  then: "page.after.save marks example.reindex and returns; transaction.after.end logs one reindex"
+- id: example-005
+  title: "the counter singleton carries the greeting from settings"
+  hook: render.after.body
+  given: "settings.greeting is Hello"
+  when: "a page renders"
+  then: "body ends with <awesome-counter greeting=\"Hello\"> and no secret values appear in the HTML"
+- id: example-006
+  title: "explode fires the plugin's own hooks"
+  operation: exampleExplode
+  given: "a subscriber vetoes example.before.explode"
+  when: "POST /v1/plugins/example/explosions"
+  then: "409 with the veto message; example.after.explode does not fire"

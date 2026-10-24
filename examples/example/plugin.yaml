@@ -1,54 +1,79 @@
-specVersion: "0.1.0"
-id: example
-uuid: 2f5d3a0e-7c1b-4a52-9d5a-3b1f6e8c9a10
+# plugin.yaml: the manifest. Everything the platform needs to know about a plugin before running any of its code.
+# Validated by hax-plugin-validate (schema/plugin.schema.json). Unknown keys are refused, so typos fail early.
+# This is the comprehensive teaching example: it uses every key and every hook. A real plugin uses a handful.
+
+# --- Identity --------------------------------------------------------------
+specVersion: "0.1.0"        # which version of the plugin spec this manifest follows (semver)
+id: example                  # must equal the folder name; also the namespace for routes, skills and hooks it defines
+uuid: 2f5d3a0e-7c1b-4a52-9d5a-3b1f6e8c9a10   # generated once by `hax plugin create`, never changes
 title: Example (awesome)
-description: Exercises every hook and extension point. Disabled by default.
-category: developer
-icon: frontend/dist/icon.svg
-tags: [example, reference]
-siteTypes: [documentation]
+description: Exercises every hook and extension point. Not core, so it is off until someone enables it.
+version: 0.1.0               # the plugin's own version; HAXcms itself uses calendar versions (26.8.1)
+group: Examples              # dashboard grouping
+lifecycle: experimental      # stable | experimental | deprecated | obsolete; shows as the derived tag not-stable
+license: Apache-2.0
+redistribution: allowed      # default for assets; restricted assets are left out of exports
+
+# --- How it is found and described (the audit requires category, icon, README and AGENTS.md) ---
+category: developer          # exactly one, from schema/categories.json ("other" when nothing fits)
+icon: frontend/dist/icon.svg # an iconset name (icons:flare) or a file in the plugin
+tags: [example, reference]   # up to three of your own; derived tags (needs-server, runs-commands, ...) are added for you
+siteTypes: [documentation]   # reserved for recommendations ("sites like yours also use ...")
 screenshots:
   - src: frontend/dist/screenshot-dashboard.svg
     alt: The example plugin's settings panel in the dashboard
 docs:
-  readme: README.md
-  agents: AGENTS.md
-  prompts: docs/prompts.yaml
+  readme: README.md          # for people
+  agents: AGENTS.md          # for agents: purpose, layout, rules, how to test and diagnose
+  prompts: docs/prompts.yaml # copyable prompts on the plugin screen; also served through MCP when that plugin is on
   help: https://github.com/haxtheweb/haxcms-plugin-examples
-skills:
+skills:                      # agent skills under skills/<name>/SKILL.md; names start with the plugin id
   - name: example-authoring
-    audience: site
+    audience: site           # published into a site's .well-known/agent-skills while enabled there
   - name: example-plugin-dev
-    audience: developer
-version: 0.1.0
-group: Examples
-defaultEnabled: false
-lifecycle: experimental
-license: Apache-2.0
-redistribution: allowed
-runtimes: [nodejs, php]
+    audience: developer      # read from the package by tools; never published
+
+# --- Code --------------------------------------------------------------------
+runtimes: [nodejs, php]      # core and first-party plugins ship both; the CLI tests Node at install
 entry:
   nodejs: src/nodejs/index.js
   php: src/php/Plugin.php
-openapi: config/openapi.yaml
-entities: config/entities.yaml
-contracts: config/contracts.yaml
-hookDefinitions: config/hooks.yaml
-datastores: config/datastores.yaml
-settings: config/settings.schema.json
-admin: config/admin.yaml
-tagPrefix: awesome-
-# routes and the Merlin api program need a backend, so this is tagged 'needs a server'
-staticCapable: false
+# tests: tests              # default folder; required unless `untested: true` (shown as the derived tag untested)
+
+# --- What it adds to the platform -------------------------------------------
+openapi: config/openapi.yaml         # routes, mounted at /v1/plugins/example/; secured unless x-hax-public
+entities: config/entities.yaml       # new entity types (awesomeFile extends file) and annotations on core ones
+contracts: config/contracts.yaml     # provider contracts other plugins can implement
+hookDefinitions: config/hooks.yaml   # hooks this plugin fires, plus an alias, for other plugins to subscribe to
+datastores: config/datastores.yaml   # where its data lives (site, siteData, system or manifest scope)
+settings: config/settings.schema.json # its settings panel; values live in plugin config (CMI), not site.json
+admin: config/admin.yaml             # its admin panel placement
+tagPrefix: awesome-                  # every element and theme tag it ships must start with this (one namespace per plugin)
+# Registries are found by folder, no keys needed: registries/{themes,elements,skeletons,merlin,appstore,locales}
+
+# --- Safety and pillars (shown to admins; several become derived tags) -------
+staticCapable: false         # routes and the Merlin api program need a server: shown as "needs a server"
 capabilities: ["items:read", "files:read", "output:inject", "settings:secret", "exec:run"]
-exec: [rsync]
+exec: [rsync]                # the only commands it may run (needs exec:run); the validator scans code for others
 privacy:
-  tracking: false
+  tracking: false            # true would require categories and consent
+
+# --- Relationships ------------------------------------------------------------
+# dependencies: [git]        # hard: cannot enable without them (and they cannot be disabled while this is on)
+# suggests: [google-analytics] # soft: adds something when present; check with ctx.pluginEnabled("google-analytics")
+# conflicts: [other-explosions] # known not to work together: allowed with a warning
+
+# --- Scheduled jobs (run by `hax plugin schedule run` from cron) -------------
 schedules:
   - id: tidy
-    cron: "17 3 * * *"
-    handler: tidy
-    scope: site
+    cron: "17 3 * * *"       # 03:17 daily, system time zone
+    handler: tidy            # exported by src/nodejs/index.js and a method in src/php/Plugin.php
+    scope: site              # once per site where the plugin is enabled
+
+# --- Hook subscriptions -------------------------------------------------------
+# Generated from schema/hook-contracts.json by scripts/gen-example-hooks.py so the example covers every hook.
+# Options per subscription: entities (entity hooks), config (whose config: own by default, ids, or "*"),
+# priority (higher runs first, default 0), detached (after hooks that may run after the response), timeout (ms).
 hooks:
   - name: entity.before.create
     entities: [awesomeFile]

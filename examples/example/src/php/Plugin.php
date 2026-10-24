@@ -457,7 +457,10 @@ class ExamplePlugin {
   // inject singletons and scripts at the end of the body, with settings baked in from the plugin's config
   // hook: render.after.body
   public function renderAfterBody($ctx) {
-    $this->log("render.after.body", $ctx);
+    // bake the setting into the markup; the element never asks the server. Never put secrets here.
+    $greeting = htmlspecialchars($ctx->settings["greeting"] ?? "", ENT_QUOTES);
+    $ctx->subject["body"]["end"][] = "<awesome-counter greeting=\"$greeting\"></awesome-counter>";
+    return $ctx->subject;
   }
 
   // last chance to alter the final document; store it in a cache

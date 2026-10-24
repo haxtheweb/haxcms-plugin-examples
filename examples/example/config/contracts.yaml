@@ -1,3 +1,6 @@
+# Provider contracts this plugin defines. Another plugin implements one by listing it in `implements`
+# and providing the operations (the provider-contract pair in spec/10 shows both sides).
+# Core-defined contracts work the same way, for example import.platform, privacy.export, privacy.delete.
 contracts:
   example.sparkle:
     description: Something that can sparkle

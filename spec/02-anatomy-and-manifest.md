@@ -52,7 +52,6 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `docs` | `readme` (default `README.md`) and `agents` (default `AGENTS.md`), both required by the audit; optional `prompts` file and `help` URL (spec/07, Plugin screen) |
 | `skills` | agent skills under `skills/<name>/SKILL.md` with an `audience` (spec/07, Skills) |
 | `tests`, `untested` | tests folder (default `tests`), required by the audit unless `untested: true`, shown as the derived tag `untested` (spec/07, Tests) |
-| `defaultEnabled` | initial state when discovered (the example plugin: false) |
 | `hidden` | not listed in the dashboard (helpers, test fixtures) |
 | `lifecycle`, `lifecycleLink` | `stable` (default), `experimental`, `deprecated`, `obsolete`; deprecated and obsolete require a docs link. Dashboard badge and enable-time warning; obsolete is refused |
 | `license`, `redistribution` | `allowed` or `restricted` default for the plugin's assets (see 8.4) |
