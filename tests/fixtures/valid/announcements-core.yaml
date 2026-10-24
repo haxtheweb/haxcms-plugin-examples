@@ -1,5 +1,6 @@
 specVersion: "0.1.0"
 id: announcements
+uuid: 54eace2b-cd65-4e1e-8f79-7830c3a06765
 title: Announcements
 description: Curated release highlights and tips.
 version: 1.0.0

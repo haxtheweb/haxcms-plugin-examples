@@ -1,12 +1,12 @@
 // Example plugin (Node). Placeholder until the loader exists: every hook in schema/hooks.json is implemented.
 // Each body logs; the comment says what you could do there.
-const log = (name, ctx) => console.log(`[example] ${name}`, ctx && ctx.entity ? ctx.entity : "");
+const log = (name, ctx) => console.log(`[example] ${name}`, ctx && ctx.subject ? ctx.subject : "");
 
 export default {
   hooks: {
     // validate or normalize input, or veto with a message
     "entity.before.create": async (ctx) => {
-      if (ctx.entity && ctx.entity.name === "boring.awesome") {
+      if (ctx.subject && ctx.subject.name === "boring.awesome") {
         return { veto: true, message: "Too boring. Add more explosions." };
       }
       log("entity.before.create", ctx);
@@ -47,11 +47,11 @@ export default {
     "rest.response": async (ctx) => {
       log("rest.response", ctx);
     },
-    // check preconditions; throw to refuse the transition
+    // runs the first time the plugin is enabled in a scope (site or system); migrate settings that used to live in site.json or core config into this plugin's settings here
     "plugin.before.install": async (ctx) => {
       log("plugin.before.install", ctx);
     },
-    // finish setup, warm caches, or observe another plugin
+    // runs the first time the plugin is enabled in a scope (site or system); migrate settings that used to live in site.json or core config into this plugin's settings here
     "plugin.after.install": async (ctx) => {
       log("plugin.after.install", ctx);
     },

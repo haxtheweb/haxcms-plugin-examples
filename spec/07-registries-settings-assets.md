@@ -22,6 +22,7 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 - A plugin's settings are a HAXSchema form (`config/settings.schema.json`) shown as its own panel in the admin area at **admin/plugins/`<id>`/settings**, at system level and, where the plugin is site-scoped, at site level.
 - Save/read routes follow the same shape: `/system/api/v1/plugins/<id>/settings` and `/x/api/v1/plugins/<id>/settings` (site). Both require authentication; fields flagged secret are never returned.
 - When a setting moves out of core into a plugin, it leaves the core form and appears only in that plugin's panel. Plugin settings are stored outside `site.json` by default (the `site` data store, 4.2), which keeps the manifest from growing further. The `manifest` store stays available for data that must travel inside `site.json`.
+- Settings are saved as part of the plugin's configuration (CMI). When a setting moves from core into a plugin, it is removed from the global form; the plugin's install hook (spec/06) migrates the value from `site.json` the first time the plugin is enabled for a site.
 - Legacy: a plugin may read and interpret an old core location (such as `metadata.site.settings.gaID`) as a fallback, with a one-time `upgrade` step to move it.
 - Admin menu structure is not final; this area will be informed by the API structure and revised.
 
@@ -56,3 +57,17 @@ Sites load `./custom/build/custom.es6.js` as a module with an import map scope m
 ### Authoring
 
 Plugins ship plain ES modules resolved through import maps, the same way custom elements work in sites today. A compile/optimize step (hash, minify, asset manifest) runs as part of `hax plugin build` when preparing to ship; there is no required build step during development.
+
+### 7.3 Core settings that may move into plugins later
+From `coreConfig/siteFields.json` (the site settings form). Not part of this work; recorded so the extension points are designed against real cases.
+
+| Setting(s) today | Candidate plugin | Note |
+|---|---|---|
+| `gaID` (Google Analytics ID) | `google-analytics` | first real case; depends on cookie-consent |
+| `sw` (service worker), `forceUpgrade` | PWA / offline | optional behavior with a policy side |
+| author contact and social links (`phone`, `location`, `website2`, `socialLink`, `socialLink2`) | author profile / social | keep name, email, image, license in core |
+| theme banner, palette, accent, icon (`theme.variables.*`) | each theme's own settings | belongs to the theme plugin that defines them |
+| `regions` | stays core for now | defined by the active theme; revisit if themes declare regions |
+| advanced SEO, AI/LLM optimization tuning | SEO / AI optimization plugin | baseline SEO, social cards, sitemap and llms.txt stay in core |
+| `lang` | stays core | drives `<html lang>`; translations tooling could be a plugin |
+| `private`, `canonical`, `pathauto`, `publishPagesOn` | stay core | baseline platform behavior |

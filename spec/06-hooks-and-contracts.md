@@ -26,3 +26,18 @@ Semantics:
 
 ### 6.2 Provider contracts
 A plugin defines a contract in `config/contracts.yaml` (name, required operations or functions per runtime, data shapes). Other plugins `implement` it and `depend` on the defining plugin, and the loader validates that the implementer follows the contract. The defining plugin lists and calls the enabled implementers. Contracts are namespaced by their owner (`authproviders.provider`, `views.source`, `consent.subject`). The first-party mechanism ships now; specific contracts such as import, export, search, spam and mail are added later. The auth provider contract is usable only from the highest-order context (section 3).
+
+### Hook subject (context)
+A hook receives a context whose `subject` is the thing the hook is about, at that moment:
+
+- entity hooks: the entity (loading: the loaded entity; about to save: the entity being saved; extending entities fire parent first, with the concrete type in context)
+- page or manifest save: the page or the manifest
+- plugin lifecycle hooks: the plugin object
+- site lifecycle hooks: the site
+- user hooks: the user
+- rest hooks: the request / the response
+
+The exact fields of each subject and what a hook may return (modified subject, veto, warnings) are still to be specified per hook; see GAPS.md.
+
+### `install` versus `enable`
+`plugin.before.install` / `plugin.after.install` fire the **first time** a plugin is enabled in a scope (a site, or the system). `enable` fires on every enable. Moving a setting from core into a plugin is the install hook's job: it reads the old value (for example from `site.json`), writes it to the plugin's settings, and the setting leaves the global form. Sites that already had the plugin enabled are covered by `upgrade`.

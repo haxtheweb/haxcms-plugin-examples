@@ -7,7 +7,7 @@ class ExamplePlugin {
   // validate or normalize input, or veto with a message
   // hook: entity.before.create
   public function entityBeforeCreate($ctx) {
-    if (isset($ctx["entity"]["name"]) && $ctx["entity"]["name"] === "boring.awesome") {
+    if (isset($ctx["subject"]["name"]) && $ctx["subject"]["name"] === "boring.awesome") {
       return ["veto" => true, "message" => "Too boring. Add more explosions."];
     }
     $this->log("entity.before.create", $ctx);
@@ -67,13 +67,13 @@ class ExamplePlugin {
     $this->log("rest.response", $ctx);
   }
 
-  // check preconditions; throw to refuse the transition
+  // runs the first time the plugin is enabled in a scope (site or system); migrate settings that used to live in site.json or core config into this plugin's settings here
   // hook: plugin.before.install
   public function pluginBeforeInstall($ctx) {
     $this->log("plugin.before.install", $ctx);
   }
 
-  // finish setup, warm caches, or observe another plugin
+  // runs the first time the plugin is enabled in a scope (site or system); migrate settings that used to live in site.json or core config into this plugin's settings here
   // hook: plugin.after.install
   public function pluginAfterInstall($ctx) {
     $this->log("plugin.after.install", $ctx);

@@ -36,7 +36,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | Key | Meaning |
 |---|---|
 | `specVersion` | full semver of this spec the plugin targets; the loader refuses a newer major (pre-1.0: a newer minor) |
-| `id`, `uuid`, `title`, `description`, `version` | identity; `version` uses semver syntax with HAX's calendar scheme (year.month.release-in-month, for example `26.8.1`), distributed like an npm package |
+| `id`, `uuid` (required; generated once by the CLI), `title`, `description`, `version` | identity; `version` uses semver syntax with HAX's calendar scheme (year.month.release-in-month, for example `26.8.1`), distributed like an npm package |
 | `kind` | `plugin` or `pack` (declarative-only, no backend code; safe at any tier) |
 | `group` | dashboard grouping |
 | `requires.haxcms` | compatible platform range (runtime versions are implied by this; no runtime-specific keys) |

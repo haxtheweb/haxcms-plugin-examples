@@ -1,5 +1,6 @@
 specVersion: "0.1.0"
 id: example
+uuid: 6e7cc22c-9744-42ab-8cda-fc577ee6d0a7
 title: Example (awesome)
 description: Exercises every hook and extension point.
 version: 0.1.0

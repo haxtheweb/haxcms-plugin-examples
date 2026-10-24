@@ -1,5 +1,6 @@
 specVersion: "0.1.0"
 id: data-store
+uuid: 0e31e293-606d-4b86-9cb1-472fbf349b29
 title: Data store example
 description: Uses all four store kinds, an upgrade step and personal-data flags.
 version: 0.2.0

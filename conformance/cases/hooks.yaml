@@ -40,3 +40,21 @@
   given: "examples/example"
   when: "static check"
   then: "all present in manifest, nodejs and php"
+- id: hooks-008
+  title: "install fires only the first time a plugin is enabled in a scope; enable fires every time"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin with install and enable hooks, enabled for site A"
+  when: "disable then enable again on site A, then enable on site B"
+  then: "install ran once for A and once for B; enable ran on all three enables"
+- id: hooks-009
+  title: "a setting migrated by the install hook leaves the global form and is read from plugin config"
+  spec: spec/07-registries-settings-assets.md
+  given: "site.json has metadata.site.settings.gaID; google-analytics not yet enabled"
+  when: "enable google-analytics for the site"
+  then: "value present in the plugin's settings; global form no longer shows the field"
+- id: hooks-010
+  title: "hook context subject is the entity, page or manifest, plugin, site or user the hook is about"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hooks subscribed to entity.before.update, plugin.after.enable and site.after.create"
+  when: "each fires"
+  then: "ctx.subject is the entity being saved, the plugin object and the site respectively"

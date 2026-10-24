@@ -1,5 +1,6 @@
 specVersion: "0.1.0"
 id: google-analytics
+uuid: f4febbcd-fc83-40f0-8090-903966f5d23f
 title: Google Analytics
 description: Adds Google Analytics after visitor consent.
 version: 0.1.0

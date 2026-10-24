@@ -8,6 +8,7 @@
   "required": [
     "specVersion",
     "id",
+    "uuid",
     "title",
     "description",
     "version"
@@ -26,7 +27,8 @@
     },
     "uuid": {
       "type": "string",
-      "format": "uuid"
+      "format": "uuid",
+      "description": "Required. Generated once by the CLI (hax plugin create) and never changed; stable identity across renames and forks."
     },
     "title": {
       "type": "string",
