@@ -175,5 +175,29 @@ export default {
     "schedule.run": async (ctx) => {
       log("schedule.run", ctx);
     },
+    // inspect or adjust the page by reference before it is written, or veto
+    "page.before.save": async (ctx) => {
+      log("page.before.save", ctx);
+    },
+    // react once the page is saved (sync, notify, rebuild derived data)
+    "page.after.save": async (ctx) => {
+      log("page.after.save", ctx);
+    },
+    // inspect or adjust the manifest by reference before it is written, or veto
+    "manifest.before.save": async (ctx) => {
+      log("manifest.before.save", ctx);
+    },
+    // react once the manifest is saved
+    "manifest.after.save": async (ctx) => {
+      log("manifest.after.save", ctx);
+    },
+    // last chance to add files or adjust the commit message
+    "git.before.commit": async (ctx) => {
+      log("git.before.commit", ctx);
+    },
+    // runs after every git commit HAXcms makes (after an item or manifest save); for example rsync the site to a remote server
+    "git.after.commit": async (ctx) => {
+      log("git.after.commit", ctx);
+    },
   },
 };

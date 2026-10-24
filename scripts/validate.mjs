@@ -31,6 +31,9 @@ const validators = {
   theme: own("theme-registry-entry.schema.json"),
   element: own("element-registry-entry.schema.json"),
   merlin: own("merlin-declaration.schema.json"),
+  datastores: own("datastores.schema.json"),
+  entities: own("entities.schema.json"),
+  locale: own("locale-overlay.schema.json"),
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const knownCaps = new Set(readJson(join(root, "schema/capabilities.json")));
@@ -138,6 +141,21 @@ function validatePlugin(manifestPath) {
     const v = extValidator("appstore", "@haxtheweb/appstore-spec/schema/appstore.schema.json");
     if (!v) { warn(rel(f), "@haxtheweb/appstore-spec not installed; appstore fragment not validated"); continue; }
     if (!v(readJson(f))) fmt(v.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message));
+  }
+  const checkFile = (key, v) => {
+    if (!m[key] || !existsSync(join(dir, m[key]))) return;
+    const doc = readAny(join(dir, m[key]));
+    if (!v(doc)) fmt(v.errors).forEach((e) => err(`${m[key]}${e.path === "/" ? "" : e.path}`, e.message));
+    return doc;
+  };
+  const stores = checkFile("datastores", validators.datastores);
+  const ents = checkFile("entities", validators.entities);
+  if (stores && ents && ents.entities) {
+    const ids = new Set(stores.stores.map((x) => x.id));
+    for (const [name, e] of Object.entries(ents.entities)) if (e.store && !ids.has(e.store)) err(`${m.entities}/entities/${name}/store`, `unknown store "${e.store}" (not in ${m.datastores})`);
+  }
+  for (const f of listFiles(join(dir, "registries/locales"), [".yaml", ".yml", ".json"])) {
+    if (!validators.locale(readAny(f))) fmt(validators.locale.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message));
   }
   const settingsPath = m.settings && join(dir, m.settings);
   if (settingsPath && existsSync(settingsPath)) {

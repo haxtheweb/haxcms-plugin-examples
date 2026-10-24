@@ -1,8 +1,10 @@
-# Illustrative entity declarations.
 entities:
   note:
     primaryKey: uuid
-    scope: siteData
+    scope: site
     store: notes
     requiredFields: [uuid, body]
+    fields:
+      uuid: { type: string }
+      body: { type: string }
     personalData: true

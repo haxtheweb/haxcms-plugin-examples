@@ -66,7 +66,8 @@ From `coreConfig/siteFields.json` (the site settings form). Not part of this wor
 | `sw` (service worker), `forceUpgrade` | PWA / offline | optional behavior with a policy side |
 | author contact and social links (`phone`, `location`, `website2`, `socialLink`, `socialLink2`) | author profile / social | keep name, email, image, license in core |
 | theme banner, palette, accent, icon (`theme.variables.*`) | each theme's own settings | belongs to the theme plugin that defines them |
-| `regions` | stays core for now | defined by the active theme; revisit if themes declare regions |
+| `regions` | `regions` plugin with its own storage type | today a hack attached to the site outline. As a plugin it owns region storage; themes keep rendering them through the `site-region` tag, without the current back-association |
+| appstore apps in core (YouTube, NASA image search and others) | one plugin per provider | peeled off into integration plugins, each with its own settings |
 | advanced SEO, AI/LLM optimization tuning | SEO / AI optimization plugin | baseline SEO, social cards, sitemap and llms.txt stay in core |
 | `lang` | stays core | drives `<html lang>`; translations tooling could be a plugin |
 | `private`, `canonical`, `pathauto`, `publishPagesOn` | stay core | baseline platform behavior |
@@ -74,7 +75,8 @@ From `coreConfig/siteFields.json` (the site settings form). Not part of this wor
 ### 7.4 Appstore contributions
 HAX already has a format for what a plugin wants to add to the editor: the appstore payload (https://github.com/haxtheweb/appstore-spec), returned by each backend's `generateAppStore` and read by `HaxStore._loadAppStoreData`. Plugins contribute fragments in `registries/appstore/*.json`; the backend merges the fragments of every enabled plugin into the payload it already serves.
 
-- `apps`: media providers and upload targets (an embed provider is an app). Keys must not be committed; use `{{NAME}}` placeholders that the backend fills from the plugin's secret settings, or point `connection.url` at the plugin's own route so the plugin brokers the request and the browser never sees the key.
+- `apps`: media providers and upload targets (an embed provider is an app). Secrets are not shipped or stored in the appstore payload: they live with the plugin, tucked away in its configuration (CMI), and requests that need a key are brokered by the plugin's own route (`connection.url` points at it) so the browser never sees the key. The appstore spec is expected to move away from `{{NAME}}` placeholders in this direction.
 - `stax`: reusable content stacks.
 - `autoloader`: block availability. A `role: block` entry in `registries/elements/` generates its autoloader entry automatically (`tag -> { import, haxProperties }`), so a plugin does not repeat itself. Platform filtering still applies: HAXcms filters the autoloader by `settings/enabledBlocks.json` when that file exists, and the `onlineMedia` platform setting hides apps without an `add` operation.
+- Merge order is the same cascade as plugin loading: core system plugins first, then outward through the tiers. Built-in providers such as YouTube and NASA image search are expected to become plugins themselves.
 - Top-level keys only (`status`, `apps`, `stax`, `autoloader`); a payload wrapped in `data` is ignored by HAX, and the validator rejects it.

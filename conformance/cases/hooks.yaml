@@ -58,3 +58,27 @@
   given: "hooks subscribed to entity.before.update, plugin.after.enable and site.after.create"
   when: "each fires"
   then: "ctx.subject is the entity being saved, the plugin object and the site respectively"
+- id: hooks-011
+  title: "the subject is passed by reference: a before hook's change is written, an after hook's change reaches the caller but not the stored record"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hooks that set a field on the subject, subscribed before and after update"
+  when: "update an entity"
+  then: "stored record has the before-hook change only; the returned entity has both"
+- id: hooks-012
+  title: "ctx.previous carries the prior version on update"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an after-update hook"
+  when: "update an entity"
+  then: "ctx.previous is the version before the update"
+- id: hooks-013
+  title: "git.after.commit fires after every commit made following an item or manifest save"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a git.after.commit hook that records the commit"
+  when: "save a page, then save the manifest"
+  then: "two commits recorded, each after its save completed"
+- id: hooks-014
+  title: "page and manifest saves run their own hooks as well as entity hooks"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hooks on page.before.save and entity.before.update"
+  when: "save a page"
+  then: "both fire"

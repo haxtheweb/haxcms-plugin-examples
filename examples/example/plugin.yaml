@@ -75,3 +75,9 @@ hooks:
   - name: rebuild.before
   - name: rebuild.after
   - name: schedule.run
+  - name: page.before.save
+  - name: page.after.save
+  - name: manifest.before.save
+  - name: manifest.after.save
+  - name: git.before.commit
+  - name: git.after.commit

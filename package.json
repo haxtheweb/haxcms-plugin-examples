@@ -20,7 +20,9 @@
   "files": [
     "schema/",
     "scripts/validate.mjs",
-    "spec/"
+    "spec/",
+    "conformance/",
+    "examples/"
   ],
   "exports": {
     "./schema/*": "./schema/*",

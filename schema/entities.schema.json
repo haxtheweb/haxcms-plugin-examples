@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/entities.schema.json",
+  "title": "Plugin entities (config/entities.yaml) - DRAFT",
+  "description": "Extends or adds entities and annotates existing ones. Extensions never break the parent (spec/04).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "entities": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "extends": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "primaryKey": {
+            "type": "string",
+            "default": "uuid"
+          },
+          "scope": {
+            "enum": [
+              "site",
+              "system"
+            ]
+          },
+          "store": {
+            "type": "string",
+            "description": "id of a store in datastores.yaml."
+          },
+          "storage": {
+            "enum": [
+              "inherited"
+            ]
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "string",
+                    "integer",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object"
+                  ]
+                },
+                "default": {},
+                "note": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "personalData": {
+            "type": "boolean"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "not": {
+                "required": [
+                  "extends"
+                ]
+              }
+            },
+            "then": {
+              "anyOf": [
+                {
+                  "required": [
+                    "store"
+                  ]
+                },
+                {
+                  "required": [
+                    "storage"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "annotations": {
+      "type": "object",
+      "description": "entity -> namespaced annotation field. Never stored; ignored on write.",
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^ext\\.[a-z][a-z0-9-]*\\.[A-Za-z0-9._-]+$"
+        },
+        "additionalProperties": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean",
+                "array",
+                "object"
+              ]
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

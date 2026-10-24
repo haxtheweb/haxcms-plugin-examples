@@ -258,4 +258,40 @@ class ExamplePlugin {
   public function scheduleRun($ctx) {
     $this->log("schedule.run", $ctx);
   }
+
+  // inspect or adjust the page by reference before it is written, or veto
+  // hook: page.before.save
+  public function pageBeforeSave($ctx) {
+    $this->log("page.before.save", $ctx);
+  }
+
+  // react once the page is saved (sync, notify, rebuild derived data)
+  // hook: page.after.save
+  public function pageAfterSave($ctx) {
+    $this->log("page.after.save", $ctx);
+  }
+
+  // inspect or adjust the manifest by reference before it is written, or veto
+  // hook: manifest.before.save
+  public function manifestBeforeSave($ctx) {
+    $this->log("manifest.before.save", $ctx);
+  }
+
+  // react once the manifest is saved
+  // hook: manifest.after.save
+  public function manifestAfterSave($ctx) {
+    $this->log("manifest.after.save", $ctx);
+  }
+
+  // last chance to add files or adjust the commit message
+  // hook: git.before.commit
+  public function gitBeforeCommit($ctx) {
+    $this->log("git.before.commit", $ctx);
+  }
+
+  // runs after every git commit HAXcms makes (after an item or manifest save); for example rsync the site to a remote server
+  // hook: git.after.commit
+  public function gitAfterCommit($ctx) {
+    $this->log("git.after.commit", $ctx);
+  }
 }

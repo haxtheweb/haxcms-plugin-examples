@@ -57,7 +57,8 @@
     "terrible": {
       "type": "boolean",
       "default": false,
-      "description": "Present in every current entry; meaning to be confirmed against the code that reads it."
+      "deprecated": true,
+      "description": "Deprecated. Marks intentionally bad novelty themes (for example geocities style) that can be used but are not meant to be; to be rolled into `hidden`. New plugin entries should use `hidden`."
     },
     "supportedPalettes": {
       "type": [
