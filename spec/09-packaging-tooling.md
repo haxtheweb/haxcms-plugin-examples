@@ -8,6 +8,26 @@ Plugins are distributed like npm packages (composer kept in sync if feasible) be
 
 ## Dashboard, CLI, audit
 
+### CLI operations
+
+Everything the dashboard can do, the CLI can do, at system level or for one site (`--site <name|uuid>`; without it the command targets the system). Every command takes `--json` for agents and `--y` to accept confirmations.
+
+| Command | What it does |
+|---|---|
+| `hax plugin install <@scope/name[@range]\|git-url\|path>` | Fetches the plugin and places it in the right plugins directory for the tier (`--tier site\|system`); validates; leaves it `available`, not enabled |
+| `hax plugin enable <id> [--site]` | Enables (auto-enables dependencies after confirmation); runs `plugin.requirements` and reports `active` or `inactive` with what is missing |
+| `hax plugin disable <id> [--site]` | Disables; refused with the dependents or sites using its theme |
+| `hax plugin uninstall <id>` | Runs uninstall hooks, removes plugin data after confirmation, removes the files; refused while enabled anywhere |
+| `hax plugin config get\|set\|unset <id> <key> [value] [--site]` | Reads or writes the plugin's CMI settings, validated against its settings schema; secrets are write-only |
+| `hax plugin status [<id>] [--site]` | Status, health, unmet requirements, dependents, conflicts |
+| `hax plugin list [--site] [--enabled\|--available]` | Plugins with tier, version, status and health |
+| `hax plugin update <id> [--to <range>]` | Fetches a newer version and runs upgrade steps |
+| `hax plugin log [<id>] [--site] [--level]` | Reads the unified log (needs the log plugin) |
+| `hax plugin create`, `add <piece> <name>`, `build`, `validate`, `audit`, `pack` | Authoring commands (below) |
+
+So `hax plugin install @haxtheweb/announcements` then `hax plugin enable announcements --site mysite` is the whole flow for one site.
+
+
 - **Dashboard:** a Plugins area under system admin, simple for now: every plugin with tier, version, group, lifecycle, enabled, required, locked, warnings, capabilities and privacy summary, pillar verdict, and a link to its configuration (settings form or admin panel). Locked plugins cannot be toggled.
 - **CLI (`hax plugin ...`)** writes templated files the way site and webcomponent commands do (templates are the example plugin minus the demo parts): `create`, `list`, `install <path|git-url|npm>`, `add <piece> <name>` (adds a piece to a plugin: `theme`, `element`, `skeleton`, `route`, `entity`, `hook`, `datastore`, `setting`, `locale`, `contract`, `merlin`, `migration`; writes the stub in the right place, registers it, adds a test stub, then runs `validate`; never overwrites; `--dry-run`, `--json`; element stubs reuse the `hax webcomponent` generator with the plugin's `tagPrefix`), `enable|disable [--site] [--y]`, `build` (assets, registries summary), `validate`, `audit`, later `pack`. `--json` output for agents.
 - **Audit** checks the manifest schema, spec rules (security, scoping, naming), runtime parity for required plugins, backend code for unsafe patterns, dependencies, forbidden syntax per repo rules, accessibility and DDD for front-end elements, and `haxProperties` presence.

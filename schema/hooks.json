@@ -15,6 +15,7 @@
   "git.after.commit",
   "rest.request",
   "rest.response",
+  "plugin.requirements",
   "plugin.before.install",
   "plugin.after.install",
   "plugin.before.enable",

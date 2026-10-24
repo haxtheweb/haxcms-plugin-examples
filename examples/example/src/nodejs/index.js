@@ -47,6 +47,14 @@ export default {
     "rest.response": async (ctx) => {
       log("rest.response", ctx);
     },
+    // report unmet requirements; the plugin stays enabled but inactive until this returns an empty list
+    // also a place to check optional companions with ctx.pluginEnabled("other-plugin")
+    "plugin.requirements": async (ctx) => {
+      log("plugin.requirements", ctx);
+      const unmet = [...ctx.subject];
+      if (!ctx.settings.greeting) unmet.push({ key: "settings.greeting", message: "Set a greeting before this plugin activates" });
+      return unmet;
+    },
     // runs the first time the plugin is enabled in a scope (site or system); migrate settings that used to live in site.json or core config into this plugin's settings here
     "plugin.before.install": async (ctx) => {
       log("plugin.before.install", ctx);

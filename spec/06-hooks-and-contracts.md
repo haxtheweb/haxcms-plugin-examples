@@ -24,7 +24,7 @@ Every lifecycle has a before hook and an after hook. **Before** hooks run before
 Semantics:
 - Chains run in order: required plugins first, then tier low to high, then `priority` (default 0), then alphabetical.
 - A modifying hook's output is validated against the concrete entity's schema, including a parent's required fields. An invalid result is discarded and logged, and the chain continues with the previous data. A plugin may only add fields to a schema it defines: it must declare in its `entities` the schema it extends, otherwise the added fields are warned about and discarded. A veto returns an error to the caller (status and message) and fails the whole operation. Warnings carry a severity and messages the UI can show.
-- A hook error is logged and does not crash the operation, except an explicit veto. Every discard, warning, veto, timeout and hook error, including from detached after hooks, is written to the plugin log and surfaced as plugin health to the log plugin. That plugin is a system-level, optional-enable plugin with one log page covering site and system scope. It keeps 500 messages by default and rotates monthly; message count and rotation period are settings in its CMI config. Plugins without it enabled still show the health badge from in-memory state (see GAPS.md item 12).
+- A hook error is logged and does not crash the operation, except an explicit veto. Every discard, warning, veto, timeout and hook error, including from detached after hooks, is written to the plugin log and surfaced as plugin health to the one unified log, in a standard server log style: time, level (info, warn, error), plugin id, hook or operation, scope (system or a site id), message, optional subject reference. Hooks write to the same log through `ctx.log`; a plugin wanting a log of its own for another purpose keeps it in its own storage. Any warn or error entry sets a status on the plugin, shown as a chip on the dashboard and at login that leads to the plugin and the log. The log is a plugin. That plugin is a system-level, optional-enable plugin with one log page covering site and system scope. It keeps 500 messages by default and rotates monthly; message count and rotation period are settings in its CMI config. Plugins without it enabled still show the health badge from in-memory state (see GAPS.md item 12).
 - Timeouts: a **before** hook runs in the save path and defaults to 5 seconds (a manifest `timeout`, up to 30 seconds, can raise it for one hook). An **after** hook is an event that follows the operation. It runs inline by default with the same limit so later hooks and the caller see its changes; a hook that does slow work (for example an rsync after `git.after.commit`) declares `detached: true` in the manifest, runs after the response is sent, and gets 60 seconds. There is no emergency disable-all switch: a disabled plugin already removes its hooks.
 - When a later hook in a chain changes a field an earlier hook set, the change stands and the loader logs a warning naming both plugins.
 - Hooks stay opt-in; core routes cannot be broken, only extended through these points.
@@ -38,6 +38,7 @@ A plugin defines a contract in `config/contracts.yaml` (name, required operation
 - `ctx.veto(message)`: stop the chain and fail the operation with the message (before hooks only)
 - `ctx.warn(message)`: collect a warning that the UI can show; the operation continues
 - `ctx.settings`, `ctx.storage`, `ctx.log`: the plugin's own settings (CMI), data stores and log
+- `ctx.pluginEnabled(id)`: whether another plugin is enabled and active in this scope; how a plugin uses an optional companion (listed in `suggests`) and skips the feature quietly when it is absent
 - `ctx.fetch`: guarded outbound request (needs `network:egress` and a declared host)
 - `ctx.respond(html)`: `render.before` only; short-circuit the render with a ready document (cache hit)
 
@@ -81,3 +82,11 @@ Veto and warning shapes are settled above; the exact fields of each subject stil
 
 ### `install` versus `enable`
 `plugin.before.install` / `plugin.after.install` fire the **first time** a plugin is enabled in a scope (a site, or the system). `enable` fires on every enable. Moving a setting from core into a plugin is the install hook's job: it reads the old value (for example from `site.json`), writes it to the plugin's settings, and the setting leaves the global form. Sites that already had the plugin enabled are covered by `upgrade`.
+
+## Ordering
+
+Plugins on the same hook run by `priority` (higher first; every subscription defaults to 0), then by the plugin loading cascade. Ordering conflicts are expected to be rare.
+
+## Requirements
+
+`plugin.requirements` runs before install and whenever status is recalculated (enable, settings save, dashboard load). Its subject is the list of unmet requirements so far; a hook returns the list with its own entries added (`{ key, message }`). A plugin with unmet requirements is **enabled but not active**: its hooks, routes and registries do not run until the list is empty. Required settings and the presence of a companion plugin are the common cases.

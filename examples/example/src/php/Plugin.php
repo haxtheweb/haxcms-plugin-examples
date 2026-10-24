@@ -67,6 +67,18 @@ class ExamplePlugin {
     $this->log("rest.response", $ctx);
   }
 
+  // report unmet requirements; the plugin stays enabled but inactive until this returns an empty list
+  // also a place to check optional companions with $ctx->pluginEnabled('other-plugin')
+  // hook: plugin.requirements
+  public function pluginRequirements($ctx) {
+    $this->log("plugin.requirements", $ctx);
+    $unmet = $ctx->subject;
+    if (empty($ctx->settings['greeting'])) {
+      $unmet[] = ['key' => 'settings.greeting', 'message' => 'Set a greeting before this plugin activates'];
+    }
+    return $unmet;
+  }
+
   // runs the first time the plugin is enabled in a scope (site or system); migrate settings that used to live in site.json or core config into this plugin's settings here
   // hook: plugin.before.install
   public function pluginBeforeInstall($ctx) {

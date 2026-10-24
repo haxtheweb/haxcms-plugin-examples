@@ -34,3 +34,27 @@
   given: "A requires B, both enabled"
   when: "disable B"
   then: "409 listing A; disabling A first then B succeeds"
+- id: load-101
+  title: "a plugin with unmet requirements is enabled but inactive"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin.requirements returns [{key: settings.greeting}]"
+  when: "enable"
+  then: "status enabled/inactive with the message; no hooks, routes or registries run; setting the value makes it active"
+- id: load-102
+  title: "a system-enabled plugin cannot be disabled for one site"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin enabled at system level"
+  when: "disable --site mysite"
+  then: "refused with a message naming the system scope"
+- id: load-103
+  title: "enabling a declared conflict warns but succeeds"
+  spec: spec/03-tiers-and-enablement.md
+  given: "A conflicts: [B]; B enabled"
+  when: "enable A"
+  then: "A enabled; warning on dashboard, CLI and log"
+- id: load-104
+  title: "hooks run by priority then cascade"
+  spec: spec/06-hooks-and-contracts.md
+  given: "two plugins on render.after, priority 10 and 0"
+  when: "render"
+  then: "priority 10 runs first; equal priorities follow the cascade"

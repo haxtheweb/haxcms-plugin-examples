@@ -44,6 +44,7 @@ hooks:
     entities: [awesomeFile]
   - name: rest.request
   - name: rest.response
+  - name: plugin.requirements
   - name: plugin.before.install
   - name: plugin.after.install
   - name: plugin.before.enable

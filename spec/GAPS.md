@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+0q. **Log, status, ordering, scope, requirements, CLI.** One unified server-style log written by the log plugin; warn/error sets a status chip. `ctx.pluginEnabled(id)` for optional companions shown on the install page. `conflicts` warns. Hook order by `priority` (default 0) then cascade. System-enabled plugins cannot be turned off per site. `plugin.requirements` keeps a plugin enabled but inactive until met. CLI covers install from npm/git/path, enable, disable, uninstall, config, status, list, update and log, system-wide or per site.
 0p. **Enablement failure and dependencies.** A failure while enabling turns the plugin off with a recorded reason. Dependents must be disabled before the parent, with the UI showing both directions. Repeated hook failures keep running and logging. Log plugin and health badge: see item 12.
 0o. **Extra fields and veto.** A plugin must declare the schema it extends; undeclared added fields are warned about and discarded. A veto fails the whole operation with an error to the caller. Failures (including detached hooks) must be surfaced as plugin health; see item 12.
 0l. **Hook return contract**: return the updated subject (PHP parity); `ctx` is the context object with `veto`, `warn`, `settings`, `storage`, `log`, `fetch`, `respond`. Timeouts: 5 s before hooks, detached after hooks 60 s, no emergency switch. Overwrites by a later hook log a warning.
@@ -24,6 +25,6 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
-12. **Log plugin details.** Decided: system level, optional, 500 messages, monthly rotation, both configurable via CMI, one page for site and system scope, badge on the plugin row. Open: the entry format (level, plugin, hook, subject, time), how health works when the log plugin is off, and the roles and permissions that see it.
+12. **Roles and permissions** for who sees health, the log, and who may install, enable and configure plugins at each scope.
 13. **Merlin options from an endpoint.** Declarations stay and frontend registration is allowed. A backend-served option listing is future work.
 6. **Per-hook subject fields.** The hook list is fixed but each hook's context and return shape (veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.

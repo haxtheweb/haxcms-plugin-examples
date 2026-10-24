@@ -77,6 +77,14 @@
         "$ref": "#/$defs/pluginRef"
       }
     },
+    "conflicts": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Plugins known not to work alongside this one. Enabling both is allowed with a warning on the dashboard, CLI and log.",
+      "items": {
+        "$ref": "#/$defs/pluginRef"
+      }
+    },
     "testDependencies": {
       "type": "array",
       "uniqueItems": true,
