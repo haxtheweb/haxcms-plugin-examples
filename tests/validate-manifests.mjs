@@ -30,6 +30,7 @@ const suites = [
   ["ext:haxProperties", "registries/elements/valid", true], ["ext:haxProperties", "registries/elements/invalid", false],
   ["ext:settings", "registries/settings/valid", true], ["ext:settings", "registries/settings/invalid", false],
   ["ext:site", "registries/site/valid", true], ["ext:site", "registries/site/invalid", false],
+  ["theme-registry-entry.schema.json", "registries/themes/valid", true], ["theme-registry-entry.schema.json", "registries/themes/invalid", false],
   ["merlin-declaration.schema.json", "merlin/valid", true], ["merlin-declaration.schema.json", "merlin/invalid", false],
 ];
 let failures = 0;
