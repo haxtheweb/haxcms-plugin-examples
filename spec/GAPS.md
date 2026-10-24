@@ -3,12 +3,12 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+0. **Namespacing is by design.** A plugin is limited to one `tagPrefix`, deliberately (one namespace per plugin). The child theme in the example is `awesome-awesomer-theme` for that reason. (Was gap 3.)
+0b. **Version scheme.** HAX versions are calendar style: year, month, then the release number within that month (`26.8.1`). Plugin and platform versions are compared as dotted numbers, which the semver syntax already accommodates, so `requires.haxcms` and dependency ranges use semver range syntax over calendar versions. (Was gap 4.)
 1. **Public and rate-limit keys.** The spec said `public: true` per operation, but OpenAPI only allows `x-` extension keys. Now `x-hax-public: true` and `x-hax-rate-limit`.
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
-3. **One `tagPrefix`.** The child theme could not be called `awesomer-explosions-theme` because it must start with `awesome-`. Is one prefix per plugin right, or should a plugin be able to claim several?
-4. **Version scheme.** The spec says semver ranges, but HAX itself ships calendar-style versions (`26.8.1`). Range matching on `requires.haxcms` and `dependencies` needs a stated rule (treat as semver numbers, or define calendar ranges).
 5. **`uuid` in the manifest.** Optional today. Should it be required (stable identity across renames and forks) with the CLI generating it?
 6. **Hook payloads.** The hook list is fixed but each hook's context and return shape (`ctx.entity`, veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.
 7. **Hook defaults.** Per-hook timeout value, max chain length, and what `HAXCMS_DISABLE_HOOKS=1` disables exactly.

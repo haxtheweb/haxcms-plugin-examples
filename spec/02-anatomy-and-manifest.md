@@ -36,7 +36,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | Key | Meaning |
 |---|---|
 | `specVersion` | full semver of this spec the plugin targets; the loader refuses a newer major (pre-1.0: a newer minor) |
-| `id`, `uuid`, `title`, `description`, `version` | identity; `version` is semver, distributed like an npm package |
+| `id`, `uuid`, `title`, `description`, `version` | identity; `version` uses semver syntax with HAX's calendar scheme (year.month.release-in-month, for example `26.8.1`), distributed like an npm package |
 | `kind` | `plugin` or `pack` (declarative-only, no backend code; safe at any tier) |
 | `group` | dashboard grouping |
 | `requires.haxcms` | compatible platform range (runtime versions are implied by this; no runtime-specific keys) |
@@ -56,7 +56,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `hooks` | hook subscriptions with optional `priority` (default 0) and entity filters |
 | `registries` | generated summary of `registries/` (written by `hax plugin build`) |
 | `assets` | generated list of web-reachable files with hash, size, type, optional `redistribution` per asset |
-| `tagPrefix` | the only prefix the plugin's custom element tags may use |
+| `tagPrefix` | the only prefix the plugin's custom element tags may use; one namespace per plugin, by design |
 | `staticCapable` | whether the plugin's behavior works without a backend |
 | `egress` | outbound hosts the plugin may call |
 | `capabilities` | permissions requested, shown at enable time (see 9.1) |
