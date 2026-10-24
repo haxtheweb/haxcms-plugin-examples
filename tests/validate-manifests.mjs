@@ -15,12 +15,14 @@ const validateOption = ajv.getSchema(merlinOption.$id);
 const addPkg = (pkgPath) => { const sc = JSON.parse(readFileSync(join(root, "node_modules", pkgPath), "utf8")); ajv.addSchema(sc); return sc; };
 const haxProps = addPkg("@haxtheweb/hax-schema/schema/haxProperties.schema.json");
 addPkg("@haxtheweb/json-outline-schema-spec/schema/json-outline-schema.schema.json");
+const appstoreSchema = addPkg("@haxtheweb/appstore-spec/schema/appstore.schema.json");
 const siteSchema = addPkg("@haxtheweb/json-outline-schema-spec/schema/haxcms-site.schema.json");
 const skeletonSchema = addPkg("@haxtheweb/json-outline-schema-spec/schema/skeleton.schema.json");
 const external = {
   "ext:skeleton": ajv.getSchema(skeletonSchema.$id),
   "ext:haxProperties": ajv.getSchema(haxProps.$id),
   "ext:site": ajv.getSchema(siteSchema.$id),
+  "ext:appstore": ajv.getSchema(appstoreSchema.$id),
   "ext:settings": ajv.compile({ $ref: `${haxProps.$id}#/properties/settings` }),
 };
 const compiled = {};
@@ -30,6 +32,7 @@ const suites = [
   ["ext:haxProperties", "registries/elements/valid", true], ["ext:haxProperties", "registries/elements/invalid", false],
   ["ext:settings", "registries/settings/valid", true], ["ext:settings", "registries/settings/invalid", false],
   ["ext:site", "registries/site/valid", true], ["ext:site", "registries/site/invalid", false],
+  ["ext:appstore", "registries/appstore/valid", true], ["ext:appstore", "registries/appstore/invalid", false],
   ["theme-registry-entry.schema.json", "registries/themes/valid", true], ["theme-registry-entry.schema.json", "registries/themes/invalid", false],
   ["merlin-declaration.schema.json", "merlin/valid", true], ["merlin-declaration.schema.json", "merlin/invalid", false],
 ];

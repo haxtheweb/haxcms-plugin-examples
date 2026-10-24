@@ -134,6 +134,11 @@ function validatePlugin(manifestPath) {
     if (option.eventName === "super-daemon-run-program") option.value.program = "host-supplied";
     if (!ov(option)) fmt(ov.errors).forEach((e) => err(`${rel(f)}/option${e.path === "/" ? "" : e.path}`, e.message));
   }
+  for (const f of listFiles(join(dir, "registries/appstore"), [".json"])) {
+    const v = extValidator("appstore", "@haxtheweb/appstore-spec/schema/appstore.schema.json");
+    if (!v) { warn(rel(f), "@haxtheweb/appstore-spec not installed; appstore fragment not validated"); continue; }
+    if (!v(readJson(f))) fmt(v.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message));
+  }
   const settingsPath = m.settings && join(dir, m.settings);
   if (settingsPath && existsSync(settingsPath)) {
     const v = extValidator("settings", "@haxtheweb/hax-schema/schema/haxProperties.schema.json", "#/properties/settings");

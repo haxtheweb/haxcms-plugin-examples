@@ -12,6 +12,8 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
+20. **Appstore merge point.** Backends build the appstore in `generateAppStore` (PHP and Node). Where plugin fragments are merged, in what order, and how conflicts (same app title) are handled are open. Also how plugin block `haxProperties` interacts with the `enabledBlocks.json` filter.
+21. **Secrets in apps.** `{{NAME}}` placeholders are filled by the backend today; the mapping from plugin secret settings to placeholder names is undefined.
 6. **Hook payloads.** The hook list is fixed but each hook's context and return shape (`ctx.entity`, veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.
 7. **Hook defaults.** Per-hook timeout value, max chain length, and what `HAXCMS_DISABLE_HOOKS=1` disables exactly.
 8. **Datastore and entity extension formats.** `config/datastores.yaml`, `config/entities.yaml` (`extends`, `annotations`) are illustrative in the examples and have no schema yet.

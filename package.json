@@ -32,6 +32,7 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@haxtheweb/appstore-spec": "github:haxtheweb/appstore-spec#292689a41304689eb391b09d6c8e15837b77a7c2",
     "@haxtheweb/hax-element-schema": "github:haxtheweb/hax-element-schema#45712aead49ba8c1de0e7eb6f43600d8b14956c0",
     "@haxtheweb/hax-schema": "github:haxtheweb/hax-schema#269988cecf63c0f64ec89a4367492852b22c4f86",
     "@haxtheweb/json-outline-schema-spec": "github:haxtheweb/json-outline-schema#e06cfbdf264b12d292158a4fec935b65f495a45d",
@@ -40,7 +41,8 @@
   "peerDependencies": {
     "@haxtheweb/hax-schema": "*",
     "@haxtheweb/json-outline-schema-spec": "*",
-    "@haxtheweb/merlin-schema": "*"
+    "@haxtheweb/merlin-schema": "*",
+    "@haxtheweb/appstore-spec": "*"
   },
   "peerDependenciesMeta": {
     "@haxtheweb/hax-schema": {
@@ -50,6 +52,9 @@
       "optional": true
     },
     "@haxtheweb/merlin-schema": {
+      "optional": true
+    },
+    "@haxtheweb/appstore-spec": {
       "optional": true
     }
   }

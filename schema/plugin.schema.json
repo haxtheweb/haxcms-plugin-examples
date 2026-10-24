@@ -239,13 +239,7 @@
             "type": "string"
           }
         },
-        "editor": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "embeds": {
+        "appstore": {
           "type": "array",
           "items": {
             "type": "string"

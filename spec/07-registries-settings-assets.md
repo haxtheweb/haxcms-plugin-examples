@@ -13,8 +13,7 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 | `elements/` | tag-to-file registry (`wc-registry.json`) | one file per tag; `role: block` (insertable, needs `haxProperties`) or `injected` (page singleton, none needed) |
 | `locales/` | languages and message overlays | `en.yaml` with only changed keys, merged per key with fallback |
 | `merlin/` | Merlin (super-daemon) options and programs | one YAML declaration per option; `kind: static\|api\|module` (7.2) |
-| `editor/` | HAX editor entries (block-picker category, media source) | provisional; same data-plus-lazy-module pattern |
-| `embeds/` | embed providers (video, oEmbed) | provisional |
+| `appstore/` | the HAX editor appstore (media providers, upload targets, reusable stax, autoloaded blocks) | JSON fragments of the appstore payload, validated by https://github.com/haxtheweb/appstore-spec (7.4) |
 | `forms/` | reserved: extensions to existing core forms; plugin settings default to their own panel (see 7.1) | additional fields |
 | later | deploy targets, import platforms | same pattern |
 
@@ -71,3 +70,11 @@ From `coreConfig/siteFields.json` (the site settings form). Not part of this wor
 | advanced SEO, AI/LLM optimization tuning | SEO / AI optimization plugin | baseline SEO, social cards, sitemap and llms.txt stay in core |
 | `lang` | stays core | drives `<html lang>`; translations tooling could be a plugin |
 | `private`, `canonical`, `pathauto`, `publishPagesOn` | stay core | baseline platform behavior |
+
+### 7.4 Appstore contributions
+HAX already has a format for what a plugin wants to add to the editor: the appstore payload (https://github.com/haxtheweb/appstore-spec), returned by each backend's `generateAppStore` and read by `HaxStore._loadAppStoreData`. Plugins contribute fragments in `registries/appstore/*.json`; the backend merges the fragments of every enabled plugin into the payload it already serves.
+
+- `apps`: media providers and upload targets (an embed provider is an app). Keys must not be committed; use `{{NAME}}` placeholders that the backend fills from the plugin's secret settings, or point `connection.url` at the plugin's own route so the plugin brokers the request and the browser never sees the key.
+- `stax`: reusable content stacks.
+- `autoloader`: block availability. A `role: block` entry in `registries/elements/` generates its autoloader entry automatically (`tag -> { import, haxProperties }`), so a plugin does not repeat itself. Platform filtering still applies: HAXcms filters the autoloader by `settings/enabledBlocks.json` when that file exists, and the `onlineMedia` platform setting hides apps without an `add` operation.
+- Top-level keys only (`status`, `apps`, `stax`, `autoloader`); a payload wrapped in `data` is ignored by HAX, and the validator rejects it.
