@@ -14,7 +14,7 @@ Everything the dashboard can do, the CLI can do, at system level or for one site
 
 | Command | What it does |
 |---|---|
-| `hax plugin install <@scope/name[@range]\|git-url\|path>` | Fetches the plugin (npm, git, path, or a tarball from `hax plugin pack` for offline servers) and places it in the plugins directory for the tier. Without `--tier`, it asks, defaulting to system (also the default when not inside a site). Validates, runs the `exec` scan and runs the plugin's own tests (`tests/cases` and runtime tests for each runtime the host has); a failing test stops the install unless `--allow-failing-tests`, recorded in the lock config. Then asks whether to enable it, for this site when run inside one; `--enable [--site]` scripts that. Records the installed version and range in the CMI lock config for the scope it was installed in |
+| `hax plugin install <@scope/name[@range]\|git-url\|path>` | Fetches the plugin (npm, git, path, or a tarball from `hax plugin pack` for offline servers) and places it in the plugins directory for the tier. Without `--tier`, it asks, defaulting to system (also the default when not inside a site). Validates, runs the `exec` scan and runs the plugin's own tests. The CLI is Node, so it runs the cases and `tests/nodejs`; PHP compatibility is verified by the project's release and deployment pipeline, and arriving from an official source is what attests to it; a failing test stops the install unless `--allow-failing-tests`, recorded in the lock config. Then asks whether to enable it, for this site when run inside one; `--enable [--site]` scripts that. Records the installed version and range in the CMI lock config for the scope it was installed in |
 | `hax plugin enable <id> [--site]` | Enables (auto-enables dependencies after confirmation); runs `plugin.requirements` and reports `active` or `inactive` with what is missing |
 | `hax plugin disable <id> [--site]` | Disables; refused with the dependents or sites using its theme |
 | `hax plugin uninstall <id>` | Only after disable, and refused while enabled anywhere. Runs uninstall hooks and purges the plugin's data by design, then removes the files |
@@ -22,7 +22,7 @@ Everything the dashboard can do, the CLI can do, at system level or for one site
 | `hax plugin status [<id>] [--site]` | Status, health, unmet requirements, dependents, conflicts |
 | `hax plugin list [--site] [--enabled\|--available]` | Plugins with tier, version, status and health |
 | `hax plugin move <id> --to site\|system [--site]` | Moves the installed copy between tiers, keeping data and enablement; updates both lock configs |
-| `hax plugin verify <id>` | Runs the install checks (validator, `exec` scan, tests, signature) on a plugin already in place, for example one copied in by hand, and records the result |
+| `hax plugin verify <id>` | Runs the install checks (validator, `exec` scan, Node tests, signature check) on a plugin already in place, for example one copied in by hand; clears "not tested" when they pass, leaves "not signed" unless a valid signature is present |
 | `hax plugin restore [--site]` | Installs exactly what the scope's lock config lists, like `npm ci` |
 | `hax plugin update <id> [--to <range>]` | Fetches a newer version within the recorded range (or `--to`), validates and scans it, runs upgrade steps, updates the lock config |
 | `hax plugin schedule run [--site]` | Runs due scheduled jobs once (meant for system cron) |

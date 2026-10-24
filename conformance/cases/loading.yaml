@@ -112,3 +112,9 @@
   given: "plugin with a failing test case"
   when: "hax plugin install"
   then: "install stops and reports the failing case; --allow-failing-tests installs and records it"
+- id: load-114
+  title: "verify clears not-tested but not not-signed"
+  spec: spec/03-tiers-and-enablement.md
+  given: "unsigned plugin copied in by hand, flagged not tested and not signed"
+  when: "hax plugin verify <id> with passing checks"
+  then: "not tested cleared; not signed remains; plugin screen still links the CLI docs"
