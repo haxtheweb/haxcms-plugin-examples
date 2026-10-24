@@ -18,7 +18,7 @@
     "path": {
       "type": "string",
       "minLength": 1,
-      "description": "Module path under frontend/dist."
+      "description": "A module this plugin ships (frontend/dist/...), or a package specifier resolved through the site's import map (@haxtheweb/micro-game-base/lib/concept-quest-game.js) for packs that group elements published elsewhere."
     },
     "role": {
       "enum": [
@@ -30,7 +30,7 @@
     },
     "haxProperties": {
       "type": "string",
-      "description": "Path to the element's *.haxProperties.json (validated with hax-schema). Required for role block."
+      "description": "Path to the element's *.haxProperties.json, in this plugin or as a package specifier (validated with hax-schema when installed). Required for role block."
     }
   },
   "if": {

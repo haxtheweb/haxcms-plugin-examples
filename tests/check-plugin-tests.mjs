@@ -9,7 +9,7 @@ import { isDeepStrictEqual } from "node:util";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 let failures = 0;
 const hasPhp = spawnSync("php", ["-v"]).status === 0;
-for (const name of [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`)]) {
+for (const name of [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`), ...readdirSync(join(root, "contrib-plugins")).map((n) => `contrib-plugins/${n}`)]) {
   const dir = join(root, name);
   const nodeTests = join(dir, "tests/nodejs");
   if (existsSync(nodeTests)) {
@@ -33,7 +33,7 @@ for (const name of [...readdirSync(join(root, "examples")).map((n) => `examples/
   }
 }
 // executable cases through the reference harness (Node and PHP, plus parity)
-for (const name of [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`)]) {
+for (const name of [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`), ...readdirSync(join(root, "contrib-plugins")).map((n) => `contrib-plugins/${n}`)]) {
   const dir = join(root, name);
   if (!existsSync(join(dir, "tests/cases"))) continue;
   const r = spawnSync(process.execPath, [join(root, "harness/run-cases.mjs"), dir], { encoding: "utf8" });

@@ -12,7 +12,7 @@ const check = (ok, label, detail = "") => { if (!ok) failures++; console.log(`${
 const run = (dir) => spawnSync(process.execPath, [validator, "--json", dir], { encoding: "utf8" });
 
 // 1. every example validates cleanly
-const examples = [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`)];
+const examples = [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`), ...readdirSync(join(root, "contrib-plugins")).map((n) => `contrib-plugins/${n}`)];
 for (const name of examples) {
   const r = run(join(root, name));
   const report = JSON.parse(r.stdout)[0];

@@ -1,0 +1,9 @@
+{
+  "element": "neon-glow-theme",
+  "path": "frontend/dist/neon-glow-theme.js",
+  "name": "Neon glow",
+  "thumbnail": "frontend/dist/neon.svg",
+  "description": "Dark background, glowing headings, high contrast.",
+  "category": ["Fun", "Website"],
+  "priority": 50
+}

@@ -21,7 +21,7 @@
   "site": {
     "name": "awesome",
     "description": "A page full of explosions.",
-    "theme": "awesome-explosions",
+    "theme": "awesome-explosions-theme",
     "settings": {
       "lang": "en-US",
       "publishPagesOn": true,

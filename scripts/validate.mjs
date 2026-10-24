@@ -104,6 +104,10 @@ const optionSchema = () => {
 function fmt(errors) {
   return (errors || []).map((e) => ({ path: e.instancePath || "/", message: `${e.message}${e.params && e.params.additionalProperty ? ` ("${e.params.additionalProperty}")` : ""}` }));
 }
+function resolvePkg(spec) {
+  for (const from of requireFrom) { try { return createRequire(from).resolve(spec); } catch { /* next */ } }
+  return null;
+}
 function listFiles(dir, exts) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((n) => exts.some((x) => n.endsWith(x))).sort().map((n) => join(dir, n));
@@ -189,7 +193,16 @@ function validatePlugin(manifestPath) {
     const t = readAny(f);
     if (!validators.element(t)) { fmt(validators.element.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
     checkTag(rel(f), t.tag);
-    if (t.haxProperties) {
+    // a path is a file this plugin ships (frontend/dist/...) or a package specifier resolved through the import map
+    const isSpecifier = (x) => /^@?[a-z0-9][\w.-]*\/[\w./-]+$/.test(x) && !x.startsWith("frontend/");
+    if (!isSpecifier(t.path) && !existsSync(join(dir, t.path))) err(rel(f), `element file not found: ${t.path}`);
+    if (isSpecifier(t.path) && !resolvePkg(t.path)) warn(rel(f), `${t.path} is a package specifier that is not installed here; it resolves through the site's import map`);
+    if (t.haxProperties && isSpecifier(t.haxProperties)) {
+      const found = resolvePkg(t.haxProperties);
+      const v = extValidator("haxProperties", "@haxtheweb/hax-schema/schema/haxProperties.schema.json");
+      if (!found) warn(rel(f), `${t.haxProperties} not installed here; not validated`);
+      else if (v && !v(readJson(found))) fmt(v.errors).forEach((e) => err(`${t.haxProperties}${e.path === "/" ? "" : e.path}`, e.message));
+    } else if (t.haxProperties) {
       const hp = join(dir, t.haxProperties);
       const v = extValidator("haxProperties", "@haxtheweb/hax-schema/schema/haxProperties.schema.json");
       if (!existsSync(hp)) err(rel(f), `haxProperties file not found: ${t.haxProperties}`);
@@ -288,7 +301,9 @@ function validatePlugin(manifestPath) {
   }
   // tests: required unless explicitly untested; code-free packs are exempt
   const testsDir = join(dir, m.tests || "tests");
-  const hasCode = Object.keys(m.entry || {}).length || listFiles(join(dir, "frontend/dist"), [".js", ".mjs"]).length;
+  // backend code needs executable cases; front-end-only plugins (theme and element packs) are tested where elements are
+  const hasCode = Object.keys(m.entry || {}).length;
+  if (!hasCode && listFiles(join(dir, "frontend/dist"), [".js", ".mjs"]).length && m.untested !== true && !existsSync(join(dir, "test"))) warn("/tests", "front-end code without tests: add element tests (web-test-runner, as in the webcomponents monorepo) or set untested: true");
   // a file holding only commented-out stubs parses to null and does not count as tests
   const caseFiles = listFiles(join(testsDir, "cases"), [".yaml", ".yml"]).filter((f) => readAny(f) != null);
   if (m.untested === true) { if (caseFiles.length) warn("/untested", "untested is true but test cases exist; remove the flag"); }
