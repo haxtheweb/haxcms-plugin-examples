@@ -50,13 +50,5 @@ export default {
       const op = (await ctx.plugins.operations({})).find((o) => o.operationId === ctx.subject.operationId);
       if (!op || !allowed(t, op)) return ctx.veto(`this MCP token may not call ${ctx.subject.operationId}`, 403);
     },
-    "plugin.after.install": async (ctx) => {
-      const core = await ctx.entities.get("config", "core");
-      if (!core || !core.mcp || core.mcp.readOnly === undefined) return;
-      await ctx.config.save({ readOnlyDefault: core.mcp.readOnly !== false });
-      const fresh = await ctx.entities.get("config", "core");
-      delete fresh.mcp;
-      await ctx.entities.save("config", fresh);
-    },
   },
 };

@@ -23,7 +23,6 @@ staticCapable: false
 capabilities: ["exec:run", "settings:secret", "site:read"]
 exec: [rsync]
 hooks:
-  - name: plugin.before.requirements
   - name: config.before.save
   - name: git.after.commit
     detached: true                 # never hold up a save for a network copy

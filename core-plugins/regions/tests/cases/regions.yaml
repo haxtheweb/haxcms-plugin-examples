@@ -1,6 +1,5 @@
 - id: regions-001
   title: "first enable moves metadata.theme.regions out of site.json and publishes the map"
-  hook: plugin.after.install
   given: "site.json with regions header [p1] and footerPrimary [p2]"
   when: "enable regions"
   then: "site.json has metadata.plugins.regions.map and no metadata.theme.regions"

@@ -1,0 +1,73 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Flickr",
+        "icon": "image:collections",
+        "color": "pink",
+        "author": "Yahoo",
+        "description": "The original photo sharing platform on the web.",
+        "status": "available",
+        "rating": "0",
+        "tags": [
+          "images",
+          "creative commons",
+          "crowdsourced"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/flickr",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "per_page": "photos.perpage",
+                "total_pages": "photos.pages",
+                "page": "photos.page"
+              }
+            },
+            "search": {
+              "text": {
+                "title": "Search",
+                "type": "string"
+              },
+              "safe_search": {
+                "title": "Safe results",
+                "type": "string",
+                "value": "1"
+              },
+              "license": {
+                "title": "License type",
+                "type": "string",
+                "value": ""
+              }
+            },
+            "data": {
+              "safe_search": "1",
+              "per_page": "20"
+            },
+            "resultMap": {
+              "defaultGizmoType": "image",
+              "items": "photos.photo",
+              "preview": {
+                "title": "title",
+                "details": "description._content",
+                "image": "url_s",
+                "id": "id"
+              },
+              "gizmo": {
+                "title": "title",
+                "source": "url_l",
+                "alt": "description._content"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

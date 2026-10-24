@@ -697,10 +697,39 @@
         ]
       },
       "then": {
-        "required": [
-          "runtimes",
-          "entry"
-        ]
+        "anyOf": [
+          {
+            "required": [
+              "runtimes",
+              "entry"
+            ]
+          },
+          {
+            "required": [
+              "openapi"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "entry"
+                  ]
+                },
+                {
+                  "required": [
+                    "hooks"
+                  ]
+                },
+                {
+                  "required": [
+                    "runtimes"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "description": "A plugin has code (runtimes and entry), or is declarative: only an openapi whose operations are all x-hax-proxy, which core answers on every backend."
       }
     },
     {

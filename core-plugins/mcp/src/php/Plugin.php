@@ -65,14 +65,4 @@ class McpPlugin {
     return $ctx->veto("this MCP token may not call {$ctx->subject['operationId']}", 403);
   }
 
-  // hook: plugin.after.install
-  public function pluginAfterInstall($ctx) {
-    $core = $ctx->entities->get('config', 'core');
-    if (!$core || !isset($core['mcp']['readOnly'])) { return null; }
-    $ctx->config->save(['readOnlyDefault' => $core['mcp']['readOnly'] !== false]);
-    $fresh = $ctx->entities->get('config', 'core');
-    unset($fresh['mcp']);
-    $ctx->entities->save('config', $fresh);
-    return null;
-  }
 }

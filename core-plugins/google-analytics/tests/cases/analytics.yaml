@@ -1,6 +1,5 @@
 - id: google-analytics-001
   title: "inactive until a measurement id is set"
-  hook: plugin.before.requirements
   given: "no measurement id"
   when: "load"
   then: "status inactive; nothing added to pages"
@@ -22,7 +21,6 @@
         expect: { status: 409, message: "is not a Google Analytics measurement id" }
 - id: google-analytics-003
   title: "first enable moves gaID out of site.json"
-  hook: plugin.after.install
   given: "a site whose site.json has metadata.site.settings.gaID G-ABC1234"
   when: "enable google-analytics"
   then: "the id becomes the plugin's setting, site.json no longer has gaID, pages carry the loader"

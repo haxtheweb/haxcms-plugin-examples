@@ -29,6 +29,5 @@ privacy:
   cookies: []
   recipients: [plausible.io]
 hooks:
-  - name: plugin.before.requirements
   - name: config.before.save
   - name: render.before.head

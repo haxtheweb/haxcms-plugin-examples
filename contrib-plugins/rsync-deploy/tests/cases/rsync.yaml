@@ -1,6 +1,5 @@
 - id: rsync-deploy-001
   title: "inactive until a destination and key are set"
-  hook: plugin.before.requirements
   given: "no settings"
   when: "load"
   then: "inactive with two unmet requirements"

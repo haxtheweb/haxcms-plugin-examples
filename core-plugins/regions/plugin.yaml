@@ -37,7 +37,6 @@ legacy:
     footerPrimary: metadata.theme.regions.footerPrimary
     footerSecondary: metadata.theme.regions.footerSecondary
 hooks:
-  - name: plugin.after.install   # move metadata.theme.regions out of site.json
   - name: config.before.save     # every region entry must be a page of this site
   - name: config.after.save      # publish the map (manifest store) for the region element
   - name: rebuild.before         # region pages are fragments: not in llms.txt, sitemap or search

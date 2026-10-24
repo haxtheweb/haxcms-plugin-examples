@@ -1,0 +1,23 @@
+# Vimeo: an appstore provider extracted from core (HAXAppStoreService.loadBaseAppStore() adds it when
+# appStore.apiKeys.vimeo is set, and sends the key to the browser inside the payload). Declarative: there is no plugin code.
+# Its one operation is an x-hax-proxy that core answers on either backend, adding the secret key server-side.
+specVersion: "0.1.0"
+id: vimeo
+uuid: 7560dddc-83e1-5b3c-bab9-0e20a728cd70
+title: Vimeo
+description: Search Vimeo from the editor and insert videos. The access token stays on the server.
+version: 0.1.0
+category: media
+icon: av:play-circle-filled
+tags: [video, appstore]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+openapi: config/openapi.yaml       # no entry, no runtimes: every operation is an x-hax-proxy
+settings: config/settings.schema.json
+staticCapable: false               # searching needs the server; inserted media works anywhere
+capabilities: ["network:egress", "settings:secret"]
+egress: [api.vimeo.com]
+legacy:
+  settings:
+    apiKey: config:appStore.apiKeys.vimeo   # core moves it here on first enable

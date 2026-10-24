@@ -22,7 +22,7 @@ settings: config/settings.schema.json
 settingsScope: site
 datastores: config/datastores.yaml
 staticCapable: true
-capabilities: ["site:read", "site:write", "output:inject"]
+capabilities: ["output:inject"]   # core moves the metadata.author fields (legacy.settings)
 legacy:
   settings:
     phone: metadata.author.phone
@@ -31,7 +31,6 @@ legacy:
     socialLink: metadata.author.socialLink
     socialLink2: metadata.author.socialLink2
 hooks:
-  - name: plugin.after.install    # move the five fields out of metadata.author
   - name: config.before.save      # links must be http(s); text is trimmed
   - name: config.after.save       # publish the profile for themes
   - name: render.before.head      # schema.org Person with the links

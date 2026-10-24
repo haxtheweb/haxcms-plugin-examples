@@ -1,0 +1,23 @@
+# Giphy: an appstore provider extracted from core (HAXAppStoreService.loadBaseAppStore() adds it when
+# appStore.apiKeys.giphy is set, and sends the key to the browser inside the payload). Declarative: there is no plugin code.
+# Its one operation is an x-hax-proxy that core answers on either backend, adding the secret key server-side.
+specVersion: "0.1.0"
+id: giphy
+uuid: 7d69d2e7-6377-5076-9135-7100f3080905
+title: Giphy
+description: Search Giphy from the editor and insert animated images. The API key stays on the server.
+version: 0.1.0
+category: media
+icon: image:photo-library
+tags: [gif, appstore]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+openapi: config/openapi.yaml       # no entry, no runtimes: every operation is an x-hax-proxy
+settings: config/settings.schema.json
+staticCapable: false               # searching needs the server; inserted media works anywhere
+capabilities: ["network:egress", "settings:secret"]
+egress: [api.giphy.com]
+legacy:
+  settings:
+    apiKey: config:appStore.apiKeys.giphy   # core moves it here on first enable

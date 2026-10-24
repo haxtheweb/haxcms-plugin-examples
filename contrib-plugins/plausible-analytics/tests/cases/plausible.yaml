@@ -1,6 +1,5 @@
 - id: plausible-analytics-001
   title: "inactive until a domain is set"
-  hook: plugin.before.requirements
   given: "no domain"
   when: "a page renders"
   then: "inactive; no script"

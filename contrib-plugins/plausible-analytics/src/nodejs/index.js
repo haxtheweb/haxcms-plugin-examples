@@ -3,8 +3,6 @@ const DOMAIN = /^[a-z0-9.-]+\.[a-z]{2,}$/i;
 
 export default {
   hooks: {
-    "plugin.before.requirements": async (ctx) =>
-      ctx.settings.domain ? ctx.subject : [...ctx.subject, { key: "settings.domain", message: "Add the domain registered in Plausible" }],
 
     "config.before.save": async (ctx) => {
       const v = ctx.subject.values;

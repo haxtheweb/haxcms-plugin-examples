@@ -39,6 +39,12 @@ export function check(out, e = {}) {
     for (const s of e.exec.contains || []) if (!calls.includes(s)) errors.push(`exec calls should contain ${JSON.stringify(s)}`);
     for (const s of e.exec.notContains || []) if (calls.includes(s)) errors.push(`exec calls should not contain ${JSON.stringify(s)}`);
   }
+  if (e.fetch) {
+    const calls = JSON.stringify(out.fetch || []);
+    if (e.fetch.count !== undefined && (out.fetch || []).length !== e.fetch.count) errors.push(`fetch ran ${(out.fetch || []).length} times, expected ${e.fetch.count}`);
+    for (const s of e.fetch.contains || []) if (!calls.includes(s)) errors.push(`fetch calls should contain ${JSON.stringify(s)}`);
+    for (const s of e.fetch.notContains || []) if (calls.includes(s)) errors.push(`fetch calls should not contain ${JSON.stringify(s)}`);
+  }
   for (const w of e.warnings || []) if (!(out.warnings || []).some((x) => String(x.message).includes(w))) errors.push(`warnings should include ${JSON.stringify(w)}`);
   if (e.errors) for (const s of e.errors) if (!(out.errors || []).some((x) => x.includes(s))) errors.push(`validator should report ${JSON.stringify(s)} (got ${JSON.stringify(out.errors)})`);
   return errors;

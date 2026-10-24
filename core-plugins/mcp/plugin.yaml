@@ -23,10 +23,9 @@ openapi: config/openapi.yaml
 settings: config/settings.schema.json
 datastores: config/datastores.yaml
 staticCapable: false
-capabilities: ["settings:read", "settings:write"]   # to move mcp.* out of the core config
+capabilities: []   # core moves mcp.readOnly out of the core config (legacy.settings)
 legacy:
   settings:
     readOnlyDefault: config:mcp.readOnly
 hooks:
   - name: rest.before.request    # calls carrying an MCP token stay inside the token's scope
-  - name: plugin.after.install   # move mcp.readOnly out of the core config

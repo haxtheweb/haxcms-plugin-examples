@@ -1,6 +1,5 @@
 - id: author-profile-001
   title: "first enable moves the extra author fields out of metadata.author"
-  hook: plugin.after.install
   given: "metadata.author with name, email, phone and socialLink"
   when: "enable author-profile"
   then: "name and email stay; phone and socialLink move to the plugin and its published profile"

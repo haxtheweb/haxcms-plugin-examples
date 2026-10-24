@@ -2,7 +2,7 @@
 # the editor's appstore payload when an API key is configured (appStore.apiKeys.youtube in the core config,
 # settings/apiKeys.json), and the key itself travels to the browser inside the payload (connection.data.key).
 # As a plugin the key is a secret setting that never leaves the server: the appstore app points at this plugin's own
-# search route, which adds the key when it calls Google.
+# search route, an x-hax-proxy that adds the key when core calls Google. There is no plugin code.
 specVersion: "0.1.0"
 id: youtube
 uuid: 3f5b7d9e-1c2a-4e6b-8d0f-2a4c6e8b0d1f
@@ -15,18 +15,11 @@ tags: [video, appstore]
 docs: { readme: README.md, agents: AGENTS.md }
 core: true
 license: Apache-2.0
-runtimes: [nodejs, php]
-entry:
-  nodejs: src/nodejs/index.js
-  php: src/php/Plugin.php
-openapi: config/openapi.yaml
+openapi: config/openapi.yaml            # no entry: the search route is an x-hax-proxy core answers on either backend
 settings: config/settings.schema.json   # system scope (default): one key for the deployment
 staticCapable: false                    # searching needs the server; inserted videos work anywhere
-capabilities: ["network:egress", "settings:secret", "settings:read", "settings:write"]   # settings:* to move the key out of core config
+capabilities: ["network:egress", "settings:secret"]   # core moves the key out of the core config (legacy.settings)
 egress: [www.googleapis.com]
 legacy:
   settings:
     apiKey: config:appStore.apiKeys.youtube
-hooks:
-  - name: plugin.before.requirements    # no key, no app in the editor
-  - name: plugin.after.install          # move the key out of the core config

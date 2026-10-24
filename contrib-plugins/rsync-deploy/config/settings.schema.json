@@ -2,7 +2,7 @@
   "configure": [
     { "property": "target", "title": "Destination", "description": "user@host:/path/to/webroot", "inputMethod": "textfield", "required": true },
     { "property": "port", "title": "SSH port", "inputMethod": "number" },
-    { "property": "privateKey", "title": "SSH private key", "description": "Stored on the server only and never shown again", "inputMethod": "textarea", "x-secret": true },
+    { "property": "privateKey", "title": "SSH private key", "description": "Stored on the server only and never shown again", "inputMethod": "textarea", "x-secret": true, "required": true },
     { "property": "deployOnCommit", "title": "Deploy after every commit", "description": "Needs the git plugin", "inputMethod": "boolean" },
     { "property": "dryRun", "title": "Dry run", "description": "Show what would be copied without copying", "inputMethod": "boolean" }
   ]

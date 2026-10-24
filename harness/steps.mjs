@@ -7,6 +7,7 @@ export async function step(backend, raw, vars = {}) {
   const s = JSON.parse(JSON.stringify(raw).replace(/\{\{\$(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]).replace(/"/g, '\\"') : m)));
   const out = {};
   const execFrom = (backend.execCalls || []).length;
+  const fetchFrom = (backend.fetchCalls || []).length;
   if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {}, headers: s.call.headers || {} }, { credentials: s.call.credentials || "both" }));
   else if (s.fire) {
     const tx = s.fire.transaction ? { id: "t-fire", origin: s.fire.transaction.origin || "case", bulk: !!s.fire.transaction.bulk, operations: [], marks: {} } : undefined;
@@ -35,6 +36,7 @@ export async function step(backend, raw, vars = {}) {
   out.statusOf = Object.fromEntries(backend.status().map((x) => [x.id, x.status]));
   out.log = backend.log;
   if (backend.execCalls && backend.execCalls.length > execFrom) out.exec = backend.execCalls.slice(execFrom);
+  if (backend.fetchCalls && backend.fetchCalls.length > fetchFrom) out.fetch = backend.fetchCalls.slice(fetchFrom);
   for (const [name, path] of Object.entries(s.capture || {})) vars[name] = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), out);
   return { out, errors: check(out, s.expect || {}) };
 }

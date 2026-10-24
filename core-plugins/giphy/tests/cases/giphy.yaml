@@ -1,0 +1,49 @@
+- id: giphy-001
+  title: "inactive without a key, so the app is not in the editor"
+  given: "no key"
+  when: "rebuild"
+  then: "Giphy is not among the appstore apps; the search route is not served"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { status_of: { giphy: inactive }, notContains: ['"Giphy"'] }
+      - call: { operation: giphySearch, query: { q: x } }
+        expect: { status: 404 }
+- id: giphy-002
+  title: "the proxy adds the key server-side and passes only listed parameters"
+  given: "a key; api.giphy.com answers"
+  when: "the editor searches"
+  then: "the outgoing request carries the key and the search; an unlisted parameter is dropped; the key never reaches the response"
+  run:
+    settings: { apiKey: test-key-giphy }
+    fetch: { api.giphy.com: { status: 200, body: {"data": [{"id": "g1", "title": "cat"}], "pagination": {"offset": 0, "total_count": 1, "count": 1}} } }
+    steps:
+      - rebuild: {}
+        expect: { body: { apps: ["Giphy"] } }
+      - call: { operation: giphySearch, query: { q: cats, sneaky: "1" } }
+        expect:
+          status: 200
+          fetch: { count: 1, contains: ["https://api.giphy.com/v1/gifs/search", "api_key=test-key-giphy", "q=cats"], notContains: [sneaky] }
+          notContains: [test-key-giphy]
+- id: giphy-003
+  title: "first enable moves the key out of the core config"
+  given: "appStore.apiKeys.giphy in the core config"
+  when: "enable giphy"
+  then: "the plugin is active with the key; the core config no longer has it"
+  run:
+    records: { config: [{ id: core, appStore: { apiKeys: { giphy: old-test-key-giphy, other: keep } } }] }
+    steps:
+      - enable: giphy
+        expect: { status: 200, status_of: { giphy: active } }
+      - record: { type: config, id: core }
+        expect: { subject: { appStore: { apiKeys: { other: keep } } }, notContains: [old-test-key-giphy] }
+- id: giphy-004
+  title: "api.giphy.com down is a 502, not a crash"
+  given: "a key, no answer from api.giphy.com"
+  when: "search"
+  then: "502 with a log warning"
+  run:
+    settings: { apiKey: test-key-giphy }
+    steps:
+      - call: { operation: giphySearch, query: { q: x } }
+        expect: { status: 502, notContains: [test-key-giphy], log: { contains: ["network is disabled in the harness"] } }

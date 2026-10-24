@@ -22,7 +22,7 @@ settings: config/settings.schema.json
 settingsScope: site                # each site has its own measurement id, as gaID was per site
 dependencies: [cookie-consent]     # enabling analytics enables consent (after confirmation)
 staticCapable: true                # the loader is baked into published pages; works on static hosting
-capabilities: ["output:inject", "site:read", "site:write"]   # site:* to move gaID out of site.json once
+capabilities: ["output:inject"]    # core moves gaID out of site.json itself (legacy.settings), so no site:* needed
 privacy:
   tracking: true
   categories: [analytics]
@@ -31,9 +31,7 @@ privacy:
   recipients: [www.googletagmanager.com, www.google-analytics.com]
 legacy:
   settings:
-    measurementId: metadata.site.settings.gaID   # read as a fallback until the install migration moves it
+    measurementId: metadata.site.settings.gaID   # read as a fallback; core moves it into this setting on first enable
 hooks:
-  - name: plugin.before.requirements # inactive until a measurement id is set
   - name: config.before.save         # refuse a malformed id
-  - name: plugin.after.install       # first enable on a site: move gaID out of site.json into this plugin's settings
   - name: render.before.head         # the consent-gated loader, id baked in

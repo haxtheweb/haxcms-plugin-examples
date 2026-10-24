@@ -6,7 +6,7 @@ Google Analytics, extracted from core.
 
 **As a plugin:**
 - The id is a per-site plugin setting (`settingsScope: site`). The plugin stays inactive until it is set; a malformed id is refused.
-- On first enable for a site, `plugin.after.install` moves `gaID` out of `site.json` into the setting (`legacy.settings` documents the old path).
+- On first enable for a site, core moves `gaID` out of `site.json` into the setting, because `legacy.settings` names the old path; the plugin has no install code.
 - `render.before.head` adds a loader with the id baked in that waits for `HAXConsent.onGrant("analytics")`, so nothing loads before consent. It depends on `cookie-consent`.
 - Works on static hosting.
 

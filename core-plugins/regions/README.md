@@ -7,7 +7,7 @@ Theme regions, extracted from core.
 **As a plugin:**
 - Region choices are per-site plugin settings; every entry must be a page of the site.
 - `config.after.save` publishes the map into `site.json` at `metadata.plugins.regions.map` (a manifest store), so static sites and the region element can read it.
-- On first enable, `plugin.after.install` moves `metadata.theme.regions` into the settings.
+- On first enable, core moves `metadata.theme.regions` into the settings (`legacy.settings`); `config.before.save` normalizes the old shape.
 - `regions-region` renders a region; `legacy.tags` keeps `<site-region>` working in every theme.
 - `rebuild.before` adds region pages to `fragments`, so core leaves them out of llms.txt, the sitemap and search without knowing about regions.
 - Deleting a page used in a region warns.

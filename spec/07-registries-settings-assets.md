@@ -22,7 +22,7 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 - Save/read routes follow the same shape: `/system/api/v1/plugins/<id>/settings` and `/x/api/v1/plugins/<id>/settings` (site). Both require authentication; fields flagged secret are never returned.
 - When a setting moves out of core into a plugin, it leaves the core form and appears only in that plugin's panel. Plugin settings are stored outside `site.json` by default (the `site` data store, 4.2), which keeps the manifest from growing further. The `manifest` store stays available for data that must travel inside `site.json`.
 - Defaults go in `config/settings.defaults.json` next to the form (`{ property: value }`), because haxProperties fields have no default key; the validator checks every key is a field in the form.
-- Settings are saved as part of the plugin's configuration (CMI). When a setting moves from core into a plugin, it is removed from the global form; the plugin's install hook (spec/06) migrates the value from `site.json` the first time the plugin is enabled for a site.
+- Settings are saved as part of the plugin's configuration (CMI). When a setting moves from core into a plugin, it is removed from the global form; core migrates the value from its old location (`legacy.settings`, spec/02) the first time the plugin is enabled for a site, before the plugin's own install hook runs.
 - Legacy: a plugin may read and interpret an old core location (such as `metadata.site.settings.gaID`) as a fallback, with a one-time `upgrade` step to move it.
 - Admin menu structure is not final; this area will be informed by the API structure and revised.
 

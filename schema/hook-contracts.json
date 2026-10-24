@@ -546,7 +546,7 @@
     "phase": "before",
     "definedBy": "core",
     "when": "status is being calculated (enable, settings save, dashboard load)",
-    "subject": "the list of unmet requirements so far: `[{ key, message }]`",
+    "subject": "the list of unmet requirements so far `[{ key, message }]`; it starts with one entry per `required` settings field that has no value (core adds these), so a hook only adds what the settings form cannot express",
     "previous": "none",
     "returns": "the list with this plugin's own unmet requirements added",
     "veto": false,

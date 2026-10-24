@@ -5,8 +5,12 @@ paths:
   /search:
     get:
       operationId: youtubeSearch
-      summary: Search YouTube videos; the plugin adds the API key server-side
+      summary: Search YouTube videos; core adds the API key server-side
       security: [{ bearerAuth: [] }]
+      x-hax-proxy:
+        url: https://www.googleapis.com/youtube/v3/search
+        query: { part: snippet, type: video, maxResults: "20", key: "{{settings.apiKey}}" }
+        pass: [q, pageToken]
       parameters:
         - { name: q, in: query, required: true, schema: { type: string, maxLength: 200 } }
         - { name: pageToken, in: query, schema: { type: string, maxLength: 100 } }

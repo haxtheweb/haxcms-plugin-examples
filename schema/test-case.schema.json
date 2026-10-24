@@ -211,6 +211,23 @@
               },
               "additionalProperties": false
             }
+          },
+          "fetch": {
+            "type": "object",
+            "description": "Fakes for ctx.fetch and x-hax-proxy, by host: { 'api.vimeo.com': { status, body, headers } }. Egress is still checked; each call is recorded (method, url) for the `fetch` expectation.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "integer"
+                },
+                "body": {},
+                "headers": {
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false
+            }
           }
         },
         "required": [],

@@ -10,18 +10,6 @@ class AuthorProfilePlugin {
     return $out;
   }
 
-  // hook: plugin.after.install
-  public function pluginAfterInstall($ctx) {
-    $site = $ctx->entities->get('site');
-    $values = $this->clean($site['metadata']['author'] ?? []);
-    if (!$values) { return null; }
-    $ctx->config->save($values);
-    $fresh = $ctx->entities->get('site');
-    foreach (self::FIELDS as $f) { unset($fresh['metadata']['author'][$f]); }
-    $ctx->entities->save('site', $fresh);
-    $ctx->log->info('moved ' . implode(', ', array_keys($values)) . ' out of metadata.author');
-    return null;
-  }
 
   // hook: config.before.save
   public function configBeforeSave($ctx) {

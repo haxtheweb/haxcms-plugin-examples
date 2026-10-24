@@ -14,20 +14,6 @@ class RegionsPlugin {
     return $map;
   }
 
-  // hook: plugin.after.install
-  public function pluginAfterInstall($ctx) {
-    $site = $ctx->entities->get('site');
-    $old = $site['metadata']['theme']['regions'] ?? null;
-    if (!$old) { return null; }
-    $values = [];
-    foreach (self::REGIONS as $r) { $ids = $this->ids($old[$r] ?? null); if ($ids) { $values[$r] = array_map(function ($n) { return ['node' => $n]; }, $ids); } }
-    $ctx->config->save($values);
-    $fresh = $ctx->entities->get('site');
-    unset($fresh['metadata']['theme']['regions']);
-    $ctx->entities->save('site', $fresh);
-    $ctx->log->info('moved ' . count($values) . ' regions out of site.json');
-    return null;
-  }
 
   // hook: config.before.save
   public function configBeforeSave($ctx) {

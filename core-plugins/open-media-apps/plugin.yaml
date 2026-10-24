@@ -1,0 +1,17 @@
+# Open media apps: the five keyless appstore providers core adds to every editor today (HAXAppStoreService:
+# NASA, Sketchfab, Dailymotion, Wikipedia, ccMixter). The browser calls these public APIs directly, so there is no
+# secret to protect and no server code: a pack with appstore fragments only. Turning it off shortens the editor's
+# app list for sites that never use them.
+specVersion: "0.1.0"
+id: open-media-apps
+uuid: 6e1f3a5c-7b9d-4e2f-8a1c-3e5f7a9b1d2f
+title: Open media apps
+description: NASA, Sketchfab, Dailymotion, Wikipedia and ccMixter search in the editor, no API keys needed.
+version: 0.1.0
+kind: pack
+category: media
+icon: icons:apps
+tags: [appstore, media, open]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0

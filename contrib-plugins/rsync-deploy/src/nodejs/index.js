@@ -25,12 +25,6 @@ export default {
     },
   },
   hooks: {
-    "plugin.before.requirements": async (ctx) => {
-      const unmet = [...ctx.subject];
-      if (!ctx.settings.target) unmet.push({ key: "settings.target", message: "Set the destination (user@host:/path)" });
-      if (!ctx.settings.privateKey) unmet.push({ key: "settings.privateKey", message: "Add the SSH private key for the destination" });
-      return unmet;
-    },
     "config.before.save": async (ctx) => {
       const v = ctx.subject.values;
       if (v.target && !TARGET.test(v.target)) return ctx.veto(`"${v.target}" is not user@host:/path`, 422);

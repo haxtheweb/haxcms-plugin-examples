@@ -56,6 +56,8 @@ export class MemoryBackend {
     this.revs = new Map(); // "type:id" -> revision, bumped on every write (optimistic concurrency for ctx.entities.save)
     this.managed = new Map(); // managed files written by plugins: path -> { plugin, content }
     this.execCalls = [];
+    this.fetchCalls = [];
+    this.fetchFakes = {};
     this.execFakes = {};
     this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
   }
@@ -75,7 +77,7 @@ export class MemoryBackend {
       const dir = resolve(spec.path);
       let m;
       try { m = readAny(join(dir, "plugin.yaml")); } catch (e) { this.log.push({ level: "error", plugin: spec.path, message: `cannot read plugin.yaml: ${e.message}` }); continue; }
-      found.push({ id: m && m.id, dir, manifest: m || {}, tier: spec.tier || "system-core", ops: {}, stores: {}, hookDefs: {}, entities: {}, settings: {}, entry: null, status: "enabled", reason: null, unmet: [] });
+      found.push({ id: m && m.id, dir, manifest: m || {}, tier: spec.tier || "system-core", ops: {}, stores: {}, hookDefs: {}, entities: {}, settings: {}, explicit: new Set(), form: [], entry: null, status: "enabled", reason: null, unmet: [] });
     }
     // higher tier wins a name collision
     found.sort((a, b) => TIERS[a.tier] - TIERS[b.tier]);
@@ -96,7 +98,7 @@ export class MemoryBackend {
         const api = readAny(join(p.dir, m.openapi));
         for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
           if (!op || !op.operationId) continue;
-          p.ops[op.operationId] = { path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, security: op.security || api.security || [] };
+          p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null };
         }
       }
       if (m.datastores) for (const s of readAny(join(p.dir, m.datastores)).stores) p.stores[s.id] = s;
@@ -105,6 +107,8 @@ export class MemoryBackend {
       // defaults: config/settings.defaults.json next to the settings form (haxProperties fields carry no default)
       if (m.settings) { const dp = join(p.dir, dirname(m.settings), "settings.defaults.json"); if (existsSync(dp)) Object.assign(p.settings, readAny(dp)); }
       Object.assign(p.settings, settings[p.id] || {});
+      p.explicit = new Set(Object.keys(settings[p.id] || {}));
+      p.form = m.settings && existsSync(join(p.dir, m.settings)) ? readAny(join(p.dir, m.settings)).configure || [] : [];
       p.storeOverrides = { ...(stores[p.id] || {}) };
       if (m.kind !== "pack" && this.runtime === "nodejs" && m.entry && m.entry.nodejs) {
         try { const mod = await import(pathToFileURL(join(p.dir, m.entry.nodejs)).href); p.entry = mod.default || mod; }
@@ -137,6 +141,87 @@ export class MemoryBackend {
     const d = join(p.dir, "registries/elements");
     return existsSync(d) ? readdirSync(d).filter((f) => /\.(ya?ml|json)$/.test(f)).sort().map((f) => readAny(join(d, f))) : [];
   }
+  // legacy.settings (spec/02): a plugin setting still living at its old core location. `config:a.b` is the core
+  // config; anything else is a path in the site's site.json.
+  legacyLocation(path) {
+    if (path.startsWith("config:")) return { type: "config", id: "core", keys: path.slice(7).split(".") };
+    return { type: "site", id: this.site.id, keys: path.split(".") };
+  }
+  legacyValue(path) {
+    const { type, id, keys } = this.legacyLocation(path);
+    return keys.reduce((o, k) => (o == null ? undefined : o[k]), (this.records[type] || {})[id]);
+  }
+  // reads fall back to the old location until the move on first install has run
+  // (a default does not count as a value; only one someone saved does)
+  effectiveSettings(p) {
+    const out = { ...p.settings };
+    for (const [key, path] of Object.entries((p.manifest.legacy || {}).settings || {})) {
+      if (p.explicit.has(key)) continue;
+      const v = this.legacyValue(path);
+      if (v !== undefined && v !== null && v !== "") out[key] = this.coerceSetting(p, key, v);
+    }
+    return out;
+  }
+  // old values were often strings ("1", "true"); they take the type of the settings form field they move into
+  coerceSetting(p, key, v) {
+    const f = p.form.find((x) => x.property === key);
+    if (!f) return v;
+    if (f.inputMethod === "boolean") return v === true || v === 1 || ["1", "true", "yes", "on"].includes(String(v).toLowerCase());
+    if (f.inputMethod === "number") return Number(v);
+    return v;
+  }
+  // first install: core moves each legacy setting into the plugin's settings and removes the old copy, through the
+  // normal config and entity hooks, so a plugin needs no install code for it
+  async moveLegacySettings(p) {
+    const moved = {};
+    for (const [key, path] of Object.entries((p.manifest.legacy || {}).settings || {})) {
+      const v = this.legacyValue(path);
+      if (v === undefined || v === null || v === "") continue;
+      if (!p.explicit.has(key)) moved[key] = this.coerceSetting(p, key, v);
+      const { type, id, keys } = this.legacyLocation(path);
+      const rec = structuredClone(this.records[type][id]);
+      // remove the key, then any parent it leaves empty
+      const chain = [rec];
+      for (const k of keys.slice(0, -1)) chain.push(chain[chain.length - 1][k]);
+      delete chain[chain.length - 1][keys[keys.length - 1]];
+      for (let i = chain.length - 1; i > 0; i--) if (chain[i] && typeof chain[i] === "object" && !Object.keys(chain[i]).length) delete chain[i - 1][keys[i - 1]]; else break;
+      await this.saveEntity(type, rec);
+    }
+    if (Object.keys(moved).length) {
+      const r = await this.saveConfig(p.id, moved);
+      if (r.status !== 200) throw new Error(`moving legacy settings failed: ${r.body.error}`);
+      this.log.push({ level: "info", plugin: p.id, message: `moved ${Object.keys(moved).join(", ")} from the core location into plugin settings` });
+    }
+  }
+  // ctx.fetch in the harness: egress is checked, the call recorded, and the answer comes from the case's `fetch`
+  // fakes by host; without a fake the network is simply off
+  async fetchFor(p, url, init = {}) {
+    const host = new URL(url).hostname;
+    if (!(p.manifest.capabilities || []).includes("network:egress") || !(p.manifest.egress || []).includes(host)) throw new Error(`fetch to ${host} not allowed`);
+    this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url });
+    const fake = (this.fetchFakes || {})[host];
+    if (!fake) throw new Error("network is disabled in the harness");
+    const body = typeof fake.body === "string" ? fake.body : JSON.stringify(fake.body ?? null);
+    return { status: fake.status ?? 200, ok: (fake.status ?? 200) < 400, headers: new Map(Object.entries(fake.headers || {})), text: async () => body, json: async () => JSON.parse(body) };
+  }
+  // x-hax-proxy (spec/05): a GET operation answered by core from the declaration, with no plugin code. Templates may
+  // read settings ({{settings.apiKey}}) and only the listed query parameters pass through from the caller.
+  async proxy(p, op, req) {
+    const d = op.proxy;
+    const fill = (v) => String(v).replace(/\{\{settings\.(\w+)\}\}/g, (m, k) => String(this.effectiveSettings(p)[k] ?? ""));
+    const u = new URL(fill(d.url));
+    for (const [k, v] of Object.entries(d.query || {})) u.searchParams.set(k, fill(v));
+    for (const k of d.pass || []) if (req.query[k] !== undefined) u.searchParams.set(k, String(req.query[k]));
+    try {
+      const res = await this.fetchFor(p, u.toString());
+      const text = await res.text();
+      let body; try { body = JSON.parse(text); } catch { body = text; }
+      return { status: res.status, body };
+    } catch (e) {
+      this.log.push({ level: "warn", plugin: p.id, message: `${op.operationId || "proxy"}: ${e.message}` });
+      return { status: 502, body: { error: `${u.hostname} could not be reached` } };
+    }
+  }
   // ctx.exec in the harness: checks the exec list, records the call (file names only, never their content) and
   // answers from the case's `exec` fakes; nothing runs
   async execFor(p, cmd, args, opts = {}) {
@@ -158,8 +243,13 @@ export class MemoryBackend {
   active(id) { const p = this.get(id); return !!p && p.status === "active"; }
   hookContract(name) { return CORE_HOOKS.find((c) => c.name === name) || this.plugins.map((p) => p.hookDefs[name]).find(Boolean); }
 
+  // a required settings field without a value is an unmet requirement on its own (spec/03); hooks add the rest
+  requiredUnmet(p) {
+    const eff = this.effectiveSettings(p);
+    return p.form.filter((f) => f.required && (eff[f.property] === undefined || eff[f.property] === null || eff[f.property] === "")).map((f) => ({ key: `settings.${f.property}`, message: `Set ${f.title || f.property}` }));
+  }
   async refreshStatus(p) {
-    const before = await this.fire("plugin.before.requirements", [], { only: p.id, includeInactive: true });
+    const before = await this.fire("plugin.before.requirements", this.requiredUnmet(p), { only: p.id, includeInactive: true });
     p.unmet = before.subject || [];
     const prev = p.status;
     p.status = p.unmet.length ? "inactive" : "active";
@@ -180,7 +270,7 @@ export class MemoryBackend {
         const r = await this.fire(name, subject, { strict: true });
         if (r.veto) throw new Error(r.veto.message);
       }
-      if (first) { this.installed.add(`${id}:system`); await this.fire("plugin.after.install", subject, { strict: true }); }
+      if (first) { this.installed.add(`${id}:system`); await this.moveLegacySettings(p); await this.fire("plugin.after.install", subject, { strict: true }); }
       await this.fire("plugin.after.enable", subject, { strict: true });
       await this.refreshStatus(p);
       return { status: 200, body: { id, status: p.status } };
@@ -217,6 +307,7 @@ export class MemoryBackend {
     if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     const prev = { ...p.settings };
     p.settings = { ...before.subject.values };
+    for (const k of Object.keys(values)) p.explicit.add(k);
     await this.fire("config.after.save", { ...before.subject }, { previous: prev, configOf: id });
     if (p.status === "active" || p.status === "inactive") await this.refreshStatus(p);
     return { status: 200, body: { status: p.status }, warnings: before.warnings || [] };
@@ -265,7 +356,7 @@ export class MemoryBackend {
       veto: (message, status = 409) => ({ __veto: true, message, status }),
       warn: (message, severity = "warning") => { warnings.push({ message, severity }); },
       respond: (html) => ({ __respond: html }),
-      settings: Object.freeze({ ...p.settings }),
+      settings: Object.freeze(backend.effectiveSettings(p)),
       storage: { read: async (id) => backend.readStore(p, id), write: async (id, v) => backend.writeStore(p, id, v) },
       package: {
         read: async (path, { binary = false } = {}) => {
@@ -286,11 +377,7 @@ export class MemoryBackend {
       site: backend.site,
       user: backend.userFor(p),
       log: Object.fromEntries(["info", "warn", "error"].map((level) => [level, (message, data) => backend.log.push({ level, plugin: p.id, message, data })])),
-      fetch: async (url) => {
-        const host = new URL(url).hostname;
-        if (!(p.manifest.capabilities || []).includes("network:egress") || !(p.manifest.egress || []).includes(host)) throw new Error(`fetch to ${host} not allowed`);
-        throw new Error("network is disabled in the harness");
-      },
+      fetch: async (url, init = {}) => backend.fetchFor(p, url, init),
       config: { save: async (values) => backend.saveConfig(p.id, values) },
       // the only sanctioned way to run a process (spec/13): commands outside the exec list are refused
       exec: async (cmd, args = [], opts = {}) => backend.execFor(p, cmd, args, opts),
@@ -434,7 +521,8 @@ export class MemoryBackend {
     const blocks = this.plugins.filter((x) => x.status === "active").flatMap((x) => this.elements(x).filter((e) => e.role === "block").map((e) => e.tag)).sort();
     const registry = Object.fromEntries(this.plugins.filter((x) => x.status !== "refused").flatMap((x) => this.elements(x).map((e) => [e.tag, e.path.startsWith("frontend/dist/") ? this.assetUrl(x, e.path) : e.path])).sort(([a], [b]) => a.localeCompare(b)));
     await this.fire("rebuild.after", { scope: "site", siteId: this.site.id, reason, files: ["llms.txt", "wc-registry.json", "appstore.json"] });
-    return { status: 200, body: { fragments, llms, blocks, registry } };
+    const appstore = this.plugins.filter((x) => x.status === "active").flatMap((x) => { const d = join(x.dir, "registries/appstore"); return existsSync(d) ? readdirSync(d).filter((f) => f.endsWith(".json")).sort().flatMap((f) => readAny(join(d, f)).apps || []) : []; });
+    return { status: 200, body: { fragments, llms, blocks, registry, apps: appstore.map((a) => a.details && a.details.title).filter(Boolean) } };
   }
 
   // ---- core entities (spec/13 ctx.entities) ----
@@ -588,6 +676,7 @@ export class MemoryBackend {
       capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
+      fetch: { egress: (p.manifest.capabilities || []).includes("network:egress") ? p.manifest.egress || [] : [], fakes: this.fetchFakes || {} },
       exec: { allowed: (p.manifest.capabilities || []).includes("exec:run") ? p.manifest.exec || [] : [], fakes: this.execFakes || {} },
       ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
     };
@@ -608,6 +697,7 @@ export class MemoryBackend {
     for (const [path, content] of Object.entries(out.managedWrites || {})) this.writeManaged(p, path, content);
 
     for (const call of out.execCalls || []) this.execCalls.push({ plugin: p.id, ...call });
+    for (const call of out.fetchCalls || []) this.fetchCalls.push({ plugin: p.id, ...call });
     if (out.execError) throw new Error(out.execError);
     for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
     ctx.__warnings.push(...(out.warnings || []));
@@ -658,6 +748,11 @@ export class MemoryBackend {
     const before = await this.fire("rest.before.request", { method: op.verb.toUpperCase(), path: op.path, operationId, plugin: p.id, ...req });
     if (before.veto) return { status: before.veto.status || 403, body: { error: before.veto.message } };
     req = { ...req, ...before.subject };
+    if (op.proxy) {
+      const res = await this.proxy(p, op, req);
+      const after = await this.fire("rest.after.request", { status: res.status, headers: {}, body: res.body });
+      return { ...res, ...after.subject };
+    }
     const ctx = this.makeCtx(p, { request: req });
     if (credentials === "none") ctx.user = null; // no credentials, no user, even on a public route
     try {

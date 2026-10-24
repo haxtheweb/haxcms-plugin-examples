@@ -7,18 +7,6 @@ export const toMap = (values) => Object.fromEntries(REGIONS.filter((r) => ids(va
 
 export default {
   hooks: {
-    // first enable on a site: move metadata.theme.regions into this plugin's settings and published map
-    "plugin.after.install": async (ctx) => {
-      const site = await ctx.entities.get("site");
-      const old = site && site.metadata && site.metadata.theme && site.metadata.theme.regions;
-      if (!old) return;
-      const values = Object.fromEntries(REGIONS.filter((r) => ids(old[r]).length).map((r) => [r, ids(old[r]).map((node) => ({ node }))]));
-      await ctx.config.save(values); // config.after.save publishes the map into site.json...
-      const fresh = await ctx.entities.get("site"); // ...so re-read before saving, or the save is refused as stale
-      delete fresh.metadata.theme.regions;
-      await ctx.entities.save("site", fresh);
-      ctx.log.info(`moved ${Object.keys(values).length} regions out of site.json`);
-    },
     // every entry must be a page of this site
     "config.before.save": async (ctx) => {
       const pages = new Set((await ctx.entities.list("page")).map((p) => p.id));

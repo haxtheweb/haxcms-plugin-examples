@@ -23,17 +23,6 @@ async function writeWorker(ctx, on) {
 
 export default {
   hooks: {
-    "plugin.after.install": async (ctx) => {
-      const site = await ctx.entities.get("site");
-      const s = (site && site.metadata && site.metadata.site && site.metadata.site.settings) || {};
-      if (!("sw" in s) && !("forceUpgrade" in s)) return;
-      await ctx.config.save({ serviceWorker: truthy(s.sw), forceUpgrade: truthy(s.forceUpgrade) });
-      const fresh = await ctx.entities.get("site");
-      delete fresh.metadata.site.settings.sw;
-      delete fresh.metadata.site.settings.forceUpgrade;
-      await ctx.entities.save("site", fresh);
-      ctx.log.info("moved sw and forceUpgrade out of site.json");
-    },
     "render.before.head": async (ctx) => {
       if (!truthy(ctx.settings.forceUpgrade)) return;
       ctx.subject.head.push(`<script nomodule>window.location.href="assets/upgrade-browser.html";</script>`);

@@ -21,18 +21,6 @@ self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => 
     if ($on) { $ctx->files->writeManaged('offline.html', $ctx->package->read('data/offline.html')); }
   }
 
-  // hook: plugin.after.install
-  public function pluginAfterInstall($ctx) {
-    $site = $ctx->entities->get('site');
-    $s = $site['metadata']['site']['settings'] ?? [];
-    if (!array_key_exists('sw', $s) && !array_key_exists('forceUpgrade', $s)) { return null; }
-    $ctx->config->save(['serviceWorker' => $this->truthy($s['sw'] ?? false), 'forceUpgrade' => $this->truthy($s['forceUpgrade'] ?? false)]);
-    $fresh = $ctx->entities->get('site');
-    unset($fresh['metadata']['site']['settings']['sw'], $fresh['metadata']['site']['settings']['forceUpgrade']);
-    $ctx->entities->save('site', $fresh);
-    $ctx->log->info('moved sw and forceUpgrade out of site.json');
-    return null;
-  }
 
   // hook: render.before.head
   public function renderBeforeHead($ctx) {

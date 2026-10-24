@@ -142,7 +142,17 @@ class HarnessCtx {
   public function warn($message, $severity = 'warning') { $this->warnings[] = ['message' => $message, 'severity' => $severity]; }
   public function respond($html) { return ['__respond' => $html]; }
   public function pluginEnabled($id) { return in_array($id, $this->enabled, true); }
-  public function fetch($url, $init = []) { throw new Exception('network is disabled in the harness'); }
+  // ctx->fetch: egress checked, call recorded, answered from the case's fakes by host (spec/13 PHP shape)
+  public $fetchCalls = []; public $fetchSpec = ['egress' => [], 'fakes' => []];
+  public function fetch($url, $init = []) {
+    $host = parse_url($url, PHP_URL_HOST);
+    if (!in_array($host, $this->fetchSpec['egress'], true)) { throw new Exception("fetch to $host not allowed"); }
+    $this->fetchCalls[] = ['method' => strtoupper($init['method'] ?? 'GET'), 'url' => $url];
+    $fake = $this->fetchSpec['fakes'][$host] ?? null;
+    if (!$fake) { throw new Exception('network is disabled in the harness'); }
+    $body = is_string($fake['body'] ?? null) ? $fake['body'] : json_encode($fake['body'] ?? null);
+    return ['status' => $fake['status'] ?? 200, 'headers' => $fake['headers'] ?? [], 'body' => $body, 'json' => json_decode($body, true)];
+  }
   // PHP spelling of ctx.exec(): commands outside the exec list are refused; the harness answers from fakes
   public $execCalls = []; public $execSpec = ['allowed' => [], 'fakes' => []];
   public function exec($cmd, $args = [], $opts = []) {
@@ -166,6 +176,7 @@ if ($in['method'] === '__list_upgrades') {
 if (!method_exists($plugin, $in['method'])) { echo json_encode(['missing' => true]); exit(0); }
 $ctx = new HarnessCtx($in);
 $ctx->execSpec = $in['exec'] ?? ['allowed' => [], 'fakes' => []];
+$ctx->fetchSpec = $in['fetch'] ?? ['egress' => [], 'fakes' => []];
 $result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
 echo json_encode([
   'result' => $result,
@@ -181,4 +192,5 @@ echo json_encode([
   'sitePuts' => (object) $ctx->files->puts,
   'siteRemoves' => $ctx->files->removes,
   'execCalls' => $ctx->execCalls,
+  'fetchCalls' => $ctx->fetchCalls,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

@@ -1,6 +1,5 @@
 - id: pwa-001
   title: "first enable moves sw and forceUpgrade out of site.json"
-  hook: plugin.after.install
   given: "metadata.site.settings.sw true, forceUpgrade false"
   when: "enable pwa"
   then: "pages register the worker; site.json no longer has sw"

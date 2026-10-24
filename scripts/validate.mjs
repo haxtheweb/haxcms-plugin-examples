@@ -147,6 +147,23 @@ function validatePlugin(manifestPath) {
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && typeof op === "object" && op.operationId && op["x-hax-public"] !== true && !op.security && !api.security) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" declares no security; add security or x-hax-public: true (fail-closed)`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) { const sec = op && typeof op === "object" && (op.security || api.security); if (op && op.operationId && Array.isArray(sec) && sec.length && sec.every((r) => !r || !Object.keys(r).length)) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" lists only the optional requirement {}; pair it with a real one (bearerAuth) or mark it x-hax-public: true`); }
+    // x-hax-proxy: core answers the operation from the declaration (GET only, egress-listed host, settings templates)
+    const fields = m.settings && existsSync(join(dir, m.settings)) ? new Set((readJson(join(dir, m.settings)).configure || []).map((f) => f.property)) : new Set();
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) {
+      if (!op || !op.operationId) continue;
+      const px = op["x-hax-proxy"];
+      const where = `${m.openapi}/paths/${path}/${verb}`;
+      if (!px) { if (!m.entry) err(where, `"${op.operationId}" has no code to run: the plugin has no entry, so every operation must be an x-hax-proxy`); continue; }
+      if (verb !== "get") err(where, "x-hax-proxy is for GET operations only");
+      let host = null; try { host = new URL(String(px.url).replace(/\{\{[^}]+\}\}/g, "x")).hostname; } catch { err(where, "x-hax-proxy url is not a URL"); }
+      if (host && (!(m.capabilities || []).includes("network:egress") || !(m.egress || []).includes(host))) err(where, `x-hax-proxy host ${host} must be listed in egress (with network:egress)`);
+      for (const v of [px.url, ...Object.values(px.query || {})]) for (const t of String(v).matchAll(/\{\{([^}]+)\}\}/g)) {
+        const mm = /^settings\.(\w+)$/.exec(t[1].trim());
+        if (!mm) err(where, `x-hax-proxy template {{${t[1]}}} may only read settings.<field>`);
+        else if (!fields.has(mm[1])) err(where, `x-hax-proxy reads settings.${mm[1]}, which is not a field in the settings form`);
+      }
+      if (px.pass && (!Array.isArray(px.pass) || px.pass.some((k) => typeof k !== "string"))) err(where, "x-hax-proxy pass is a list of query parameter names");
+    }
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && op.operationId && m.id && !op.operationId.startsWith(m.id.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()))) err(`${m.openapi}/paths/${path}/${verb}`, `operationId "${op.operationId}" must start with the plugin id "${m.id}"`);
   }
   if (m.legacy && m.legacy.routes) for (const [path, op] of Object.entries(m.legacy.routes)) {
