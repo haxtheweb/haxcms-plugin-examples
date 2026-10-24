@@ -17,6 +17,7 @@ export async function step(backend, s) {
   else if (s.save) { const r = await backend.saveEntity(s.save.type, s.save.record); Object.assign(out, { subject: r.record, veto: r.veto || null }); }
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
+  else if (s.contract) Object.assign(out, { body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) });
   else if (s.managed) Object.assign(out, { body: (backend.managed.get(s.managed) || {}).content ?? null, status: backend.managed.has(s.managed) ? 200 : 404 });
   else if (s.exportUser) Object.assign(out, { body: backend.exportUser(s.exportUser) });
   else if (s.eraseUser) Object.assign(out, { body: backend.eraseUser(s.eraseUser) });
@@ -26,6 +27,7 @@ export async function step(backend, s) {
     await backend.transaction(async (tx) => { for (const inner of s.transaction.steps || []) { const r = await step(backend, inner); if (r.errors.length) throw new Error(r.errors.join("; ")); } marks = tx.marks; }, { bulk: s.transaction.bulk !== false, origin: s.transaction.origin || "case" });
     out.marks = marks;
   }
+  if (backend.flushLog) await backend.flushLog();
   out.statusOf = Object.fromEntries(backend.status().map((x) => [x.id, x.status]));
   out.log = backend.log;
   return { out, errors: check(out, s.expect || {}) };

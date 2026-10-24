@@ -51,7 +51,9 @@ export default {
 };
 ```
 
-**PHP** (`entry.php`). The file defines one class, `<StudlyId>Plugin` (`announcements` → `AnnouncementsPlugin`, `data-store` → `DataStorePlugin`). Operations are public methods named exactly as the `operationId`; hooks are public methods named by camel-casing the hook (`page.before.save` → `pageBeforeSave`); schedule handlers are public methods named as in `schedules`. One instance per process.
+Plugins that implement a contract add `contracts: { "<contract>": { <operation>: async (ctx, input) => result } }`. Core contracts are listed in `schema/core-contracts.yaml` (`import.platform`, `log.sink`, `privacy.export`, `privacy.delete`); core calls every active implementer.
+
+**PHP** (`entry.php`). The file defines one class, `<StudlyId>Plugin` (`announcements` → `AnnouncementsPlugin`, `data-store` → `DataStorePlugin`). Operations are public methods named exactly as the `operationId`; hooks are public methods named by camel-casing the hook (`page.before.save` → `pageBeforeSave`); schedule handlers are public methods named as in `schedules`; contract operations are methods named camel(contract) + Studly(operation) (`import.platform` `convert` → `importPlatformConvert`). One instance per process.
 
 Both runtimes keep logic in plain modules the entry calls (the announcements plugin does this), so the two can be compared call for call.
 

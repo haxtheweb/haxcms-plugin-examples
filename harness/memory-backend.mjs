@@ -17,6 +17,8 @@ import addFormats from "ajv-formats";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const readAny = (p) => (p.endsWith(".json") ? JSON.parse(readFileSync(p, "utf8")) : parse(readFileSync(p, "utf8")));
+const CORE_CONTRACTS = parse(readFileSync(join(root, "schema/core-contracts.yaml"), "utf8")).contracts;
+const contractMethod = (name, op) => name.split(".").map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join("") + op[0].toUpperCase() + op.slice(1);
 const CORE_HOOKS = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8"));
 const SPEC_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 const USER_TOKEN_REQUIRED = "X-HAXCMS-User-Token header is required for this endpoint";
@@ -263,7 +265,7 @@ export class MemoryBackend {
         throw new Error("network is disabled in the harness");
       },
       config: { save: async (values) => backend.saveConfig(p.id, values) },
-      plugins: { list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience) },
+      plugins: { list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience), operations: async (filter = {}) => backend.pluginOperations(filter), prompts: async () => backend.pluginPrompts() },
       files: {
         writeManaged: async (path, content) => backend.writeManaged(p, path, content),
         readManaged: async (path) => (backend.managed.get(path) || {}).content ?? null,
@@ -353,6 +355,34 @@ export class MemoryBackend {
     this.requireCap(p, "file", "write");
     const full = this.sitePath(p, path);
     try { rmSync(full); return { removed: true }; } catch { return { removed: false }; }
+  }
+  // operations of active plugins, for discovery (the MCP plugin lists those with x-hax-mcp)
+  pluginOperations({ mcp } = {}) {
+    const out = [];
+    for (const x of this.plugins.filter((q) => q.status === "active")) {
+      if (!x.manifest.openapi) continue;
+      const api = readAny(join(x.dir, x.manifest.openapi));
+      for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
+        if (!op || !op.operationId) continue;
+        if (mcp && op["x-hax-mcp"] !== true) continue;
+        const scope = op["x-hax-scope"] || api["x-hax-scope"] || "site";
+        out.push({ plugin: x.id, operationId: op.operationId, method: verb.toUpperCase(), path: `${scope === "system" ? "/system/api" : "/x/api"}/v1/plugins/${x.id}${path}`, summary: op.summary || "", readOnly: verb === "get", mcp: op["x-hax-mcp"] === true });
+      }
+    }
+    return out;
+  }
+  // prompts of active plugins: docs/prompts.yaml, then register.before.prompts (spec/07, plugin screen)
+  staticPrompts() {
+    const list = [];
+    for (const x of this.plugins.filter((q) => q.status === "active")) if (x.manifest.docs && x.manifest.docs.prompts && existsSync(join(x.dir, x.manifest.docs.prompts))) list.push(...(readAny(join(x.dir, x.manifest.docs.prompts)).prompts || []).map((pr) => ({ plugin: x.id, ...pr })));
+    return list;
+  }
+  async pluginPrompts() {
+    if (this.collectingPrompts) return this.collectingPrompts; // a prompts hook asking for prompts gets the list so far
+    let list = this.staticPrompts();
+    this.collectingPrompts = list;
+    try { list = (await this.fire("register.before.prompts", list)).subject; } finally { this.collectingPrompts = null; }
+    return list;
   }
   activeList() {
     return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: x.manifest.privacy || null, capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [] }));
@@ -493,15 +523,19 @@ export class MemoryBackend {
   async invoke(p, kind, name, ctx, args = []) {
     if (this.runtime === "nodejs") {
       if (!p.entry) return { missing: true };
-      const fn = kind === "operation" ? p.entry.operations && p.entry.operations[name] : kind === "hook" ? p.entry.hooks && p.entry.hooks[name] : p.entry[name];
+      let fn;
+      if (kind === "operation") fn = p.entry.operations && p.entry.operations[name];
+      else if (kind === "hook") fn = p.entry.hooks && p.entry.hooks[name];
+      else if (kind === "contract") { const [c, op] = name.split("#"); fn = p.entry.contracts && p.entry.contracts[c] && p.entry.contracts[c][op]; }
+      else fn = p.entry[name];
       if (!fn) return { missing: true };
       return { value: await fn(ctx, ...args) };
     }
     const storeState = {};
     for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package") storeState[id] = this.readStore(p, id);
     const input = {
-      entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : name, args,
-      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
+      entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : kind === "contract" ? contractMethod(...name.split("#")) : name, args,
+      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
       ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
@@ -528,6 +562,31 @@ export class MemoryBackend {
     return { value: out.result };
   }
 
+  // ---- contracts: core (or a plugin) calls every active implementer (spec/06, spec/13) ----
+  async callContract(name, op, input, { only } = {}) {
+    const results = [];
+    for (const p of this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name) && (!only || x.id === only))) {
+      const ctx = this.makeCtx(p, { subject: input });
+      try {
+        const r = await this.invoke(p, "contract", `${name}#${op}`, ctx, [input]);
+        if (!r.missing) results.push({ plugin: p.id, result: r.value });
+      } catch (e) { this.log.push({ level: "error", plugin: p.id, message: `${name}.${op}: ${e.message}` }); }
+    }
+    return results;
+  }
+  // entries written since the last flush go to log.sink implementers (never their own entries, to avoid loops)
+  async flushLog() {
+    const start = this.flushed || 0;
+    this.flushed = this.log.length;
+    const sinks = this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes("log.sink"));
+    if (!sinks.length) return;
+    for (const entry of this.log.slice(start, this.flushed)) for (const sink of sinks) {
+      if (entry.plugin === sink.id) continue;
+      await this.callContract("log.sink", "write", { time: new Date(0).toISOString(), scope: "system", ...entry }, { only: sink.id });
+    }
+    this.flushed = this.log.length;
+  }
+
   // ---- operations (spec/13 section 5) ----
   async call(operationId, request = {}, { credentials = "both" } = {}) {
     const p = this.plugins.find((x) => x.ops[operationId]);
@@ -539,7 +598,10 @@ export class MemoryBackend {
       if (needsJwt && credentials === "none") return { status: 401, body: { error: "unauthorized" } };
       if (needsUser && credentials !== "both") return { status: 401, body: { error: op.security.some((req) => "siteTokenHeader" in req) ? "X-HAXCMS-Site-Token header is required for this endpoint" : USER_TOKEN_REQUIRED } };
     }
-    const req = { params: {}, query: {}, body: {}, headers: {}, files: [], ...request };
+    let req = { params: {}, query: {}, body: {}, headers: {}, files: [], ...request };
+    const before = await this.fire("rest.before.request", { method: op.verb.toUpperCase(), path: op.path, operationId, plugin: p.id, ...req });
+    if (before.veto) return { status: before.veto.status || 403, body: { error: before.veto.message } };
+    req = { ...req, ...before.subject };
     const ctx = this.makeCtx(p, { request: req });
     try {
       const r = await this.invoke(p, "operation", operationId, ctx, [req]);
@@ -547,7 +609,8 @@ export class MemoryBackend {
       const v = r.value;
       const res = v && typeof v === "object" && "status" in v && "body" in v ? v : { status: 200, body: v };
       if (Buffer.isBuffer(res.body)) res.body = res.body.toString("utf8");
-      return { ...res, warnings: ctx.__warnings };
+      const after = await this.fire("rest.after.request", { status: res.status, headers: res.headers || {}, body: res.body });
+      return { ...res, ...after.subject, warnings: ctx.__warnings };
     } catch (e) {
       this.log.push({ level: "error", plugin: p.id, message: String(e && e.message) });
       return { status: 500, body: { error: "internal error" } };

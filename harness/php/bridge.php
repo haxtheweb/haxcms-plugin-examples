@@ -78,8 +78,10 @@ class HarnessConfig {
   public function save($values, $opts = []) { $this->saves[] = $values; $this->ctx->settings = array_merge($this->ctx->settings, $values); return ['status' => 200]; }
 }
 class HarnessPlugins {
-  private $list; private $skills;
-  public function __construct($list, $skills) { $this->list = $list; $this->skills = $skills; }
+  private $list; private $skills; private $ops; private $prompts;
+  public function __construct($list, $skills, $ops = [], $prompts = []) { $this->list = $list; $this->skills = $skills; $this->ops = $ops; $this->prompts = $prompts; }
+  public function operations($filter = []) { return array_values(array_filter($this->ops, function ($o) use ($filter) { return empty($filter['mcp']) || !empty($o['mcp']); })); }
+  public function prompts() { return $this->prompts; }
   public function list() { return $this->list; }
   public function skills($audience) { return $this->skills[$audience] ?? []; }
 }
@@ -128,7 +130,7 @@ class HarnessCtx {
     $this->log = new HarnessLog();
     $this->hooks = new HarnessHooks();
     $this->config = new HarnessConfig($this);
-    $this->plugins = new HarnessPlugins($in['activePlugins'] ?? [], $in['skillsByAudience'] ?? []);
+    $this->plugins = new HarnessPlugins($in['activePlugins'] ?? [], $in['skillsByAudience'] ?? [], $in['operations'] ?? [], $in['prompts'] ?? []);
     $this->files = new HarnessFiles($in['managedFiles'] ?? []);
     $this->assets = new HarnessAssets($in['pluginId'] ?? '');
     $this->entities = new HarnessEntities($in['records'] ?? [], $in['capabilities'] ?? [], $in['currentSite'] ?? null, $in['pluginId'] ?? '');

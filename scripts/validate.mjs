@@ -297,6 +297,19 @@ function validatePlugin(manifestPath) {
     }
   }
   // full user records need export and delete for whatever the plugin keeps outside personalData stores
+  // implementing a core contract: every operation must be present in each runtime's entry
+  const coreContracts = parse(readFileSync(join(root, "schema/core-contracts.yaml"), "utf8")).contracts;
+  for (const c of m.implements || []) {
+    const def = coreContracts[c];
+    if (!def) continue; // a plugin-defined contract; checked against its definer when that plugin is present
+    for (const op of def.operations) for (const [rt, entry] of Object.entries(m.entry || {})) {
+      const f = join(dir, entry); if (!existsSync(f)) continue;
+      const code = readFileSync(f, "utf8");
+      const phpName = c.split(".").map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("") + op[0].toUpperCase() + op.slice(1);
+      const found = rt === "php" ? code.includes(`function ${phpName}`) : code.includes(`"${c}"`) && new RegExp(`\\b${op}\\b`).test(code);
+      if (!found) err(`/implements`, `implements ${c} but ${entry} has no ${rt === "php" ? phpName : `contracts["${c}"].${op}`}`);
+    }
+  }
   if ((m.capabilities || []).includes("users:full")) for (const c of ["privacy.export", "privacy.delete"]) if (!(m.implements || []).includes(c)) err("/implements", `users:full requires implementing ${c}`);
   // schedules: handlers must exist in each runtime entry
   for (const [i, j] of (m.schedules || []).entries()) for (const [rt, entry] of Object.entries(m.entry || {})) {
