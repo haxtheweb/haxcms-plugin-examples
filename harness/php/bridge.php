@@ -59,6 +59,8 @@ class HarnessEntities {
     $this->need($type, 'read');
     return array_values(array_filter($this->records[$type] ?? [], function ($r) use ($query) { foreach ($query as $k => $v) { if (($r[$k] ?? null) !== $v) { return false; } } return true; }));
   }
+  public $deletes = [];
+  public function delete($type, $id) { $this->need($type, 'write'); unset($this->records[$type][$id]); $this->deletes[] = ['type' => $type, 'id' => $id]; return ['deleted' => true]; }
   // Saves are applied by the harness after the call, running the entity hooks then.
   public function save($type, $record) {
     $this->need($type, 'write');
@@ -87,6 +89,10 @@ class HarnessFiles {
   public function __construct($existing) { $this->existing = $existing; }
   public function writeManaged($path, $content) { $this->writes[$path] = (string) $content; $this->existing[$path] = (string) $content; return ['path' => $path]; }
   public function readManaged($path) { return $this->existing[$path] ?? null; }
+  public $puts = []; public $removes = [];
+  // site files (base64 strings); the harness checks the path and capability when it applies them
+  public function put($path, $data) { $this->puts[$path] = $data; return ['path' => $path]; }
+  public function remove($path) { $this->removes[] = $path; return ['removed' => true]; }
 }
 class HarnessAssets {
   private $id;
@@ -127,6 +133,9 @@ class HarnessCtx {
     $this->assets = new HarnessAssets($in['pluginId'] ?? '');
     $this->entities = new HarnessEntities($in['records'] ?? [], $in['capabilities'] ?? [], $in['currentSite'] ?? null, $in['pluginId'] ?? '');
   }
+  public $bulk = null;
+  // PHP spelling of ctx.transaction.run(): the harness applies this call's saves inside one bulk transaction
+  public function runTransaction($fn, $opts = []) { $this->bulk = $opts + ['origin' => 'plugin']; return $fn($this->transaction); }
   public function veto($message, $status = 409) { return ['__veto' => true, 'message' => $message, 'status' => $status]; }
   public function warn($message, $severity = 'warning') { $this->warnings[] = ['message' => $message, 'severity' => $severity]; }
   public function respond($html) { return ['__respond' => $html]; }
@@ -152,6 +161,10 @@ echo json_encode([
   'warnings' => $ctx->warnings,
   'transaction' => ['marks' => (object) $ctx->transaction['marks']],
   'entitySaves' => $ctx->entities->saves,
+  'entityDeletes' => $ctx->entities->deletes,
+  'bulk' => $ctx->bulk,
   'configSaves' => $ctx->config->saves,
   'managedWrites' => (object) $ctx->files->writes,
+  'sitePuts' => (object) $ctx->files->puts,
+  'siteRemoves' => $ctx->files->removes,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

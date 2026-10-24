@@ -1,0 +1,26 @@
+# Site scope: /x/api/v1/plugins/outline/... (and the old /x/api/v1/site/outline through legacy.routes)
+openapi: 3.1.0
+info: { title: Outline, version: 0.1.0 }
+paths:
+  /outline:
+    get:
+      operationId: outlineGet
+      summary: The site's pages in outline order
+      security: [{ bearerAuth: [], siteTokenHeader: [] }]
+      responses: { "200": { description: OK } }
+    patch:
+      operationId: outlineUpdate
+      summary: Apply a whole outline in one transaction (titles, parents, order; items without an existing id are created; existing pages left out are removed)
+      security: [{ bearerAuth: [], siteTokenHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { type: object, required: [id, title], properties: { id: { type: string }, title: { type: string }, parent: { type: [string, "null"] }, order: { type: integer } } }
+      responses: { "200": { description: "{ items, idMap }" }, "400": { description: Invalid outline } }

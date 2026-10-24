@@ -5,7 +5,7 @@
 // runs the render pipeline and transactions, and builds the ctx object. Plugin code runs in Node directly, or in
 // PHP through harness/php/bridge.php, so the same cases can run against both runtimes.
 // It is a test double for plugins and for the spec, not a server: no HTTP, no disk writes, no network.
-import { readFileSync, existsSync, mkdtempSync, readdirSync, statSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, readdirSync, statSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -267,6 +267,9 @@ export class MemoryBackend {
       files: {
         writeManaged: async (path, content) => backend.writeManaged(p, path, content),
         readManaged: async (path) => (backend.managed.get(path) || {}).content ?? null,
+        // a site's own files (uploads) live under files/; needs files:write
+        put: async (path, data) => backend.putSiteFile(p, path, data),
+        remove: async (path) => backend.removeSiteFile(p, path),
       },
       assets: { url: (path) => backend.assetUrl(p, path) },
       entities: {
@@ -278,6 +281,7 @@ export class MemoryBackend {
           return r ? structuredClone(r) : null;
         },
         list: async (type, query = {}) => { backend.requireCap(p, type, "read"); return Object.values(backend.records[type] || {}).filter((r) => Object.entries(query).every(([k, v]) => r[k] === v)).map((r) => structuredClone(r)); },
+        delete: async (type, id) => { backend.requireCap(p, type, "write"); return backend.deleteEntity(type, id); },
         save: async (type, record) => {
           backend.requireCap(p, type, "write");
           const key = type === "site" ? record.id || backend.site.id : record.id || record.uuid;
@@ -333,6 +337,23 @@ export class MemoryBackend {
     this.managed.set(path, { plugin: p.id, content: String(content) });
     return { path };
   }
+  sitePath(p, path) {
+    const clean = String(path).replace(/^\/+/, "");
+    if (!/^files\/[A-Za-z0-9._\/-]+$/.test(clean) || clean.includes("..")) throw new Error(`${p.id}: site files live under files/ (${path})`);
+    return join(this.site.path, clean);
+  }
+  putSiteFile(p, path, data) {
+    this.requireCap(p, "file", "write");
+    const full = this.sitePath(p, path);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, Buffer.isBuffer(data) ? data : Buffer.from(String(data), "base64"));
+    return { path };
+  }
+  removeSiteFile(p, path) {
+    this.requireCap(p, "file", "write");
+    const full = this.sitePath(p, path);
+    try { rmSync(full); return { removed: true }; } catch { return { removed: false }; }
+  }
   activeList() {
     return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: x.manifest.privacy || null, capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [] }));
   }
@@ -382,6 +403,18 @@ export class MemoryBackend {
     this.writeToDisk(type, store[id]);
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
     return { record: after.subject };
+  }
+
+  async deleteEntity(type, id) {
+    const store = this.records[type] || {};
+    const previous = store[id];
+    if (!previous) return { deleted: false };
+    const before = await this.fire("entity.before.delete", structuredClone(previous), { entity: type });
+    if (before.veto) return { deleted: false, veto: before.veto };
+    delete store[id];
+    this.bump(type, id);
+    await this.fire("entity.after.delete", structuredClone(previous), { entity: type });
+    return { deleted: true };
   }
 
   // ---- personal data (spec/04): core exports and erases personalData stores by user id ----
@@ -479,9 +512,16 @@ export class MemoryBackend {
     if (out.missing) return { missing: true };
     for (const [id, v] of Object.entries(out.stores || {})) this.writeStore(p, id, v);
     for (const [id, v] of Object.entries(out.manifestStores || {})) this.writeStore(p, id, v);
-    for (const { type, record } of out.entitySaves || []) await this.saveEntity(type, record);
+    for (const [path, b64] of Object.entries(out.sitePuts || {})) this.putSiteFile(p, path, b64);
+    for (const path of out.siteRemoves || []) this.removeSiteFile(p, path);
+    const apply = async () => {
+      for (const { type, id } of out.entityDeletes || []) await this.deleteEntity(type, id);
+      for (const { type, record } of out.entitySaves || []) await this.saveEntity(type, record);
+    };
+    if (out.bulk) await this.transaction(apply, { bulk: true, origin: out.bulk.origin || "plugin" }); else await apply();
     for (const values of out.configSaves || []) await this.saveConfig(p.id, values);
     for (const [path, content] of Object.entries(out.managedWrites || {})) this.writeManaged(p, path, content);
+
     for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
     ctx.__warnings.push(...(out.warnings || []));
     Object.assign(ctx.transaction.marks, out.transaction && out.transaction.marks ? out.transaction.marks : {});
@@ -495,9 +535,9 @@ export class MemoryBackend {
     const op = p.ops[operationId];
     if (!op.public) {
       const needsJwt = op.security.some((req) => "bearerAuth" in req);
-      const needsUser = op.security.some((req) => "userTokenHeader" in req);
+      const needsUser = op.security.some((req) => "userTokenHeader" in req || "siteTokenHeader" in req);
       if (needsJwt && credentials === "none") return { status: 401, body: { error: "unauthorized" } };
-      if (needsUser && credentials !== "both") return { status: 401, body: { error: USER_TOKEN_REQUIRED } };
+      if (needsUser && credentials !== "both") return { status: 401, body: { error: op.security.some((req) => "siteTokenHeader" in req) ? "X-HAXCMS-Site-Token header is required for this endpoint" : USER_TOKEN_REQUIRED } };
     }
     const req = { params: {}, query: {}, body: {}, headers: {}, files: [], ...request };
     const ctx = this.makeCtx(p, { request: req });

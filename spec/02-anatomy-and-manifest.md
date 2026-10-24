@@ -69,6 +69,6 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `privacy` | `tracking`, categories, cookies set, hosts that receive data, `requiresConsent` categories |
 | `managedFiles` | managed output paths the plugin owns |
 | `schedules` | recurring jobs: `id`, `cron`, `handler` (exported by the backend entry), `scope` (system or once per site), optional `timeout`; run by `hax plugin schedule run` (spec/06) |
-| `legacy` | keeps existing sites working after a feature moves out of core: `tags` (old tag → plugin tag, the old tag still renders), `routes` (old core path → operationId), `settings` (plugin setting → old `site.json` path, read as a fallback until the install migration runs) |
+| `legacy` | keeps existing sites working after a feature moves out of core: `tags` (old tag → plugin tag, the old tag still renders), `routes` (old core path, optionally after a method such as `DELETE /x/api/v1/files/{fileUuid}`, → operationId in this plugin's contract), `settings` (plugin setting → old `site.json` path, read as a fallback until the install migration runs) |
 | `settingsScope` | `system` (default), `site` (each site has its own values, like the old `site.json` settings) or `both` (system default, site override) |
 | `packaged`, `integrity` | reserved: written by `hax plugin pack` (date, hash, signature reference) |

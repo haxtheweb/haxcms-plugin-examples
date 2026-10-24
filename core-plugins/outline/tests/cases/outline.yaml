@@ -1,0 +1,64 @@
+- id: outline-001
+  title: "a whole outline applies in one transaction and one commit"
+  operation: outlineUpdate
+  given: "pages p1 and p2; git active"
+  when: "rename p1, nest p2 under it, add a new page, remove nothing"
+  then: "three pages in order, the new one mapped to a server id, one git commit"
+  parityIgnore: [hash]
+  run:
+    with: [core-plugins/git]
+    records: { page: [{ id: p1, title: One, order: 0 }, { id: p2, title: Two, order: 1 }] }
+    steps:
+      - call:
+          operation: outlineUpdate
+          body: { items: [{ id: p1, title: "One renamed" }, { id: p2, title: Two, parent: p1 }, { id: new-a, title: Three }] }
+        expect: { status: 200, body: { idMap: { new-a: item-3 }, items: [{ id: p1, title: "One renamed" }, { id: p2, parent: p1 }, { id: item-3, title: Three }] } }
+      - call: { operation: gitHistory }
+        expect: { body: { items: [{ message: "4 changes: Page saved: One renamed; Page saved: Two; Page saved: Three; ..." }] } }
+- id: outline-002
+  title: "pages left out are removed"
+  operation: outlineUpdate
+  given: "pages p1 and p2"
+  when: "send only p1"
+  then: "p2 is deleted"
+  run:
+    with: [core-plugins/git]
+    records: { page: [{ id: p1, title: One, order: 0 }, { id: p2, title: Two, order: 1 }] }
+    steps:
+      - call: { operation: outlineUpdate, body: { items: [{ id: p1, title: One }] } }
+        expect: { status: 200, notContains: ['"p2"'] }
+- id: outline-003
+  title: "a looping outline is refused"
+  operation: outlineUpdate
+  given: "p1 child of p2 and p2 child of p1"
+  when: "send it"
+  then: "400, nothing changes"
+  run:
+    with: [core-plugins/git]
+    records: { page: [{ id: p1, title: One }, { id: p2, title: Two }] }
+    steps:
+      - call: { operation: outlineUpdate, body: { items: [{ id: p1, title: One, parent: p2 }, { id: p2, title: Two, parent: p1 }] } }
+        expect: { status: 400, message: "parent chain loops" }
+      - call: { operation: outlineGet }
+        expect: { body: { items: [{ id: p1, parent: null }, { id: p2, parent: null }] } }
+- id: outline-005
+  title: "without git (its dependency) the outline plugin stays off"
+  operation: outlineGet
+  given: "git not installed"
+  when: "load"
+  then: "outline disabled with the missing dependency named"
+  run:
+    steps:
+      - call: { operation: outlineGet }
+        expect: { status: 404, status_of: { outline: disabled }, log: { contains: ["missing dependency git"] } }
+- id: outline-004
+  title: "the site token is required"
+  operation: outlineUpdate
+  given: "a JWT without the site token"
+  when: "PATCH /outline"
+  then: "401 naming the site token"
+  run:
+    with: [core-plugins/git]
+    steps:
+      - call: { operation: outlineUpdate, credentials: jwt, body: { items: [] } }
+        expect: { status: 401, message: "X-HAXCMS-Site-Token header is required" }
