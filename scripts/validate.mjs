@@ -34,6 +34,7 @@ const validators = {
   datastores: own("datastores.schema.json"),
   entities: own("entities.schema.json"),
   locale: own("locale-overlay.schema.json"),
+  prompts: own("prompts.schema.json"),
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const knownCaps = new Set(readJson(join(root, "schema/capabilities.json")));
@@ -207,6 +208,17 @@ function validatePlugin(manifestPath) {
   else if (!m.icon.includes(":") && !existsSync(join(dir, m.icon))) err("/icon", `icon file not found: ${m.icon}`);
   const readme = (m.docs && m.docs.readme) || "README.md";
   if (!existsSync(join(dir, readme))) err("/docs/readme", `README not found: ${readme}`);
+  const agents = (m.docs && m.docs.agents) || "AGENTS.md";
+  if (!existsSync(join(dir, agents))) err("/docs/agents", `AGENTS.md not found: ${agents} (agents are the primary authors and maintainers; it is required like the README)`);
+  if (m.docs && m.docs.prompts) {
+    const pp = join(dir, m.docs.prompts);
+    if (!existsSync(pp)) err("/docs/prompts", `file not found: ${m.docs.prompts}`);
+    else {
+      const pd = readAny(pp);
+      if (!validators.prompts(pd)) fmt(validators.prompts.errors).forEach((e) => err(`${m.docs.prompts}${e.path === "/" ? "" : e.path}`, e.message));
+      else for (const [i, pr] of pd.prompts.entries()) if (pr.skill && !(m.skills || []).some((k) => k.name === pr.skill)) err(`${m.docs.prompts}/prompts/${i}/skill`, `unknown skill "${pr.skill}"`);
+    }
+  }
   for (const [i, sc] of (m.screenshots || []).entries()) if (!existsSync(join(dir, sc.src))) err(`/screenshots/${i}/src`, `file not found: ${sc.src}`);
   for (const [i, tg] of (m.tags || []).entries()) if (derivedTagNames.includes(tg)) err(`/tags/${i}`, `"${tg}" is a derived tag; it is computed from the manifest and cannot be set by hand`);
   // skills
@@ -224,7 +236,7 @@ function validatePlugin(manifestPath) {
     if (fm.name !== sk.name) err(where, `SKILL.md name "${fm.name}" must equal the folder "${sk.name}"`);
     if (!fm.description) err(where, `SKILL.md needs a description`);
     if (/\/(home|Users)\/|[A-Z]:\\/.test(readFileSync(md, "utf8"))) err(where, "skill contains a machine-specific path; published skills must stay generic");
-    if (sk.audience === "site") for (const f of readdirSync(sdir)) if (!/\.(md|json|txt)$/.test(f)) err(where, `site skills may only contain .md, .json or .txt files (found ${f})`);
+    if (sk.audience !== "developer") for (const f of readdirSync(sdir)) if (!/\.(md|json|txt)$/.test(f)) err(where, `published skills may only contain .md, .json or .txt files (found ${f})`);
   }
   for (const f of existsSync(join(dir, "skills")) ? readdirSync(join(dir, "skills")) : []) if (!skillSeen.has(f)) warn(`skills/${f}`, "skill folder not declared in the manifest; it will not be published");
   return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m) };

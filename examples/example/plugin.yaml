@@ -11,6 +11,8 @@ screenshots:
     alt: The example plugin's settings panel in the dashboard
 docs:
   readme: README.md
+  agents: AGENTS.md
+  prompts: docs/prompts.yaml
   help: https://github.com/haxtheweb/haxcms-plugin-examples
 skills:
   - name: example-authoring

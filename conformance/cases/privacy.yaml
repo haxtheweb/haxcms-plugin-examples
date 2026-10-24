@@ -22,3 +22,9 @@
   given: "site with metadata.site.settings.gaID"
   when: "enable google-analytics"
   then: "id honored; upgrade moves it"
+- id: priv-090
+  title: "diagnose prompts never include secrets"
+  spec: spec/07-registries-settings-assets.md
+  given: "plugin with settings:secret and a diagnose prompt using {{log}}"
+  when: "plugin screen renders the prompt"
+  then: "log entries included; secret values redacted"

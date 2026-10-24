@@ -87,6 +87,15 @@ HAX already has a format for what a plugin wants to add to the editor: the appst
 Plugins ship agent skills in the agentskills.io `SKILL.md` format the site boilerplate already uses (`.well-known/agent-skills/index.json`, discovery schema 0.2.0), one folder per skill under `skills/<name>/`, declared in the manifest with an audience:
 
 - `audience: site`: helps an agent working on a site that has the plugin enabled (authoring with the plugin's elements, using its content types). When the plugin is enabled for a site, the site rebuild adds the skill to that site's `.well-known/agent-skills/` with a sha256 digest, next to the boilerplate skills, and removes it on disable. Only `.md`, `.json` and `.txt` files, matching the existing copy rules.
-- `audience: developer`: helps someone working on the plugin or the system (structure, `hax plugin add`, validation, upgrading). Ships in the package for tools such as `create` and coding agents; never published to sites.
+- `audience: system`: published in the system's front-end `.well-known/agent-skills` so agents can discover what the deployment offers (for example an MCP plugin describing how to connect). Same file rules as site skills.
+- `audience: developer`: helps someone working on the plugin or the system (structure, `hax plugin add`, validation, upgrading). Read straight from the installed plugin package by `create` and coding agents; not copied into the system layer and never published.
 
 Rules the validator enforces: the name starts with the plugin id and a dash (one namespace per plugin), the frontmatter `name` equals the folder, a `description` is present, no machine-specific paths, and undeclared skill folders warn. The example ships one of each.
+
+## AGENTS.md
+
+Every plugin ships an `AGENTS.md`, required by the audit like the README. Plugins are expected to be written and maintained mostly by agents, so it carries everything an agent needs to understand, extend and diagnose the plugin. Recommended sections: Purpose, Layout, Rules, Build/test/validate, Diagnose (what log entries and statuses mean and the commands that fix them), Upgrade notes.
+
+## Plugin screen
+
+Skills are for agents and docs for people. The plugin's screen in the dashboard shows the README, links to view each skill, and the plugin's **prompts** (`docs.prompts`, `schema/prompts.schema.json`): copyable prompts a person can paste into a web or local agent. `diagnose` prompts appear next to the health chip and are filled with the plugin's status, unmet requirements and recent log entries (secrets never included). One planned plugin adds MCP support, which would let a local agent reach the same information directly.

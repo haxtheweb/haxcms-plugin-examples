@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haxtheweb.org/schema/haxcms-plugin/prompts.schema.json",
+  "title": "Plugin prompts",
+  "description": "Copyable prompts shown on the plugin's screen so someone running a system can paste them into a web or local agent to diagnose or do something with the plugin. {{placeholders}} are filled by the dashboard; unknown ones are left as-is.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "prompts"
+  ],
+  "properties": {
+    "prompts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "prompt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "diagnose",
+              "howto",
+              "upgrade"
+            ],
+            "description": "diagnose prompts are offered next to the health chip when the plugin has warnings or errors."
+          },
+          "when": {
+            "type": "string",
+            "description": "Human hint for when to use it."
+          },
+          "skill": {
+            "type": "string",
+            "description": "A skill this prompt relies on; the screen links to it."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Placeholders: {{plugin.id}}, {{plugin.version}}, {{haxcms.version}}, {{runtime}}, {{scope}}, {{status}}, {{requirements}}, {{log}} (recent entries for this plugin, secrets never included)."
+          }
+        }
+      }
+    }
+  }
+}

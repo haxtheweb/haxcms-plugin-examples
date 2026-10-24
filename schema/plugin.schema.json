@@ -49,7 +49,8 @@
         "type": "string",
         "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
       },
-      "description": "Free-form author tags for filtering. Derived tags (derived-tags.json) are computed from the manifest and always shown; they cannot be set or removed here."
+      "description": "Up to three free-form author tags for search and filtering (the one category is separate). Derived tags (derived-tags.json) are computed from the manifest, always shown, do not count toward the three, and cannot be set or removed here.",
+      "maxItems": 3
     },
     "icon": {
       "type": "string",
@@ -88,12 +89,21 @@
           "type": "string",
           "format": "uri",
           "description": "Optional external help page the dashboard links to."
+        },
+        "agents": {
+          "type": "string",
+          "default": "AGENTS.md",
+          "description": "Path to the plugin's AGENTS.md: everything an agent needs to understand, extend and diagnose the plugin. Required by the audit."
+        },
+        "prompts": {
+          "type": "string",
+          "description": "Path to a prompts file (schema/prompts.schema.json): copyable diagnostic and how-to prompts shown on the plugin's screen."
         }
       }
     },
     "skills": {
       "type": "array",
-      "description": "Agent skills shipped in skills/<name>/SKILL.md (agentskills.io format). audience site: published into a site's .well-known/agent-skills index while the plugin is enabled for it. audience developer: ships with the package for people and agents working on the plugin or the system; never published to sites.",
+      "description": "Agent skills shipped in skills/<name>/SKILL.md (agentskills.io format). audience site: published into a site's .well-known/agent-skills index while the plugin is enabled for it. audience system: published into the system's front-end .well-known/agent-skills so agents can discover the deployment's capabilities. audience developer: read from the plugin package by tools and agents working on the plugin or the system; never published.",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -110,6 +120,7 @@
           "audience": {
             "enum": [
               "site",
+              "system",
               "developer"
             ]
           }
