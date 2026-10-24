@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+0o. **Extra fields and veto.** A plugin must declare the schema it extends; undeclared added fields are warned about and discarded. A veto fails the whole operation with an error to the caller. Failures (including detached hooks) must be surfaced as plugin health; see item 12.
 0l. **Hook return contract**: return the updated subject (PHP parity); `ctx` is the context object with `veto`, `warn`, `settings`, `storage`, `log`, `fetch`, `respond`. Timeouts: 5 s before hooks, detached after hooks 60 s, no emergency switch. Overwrites by a later hook log a warning.
 0m. **Render pipeline and injected singletons.** `output.alter*` replaced by `render.before/head/content/body.start/body.end/after`; singletons are written by `render.body.end` with settings baked in; SSR runs in `render.content`; caching via `render.before` short-circuit plus `render.after` store.
 0n. **Process execution.** No general exec; `exec:run` capability plus an `exec` command list, statically scanned.
@@ -22,4 +23,6 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
+12. **Plugin logging and health.** Hook discards, warnings, vetoes, timeouts and detached failures need a store, a viewer and an API (admin/plugins/<id>/health?). Shape, retention and what the site owner sees are not specified.
+13. **Merlin declarations vs modules.** If a `module` plugin file imports the store and registers with Merlin directly, `static` and `api` declarations may be redundant. Candidate: keep declarations only for what tooling must see without running JS (audit, listing, permissions).
 6. **Per-hook subject fields.** The hook list is fixed but each hook's context and return shape (veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.

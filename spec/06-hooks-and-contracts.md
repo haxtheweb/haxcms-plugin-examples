@@ -23,8 +23,8 @@ Every lifecycle has a before hook and an after hook. **Before** hooks run before
 
 Semantics:
 - Chains run in order: required plugins first, then tier low to high, then `priority` (default 0), then alphabetical.
-- A modifying hook's output is validated against the concrete entity's schema, including a parent's required fields. An invalid result is discarded and logged, and the chain continues with the previous data. A veto returns an explicit status and message. Warnings carry a severity and messages the UI can show.
-- A hook error is logged and does not crash the operation, except an explicit veto.
+- A modifying hook's output is validated against the concrete entity's schema, including a parent's required fields. An invalid result is discarded and logged, and the chain continues with the previous data. A plugin may only add fields to a schema it defines: it must declare in its `entities` the schema it extends, otherwise the added fields are warned about and discarded. A veto returns an error to the caller (status and message) and fails the whole operation. Warnings carry a severity and messages the UI can show.
+- A hook error is logged and does not crash the operation, except an explicit veto. Every discard, warning, veto, timeout and hook error, including from detached after hooks, is written to the plugin log and surfaced as plugin health (a planned logging and health system, see GAPS.md item 12).
 - Timeouts: a **before** hook runs in the save path and defaults to 5 seconds (a manifest `timeout`, up to 30 seconds, can raise it for one hook). An **after** hook is an event that follows the operation. It runs inline by default with the same limit so later hooks and the caller see its changes; a hook that does slow work (for example an rsync after `git.after.commit`) declares `detached: true` in the manifest, runs after the response is sent, and gets 60 seconds. There is no emergency disable-all switch: a disabled plugin already removes its hooks.
 - When a later hook in a chain changes a field an earlier hook set, the change stands and the loader logs a warning naming both plugins.
 - Hooks stay opt-in; core routes cannot be broken, only extended through these points.
@@ -77,7 +77,7 @@ Extending entities fire parent first, with the concrete type in context. Page an
 
 Because the subject is passed by reference, **before and after hooks may both change it**: a before hook adjusts what is about to be written (or vetoes); an after hook adjusts what the caller gets back (annotations, derived fields) or reacts to what was written. An after hook's change to the subject does not rewrite the stored record. Context also carries the `previous` version of the subject on update, so a hook can diff before and after.
 
-The exact fields of each subject and the return shapes (veto, warnings) still need a per-hook specification; see GAPS.md.
+Veto and warning shapes are settled above; the exact fields of each subject still need a per-hook specification; see GAPS.md.
 
 ### `install` versus `enable`
 `plugin.before.install` / `plugin.after.install` fire the **first time** a plugin is enabled in a scope (a site, or the system). `enable` fires on every enable. Moving a setting from core into a plugin is the install hook's job: it reads the old value (for example from `site.json`), writes it to the plugin's settings, and the setting leaves the global form. Sites that already had the plugin enabled are covered by `upgrade`.
