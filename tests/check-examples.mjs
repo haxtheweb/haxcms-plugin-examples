@@ -58,6 +58,7 @@ const broken = [
   ["site skill with a script file", (d) => writeFileSync(join(d, "skills/example-authoring/run.sh"), "echo hi\n")],
   ["users:full without privacy contracts", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace('"items:read",', '"items:read", "users:full",'))],
   ["schedule handler missing from an entry", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("handler: tidy", "handler: sweep"))],
+  ["detached hook where the caller waits", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("  - name: rest.after.request\n", "  - name: rest.after.request\n    detached: true\n"))],
   ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
 ];
 for (const [label, mutate] of broken) {
