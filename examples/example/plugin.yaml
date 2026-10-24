@@ -85,8 +85,13 @@ hooks:
   - name: page.after.save
   - name: manifest.before.save
   - name: manifest.after.save
+  - name: config.before.read
+    config: ["*"]
+  - name: config.after.read
+    config: ["*"]
   - name: config.before.save
   - name: config.after.save
+    config: ["*"]
   - name: git.before.commit
   - name: git.after.commit
     detached: true

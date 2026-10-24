@@ -213,6 +213,13 @@
             "minimum": 100,
             "maximum": 30000,
             "description": "Milliseconds. Overrides the default for this hook (before hooks default to 5000)."
+          },
+          "config": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "config.* hooks only: which plugins' config this subscription sees. Omitted means the plugin's own config; plugin ids for specific others; [\"*\"] for every config read and write (uncommon: backups, auditing)."
           }
         }
       }

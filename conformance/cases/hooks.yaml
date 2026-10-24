@@ -136,3 +136,9 @@
   given: "backend code calling spawn without the capability"
   when: "validate or load"
   then: "rejected"
+- id: hook-090
+  title: "config hooks without a filter only see the plugin's own config"
+  spec: spec/06-hooks-and-contracts.md
+  given: "A subscribes config.after.save with no config list; B's setting changes"
+  when: "config set B key value"
+  then: "A's hook does not run; with config: [B] or [\"*\"] it does"

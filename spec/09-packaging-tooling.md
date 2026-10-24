@@ -21,11 +21,13 @@ Everything the dashboard can do, the CLI can do, at system level or for one site
 | `hax plugin config get\|set\|unset <id> <key> [value] [--site]` | Reads or writes the plugin's CMI settings, validated against its settings schema; secrets are write-only |
 | `hax plugin status [<id>] [--site]` | Status, health, unmet requirements, dependents, conflicts |
 | `hax plugin list [--site] [--enabled\|--available]` | Plugins with tier, version, status and health |
+| `hax plugin move <id> --to site\|system [--site]` | Moves the installed copy between tiers, keeping data and enablement; updates both lock configs |
+| `hax plugin restore [--site]` | Installs exactly what the scope's lock config lists, like `npm ci` |
 | `hax plugin update <id> [--to <range>]` | Fetches a newer version within the recorded range (or `--to`), validates and scans it, runs upgrade steps, updates the lock config |
 | `hax plugin log [<id>] [--site] [--level]` | Reads the unified log (needs the log plugin) |
 | `hax plugin create`, `add <piece> <name>`, `build`, `validate`, `audit`, `pack` | Authoring commands (below) |
 
-The typical flow is install at system, enable per site: from inside a site, `hax plugin install @haxtheweb/announcements --tier system --enable --site .` (or the same in two commands). The validator and `exec` scan run at install and update, so a plugin that would brick the system never lands; `enable` does not repeat them. The lock config (CMI, per scope) lists each plugin's source, installed version and accepted range.
+The typical flow is install at system, enable per site: from inside a site, `hax plugin install @haxtheweb/announcements --tier system --enable --site .` (or the same in two commands). The validator and `exec` scan run at install and update, so a plugin that would brick the system never lands; `enable` does not repeat them. The lock config (CMI, per scope) lists each plugin's source, installed version and accepted range; at site scope it is committed with the site's git. Unsigned packages (local development, site-specific custom plugins) install with an info-level notice, not a warning, since custom plugins without an official source are expected to be common.
 
 
 - **Dashboard:** a Plugins area under system admin, simple for now: every plugin with tier, version, group, lifecycle, enabled, required, locked, warnings, capabilities and privacy summary, pillar verdict, and a link to its configuration (settings form or admin panel). Locked plugins cannot be toggled.

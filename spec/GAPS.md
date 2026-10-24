@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+0s. **Config hook scope, lock in git, move, site plugin list.** `config` filter on subscriptions (own by default, specific ids, or `*` incl. reads); read hooks added. Site lock config committed with the site's git; `hax plugin restore`. Unsigned installs get a notice. `hax plugin move`. `site.json` records the plugins a site was made with; missing ones warn in that site's log on import.
 0r. **Install, uninstall, versions, overrides, config hooks.** Install asks for tier (site default inside a site, else system) and whether to enable; typical is system install plus site enable. Uninstall only after disable and purges data. Installed versions and ranges are kept in a CMI lock config per scope. A site copy overrides a system copy with a warning. Offline tarball installs are supported. Validation and the exec scan run at install and update only. `config.before.save` / `config.after.save` added; requirements re-evaluated after save.
 0q. **Log, status, ordering, scope, requirements, CLI.** One unified server-style log written by the log plugin; warn/error sets a status chip. `ctx.pluginEnabled(id)` for optional companions shown on the install page. `conflicts` warns. Hook order by `priority` (default 0) then cascade. System-enabled plugins cannot be turned off per site. `plugin.requirements` keeps a plugin enabled but inactive until met. CLI covers install from npm/git/path, enable, disable, uninstall, config, status, list, update and log, system-wide or per site.
 0p. **Enablement failure and dependencies.** A failure while enabling turns the plugin off with a recorded reason. Dependents must be disabled before the parent, with the UI showing both directions. Repeated hook failures keep running and logging. Log plugin and health badge: see item 12.
@@ -26,6 +27,7 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
+14. **`defaultEnabled` meaning** for contrib plugins (core required plugins are simply on).
 12. **Roles and permissions** for who sees health, the log, and who may install, enable and configure plugins at each scope.
 13. **Merlin options from an endpoint.** Declarations stay and frontend registration is allowed. A backend-served option listing is future work.
 6. **Per-hook subject fields.** The hook list is fixed but each hook's context and return shape (veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.

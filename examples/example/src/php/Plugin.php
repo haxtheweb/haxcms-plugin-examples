@@ -319,14 +319,26 @@ class ExamplePlugin {
     $this->log("manifest.after.save", $ctx);
   }
 
-  // validate or normalize a settings change (any plugin's config, filter by $ctx->subject['plugin']); veto to refuse
+  // subscribed with config: ["*"], so it sees every config read; uncommon, e.g. auditing access
+  // hook: config.before.read
+  public function configBeforeRead($ctx) {
+    $this->log("config.before.read", $ctx);
+  }
+
+  // subscribed with config: ["*"]; could redact or annotate values for the caller
+  // hook: config.after.read
+  public function configAfterRead($ctx) {
+    $this->log("config.after.read", $ctx);
+  }
+
+  // no config filter, so this only sees this plugin's own settings; validate or normalize, veto to refuse
   // hook: config.before.save
   public function configBeforeSave($ctx) {
     $this->log("config.before.save", $ctx);
     return $ctx->subject;
   }
 
-  // react to a settings change, e.g. clear a cache; requirements are re-evaluated after this
+  // subscribed with config: ["*"]: e.g. copy every config change to a backup location; requirements are re-evaluated after this
   // hook: config.after.save
   public function configAfterSave($ctx) {
     $this->log("config.after.save", $ctx);

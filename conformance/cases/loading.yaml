@@ -76,3 +76,9 @@
   given: "plugin enabled/inactive waiting on settings.greeting"
   when: "config set greeting hello"
   then: "config.before.save and config.after.save fire; requirements re-run; status active"
+- id: load-108
+  title: "importing a site with a missing plugin warns in that site's log"
+  spec: spec/03-tiers-and-enablement.md
+  given: "site.json lists plugin x 1.2.0; deployment lacks x"
+  when: "site added to the deployment"
+  then: "site works; warning in its log naming x and the version"
