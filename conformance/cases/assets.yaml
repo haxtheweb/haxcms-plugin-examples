@@ -46,3 +46,9 @@
   given: "quizzing pack enabled, multiple-choice blocks on two pages"
   when: "disable the pack for the site"
   then: "allowed; notice names the two pages; blocks still render; they are no longer insertable or editable"
+- id: asset-093
+  title: "a dashboard contribution renders with existing elements and its badge clears on dismiss"
+  spec: spec/07-registries-settings-assets.md
+  given: "announcements enabled; latestVersion 26.10.1; nothing dismissed in user scaffold memory"
+  when: "open the dashboard, open the modal, press Dismiss"
+  then: "top-bar button with a New chip; modal of accent-cards; after Dismiss whatsNew.dismissedVersion is 26.10.1 and the chip is gone"

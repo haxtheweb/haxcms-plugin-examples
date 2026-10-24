@@ -37,6 +37,7 @@ const validators = {
   prompts: own("prompts.schema.json"),
   testCases: own("test-case.schema.json"),
   hookDefs: own("hook-contracts.schema.json"),
+  dashboard: own("dashboard-contribution.schema.json"),
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const hookContracts = Object.fromEntries(readJson(join(root, "schema/hook-contracts.json")).map((c) => [c.name, c]));
@@ -222,6 +223,14 @@ function validatePlugin(manifestPath) {
   if (stores && ents && ents.entities) {
     const ids = new Set(stores.stores.map((x) => x.id));
     for (const [name, e] of Object.entries(ents.entities)) if (e.store && !ids.has(e.store)) err(`${m.entities}/entities/${name}/store`, `unknown store "${e.store}" (not in ${m.datastores})`);
+  }
+  const opIds = new Set();
+  if (m.openapi && existsSync(join(dir, m.openapi))) for (const ops of Object.values(readAny(join(dir, m.openapi)).paths || {})) for (const op of Object.values(ops)) if (op && op.operationId) opIds.add(op.operationId);
+  for (const f of listFiles(join(dir, "registries/dashboard"), [".yaml", ".yml", ".json"])) {
+    const d = readAny(f);
+    if (!validators.dashboard(d)) { fmt(validators.dashboard.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
+    const used = [d.badge && d.badge.operation, ...d.action.sections.map((x) => x.operation)].filter(Boolean);
+    for (const o of used) if (!opIds.has(o)) err(rel(f), `operation "${o}" is not in ${m.openapi || "the plugin's openapi"}`);
   }
   for (const f of listFiles(join(dir, "registries/locales"), [".yaml", ".yml", ".json"])) {
     if (!validators.locale(readAny(f))) fmt(validators.locale.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message));

@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+1f. **Plugins reuse platform UI.** Dashboard contributions (`registries/dashboard/`) are declared as data and rendered by app-hax with existing elements; announcements ships no front-end code. Merlin opens them with `hax-dashboard-open`. Rendering contributions is future app-hax work.
 1e. **Found while building announcements.** Routes needed a way to pick the system or site API: `x-hax-scope` (document default, per-operation override). Shipped read-only content needed a store: `package` scope under `data/`, read with `ctx.storage.read`, other data files with `ctx.package.read`. Dashboard elements needed a role: `admin`. Operation ids must start with the plugin id (now validated).
 1d. **No `defaultEnabled`.** Required core plugins are on; everything else is off until enabled; `--all-sites` is a CLI convenience. Skeletons are starting points with no later effect.
 1c. **Transactions join, packs are authoring-only.** Nested transactions join the outer one; any plugin can open or add to a bulk transaction. The abstraction is named the HAX backend platform contract. Packs shape the authoring appstore and block list at rebuild time; `wc-registry.json` and CDN hydration are unchanged. Disabling a pack in use is allowed with a notice listing affected pages.
@@ -39,7 +40,7 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
-18. **Loader `ctx` surface.** The examples now assume `ctx.storage.read/write`, `ctx.package.read`, `ctx.haxcms.version`, `ctx.log.info/warn/error`, `ctx.veto`, `ctx.settings`, `ctx.transaction`, `ctx.pluginEnabled`; route handlers get `(ctx, { params, query, body, headers })` and return `{ status, headers?, body }`. This needs to be written down as part of the HAX backend platform contract.
+18. **Loader `ctx` surface.** The examples now assume `ctx.storage.read/write`, `ctx.package.read`, `ctx.haxcms.version`, `ctx.log.info/warn/error`, `ctx.veto`, `ctx.settings`, `ctx.transaction`, `ctx.pluginEnabled`; route handlers get `(ctx, { params, query, body, headers })` and return `{ status, headers?, body }`. Accepted for now; to be written down as part of the HAX backend platform contract.
 16. **HAX backend platform contract (named).** Backend-only: core config, file templates, plugin loader, hooks, stores, routes; separate from front-end asset production. Shape still to specify.
 17. **Skeleton `site.plugins`** needs a PR to https://github.com/haxtheweb/json-outline-schema.
 15. **Plugin test harness.** Case format is set; the runner that executes a plugin's cases in both runtimes (shared with the spec conformance runner, item 0k) is not written.

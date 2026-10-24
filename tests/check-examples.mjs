@@ -61,6 +61,7 @@ const broken = [
   ["detached hook where the caller waits", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("  - name: rest.after.request\n", "  - name: rest.after.request\n    detached: true\n"))],
   ["alias pointing at an unknown hook", (d) => writeFileSync(join(d, "config/hooks.yaml"), readFileSync(join(d, "config/hooks.yaml"), "utf8").replace("{ hook: entity.before.update, entities: [awesomeFile] }", "{ hook: entity.before.nope }"))],
   ["defined hook outside the plugin namespace", (d) => writeFileSync(join(d, "config/hooks.yaml"), readFileSync(join(d, "config/hooks.yaml"), "utf8").replace("name: example.after.explode", "name: other.after.explode"))],
+  ["dashboard contribution calling an unknown operation", (d) => writeFileSync(join(d, "registries/dashboard/explosions.yaml"), readFileSync(join(d, "registries/dashboard/explosions.yaml"), "utf8").replace("operation: exampleListExplosions", "operation: exampleNope"))],
   ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
 ];
 for (const [label, mutate] of broken) {

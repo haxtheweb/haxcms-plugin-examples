@@ -12,7 +12,7 @@ A working list for scoping the refactor, built from the hook examples in spec/06
 
 | Plugin | What it does | From | Key hooks and registries |
 |---|---|---|---|
-| `announcements` | What's New and HAX Tips for users and site owners (`examples/announcements`) | new | package stores, system-scope routes, `plugin.before.enable`, `plugin.after.upgrade`, Merlin `api` programs, `admin` elements |
+| `announcements` | What's New and HAX Tips for users and site owners (`examples/announcements`) | new | package stores, system-scope routes, `plugin.before.enable`, `plugin.after.upgrade`, Merlin `api` programs, a dashboard contribution (no front-end code) |
 | `agent-skills` | publishes `site` and `system` skills from enabled plugins into `.well-known/agent-skills` | extract (`rebuildAgentSkills`) | `rebuild.after`, `plugin.after.enable` / `.disable` |
 | default theme pack | the default theme (today `clean-two`) and its siblings as a `pack` | extract | theme registry only |
 | `outline` | the outline editor: page tree operations and the editor UI; depends on `git` | extract | see below |

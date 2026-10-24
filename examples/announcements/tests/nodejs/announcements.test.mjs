@@ -47,10 +47,11 @@ test("latest returns only that version's updates, without source-only fields", (
   for (const e of r.items) { assert.equal(e.status, undefined); assert.equal(e.notes, undefined); }
 });
 
-test("filters: kind, type by key, sinceVersion, paging", () => {
+test("filters: kind, type by key, sinceVersion, beforeVersion, paging", () => {
   assert.ok(A.list(data, RUN, { "filter[kind]": "tip" }).items.every((e) => e.kind === "tip"));
   assert.ok(A.list(data, RUN, { "filter[type]": "block" }).items.every((e) => e.type === "5b0e06db-a31a-4d78-844e-43ec30a66d16"));
   assert.deepEqual(A.list(data, RUN, { "filter[sinceVersion]": "26.9.1" }).items.map((e) => e.version), ["26.10.1", "26.10.1"]);
+  assert.deepEqual(A.list(data, RUN, { "filter[beforeVersion]": "26.10.1" }).items.map((e) => e.slug), ["plugin-dashboard"]);
   const page = A.list(data, RUN, { "page.limit": "2", "page.offset": "1" });
   assert.equal(page.items.length, 2);
   assert.equal(page.total, 6);

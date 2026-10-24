@@ -20,5 +20,5 @@ program:
     title: "{{label}}"
     description: "{{description}}"
     path: "HAX/action/tips/{{slug}}"
-    eventName: announcements-open
-    value: { uuid: "{{uuid}}" }
+    eventName: hax-dashboard-open
+    value: { plugin: announcements, contribution: whats-new, anchor: "{{uuid}}" }

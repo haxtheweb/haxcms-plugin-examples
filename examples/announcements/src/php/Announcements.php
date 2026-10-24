@@ -92,6 +92,7 @@ class Announcements {
     $items = self::servable($data['entries'], $running);
     if (!empty($query['filter[kind]'])) { $k = $query['filter[kind]']; $items = array_values(array_filter($items, function ($e) use ($k) { return $e['kind'] === $k; })); }
     if (!empty($query['filter[type]'])) { $t = self::typeUuid($data['types'], $query['filter[type]']); $items = array_values(array_filter($items, function ($e) use ($t) { return $e['type'] === $t; })); }
+    if (!empty($query['filter[beforeVersion]'])) { $bv = $query['filter[beforeVersion]']; $items = array_values(array_filter($items, function ($e) use ($bv) { return $e['kind'] === 'update' && self::compareVersions($e['version'], $bv) < 0; })); }
     if (!empty($query['filter[sinceVersion]'])) { $s = $query['filter[sinceVersion]']; $items = array_values(array_filter($items, function ($e) use ($s) { return $e['kind'] === 'update' && self::compareVersions($e['version'], $s) > 0; })); }
     $items = self::sortEntries($items);
     $total = count($items);

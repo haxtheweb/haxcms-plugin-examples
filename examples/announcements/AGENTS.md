@@ -4,13 +4,13 @@
 What's New and HAX Tips for HAXcms. Core and required: always on, both runtimes, first plugin on the new architecture.
 
 ## Layout
-`plugin.yaml`; `config/` (OpenAPI, entities, data stores); `data/` (types, entries, locales, visuals); `src/nodejs` and `src/php` (logic file plus entry, mirrored function for function); `frontend/dist` (dashboard button, dialog, state); `registries/` (elements, Merlin); `skills/`; `docs/prompts.yaml`; `tests/`.
+`plugin.yaml`; `config/` (OpenAPI, entities, data stores); `data/` (types, entries, locales, visuals); `src/nodejs` and `src/php` (logic file plus entry, mirrored function for function); `registries/dashboard` (the What's New button and modal, as data); `registries/merlin`; `skills/`; `docs/prompts.yaml`; `tests/`.
 
 ## Rules
 - Node and PHP must give identical results: change `announcements.js` and `Announcements.php` together and keep the parity run green.
 - Every route requires both the JWT and the user token. Never add a public route; the responses carry the running version.
 - Never serve `status`, `notes` or screenshot file names. Never serve drafts or versions newer than the running one.
-- Element tags start with `announcements-`. Do not let anything open on its own in the dashboard.
+- No front-end code: dashboard UI is a contribution rendered by app-hax with existing elements. Nothing opens on its own.
 - Entry uuids are permanent.
 
 ## Build, test, validate

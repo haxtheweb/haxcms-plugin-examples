@@ -20,6 +20,7 @@ Start with `plugin.yaml`: every key is commented. Then follow the table.
 | A theme on the theme base, and a child theme | `registries/themes/`, `frontend/dist/` | spec/07 |
 | A skeleton that enables this plugin on new sites | `registries/skeletons/awesome.json` | spec/07 |
 | Merlin options: static, `api` (rows from a route, no JS) and `module` (a program) | `registries/merlin/`, `frontend/dist/explode-program.js` | spec/07 |
+| A dashboard contribution (a user-menu entry and modal, rendered by app-hax) | `registries/dashboard/explosions.yaml` | spec/07 |
 | An appstore app | `registries/appstore/awesome.json` | spec/07 |
 | A locale overlay | `registries/locales/en.yaml` | spec/07 |
 | Agent skills (site and developer) and copyable prompts | `skills/`, `docs/prompts.yaml` | spec/07 |

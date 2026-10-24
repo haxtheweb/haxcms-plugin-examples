@@ -28,7 +28,6 @@ entry:
 openapi: config/openapi.yaml       # system scope: /system/api/v1/plugins/announcements/...; every route needs JWT + user token
 entities: config/entities.yaml     # announcementType and announcement, backed by read-only package stores
 datastores: config/datastores.yaml # data/types.json and data/announcements.json ship inside the plugin
-tagPrefix: announcements-
 staticCapable: false               # dashboard and API feature; nothing is added to published sites
 privacy:
   tracking: false                  # dismissal state stays in the browser (user scaffold memory); nothing is recorded server-side

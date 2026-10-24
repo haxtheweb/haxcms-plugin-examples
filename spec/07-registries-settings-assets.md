@@ -116,4 +116,8 @@ Front-end assets are enabled in bunches, the way theme packs are: element packs 
 
 ## Element roles
 
-`registries/elements/*.yaml` entries take a `role`: `block` (authors insert it; needs `haxProperties`; feeds the appstore autoloader), `injected` (the plugin places it in pages, for example through `render.after.body`), or `admin` (loaded into the dashboard or editor chrome, never into page content; the announcements button and dialog).
+`registries/elements/*.yaml` entries take a `role`: `block` (authors insert it; needs `haxProperties`; feeds the appstore autoloader), `injected` (the plugin places it in pages, for example through `render.after.body`), or `admin` (loaded into the dashboard or editor chrome, never into page content). Prefer a dashboard contribution (below) over an `admin` element when existing dashboard elements can do the job.
+
+## Dashboard contributions
+
+`registries/dashboard/*.yaml` (`schema/dashboard-contribution.schema.json`) declares UI a plugin adds to the dashboard (app-hax): a top-bar button or user-menu entry, an optional badge, and a modal of sections, each filled from one of the plugin's own operations and shown as cards. The dashboard renders it with the elements it already has (`simple-icon-button-lite`, `simple-tooltip`, `simple-modal`, `accent-card`, `hax-element-demo`, `simple-icon-lite`), through its API layer so the credentials are added, so plugins reuse the platform's UI instead of shipping their own buttons and dialogs. A badge keeps `{ seenVersion, dismissedVersion }` in user scaffold memory under its `dismissKey`. Merlin options open a contribution with `eventName: hax-dashboard-open` and `value: { plugin, contribution, anchor }`. The validator checks that every operation named exists in the plugin's contract. Announcements uses one for What's New; the example adds a user-menu entry.

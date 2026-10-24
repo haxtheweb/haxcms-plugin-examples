@@ -1,7 +1,7 @@
 # Announcements routes. System scope: mounted at /system/api/v1/plugins/announcements/.
 # Every operation requires BOTH the JWT and the X-HAXCMS-User-Token header (one security requirement listing both),
 # because responses carry the running HAXcms version (version confidentiality, https://github.com/haxtheweb/issues/issues/3174).
-# Lists accept filter[kind], filter[type] (key or uuid), filter[sinceVersion], page.limit, page.offset and lang.
+# Lists accept filter[kind], filter[type] (key or uuid), filter[sinceVersion], filter[beforeVersion], page.limit, page.offset and lang.
 openapi: 3.1.0
 info:
   title: Announcements
@@ -26,7 +26,8 @@ paths:
         - { $ref: "#/components/parameters/lang" }
         - { name: "filter[kind]", in: query, schema: { enum: [update, tip] } }
         - { name: "filter[type]", in: query, schema: { type: string } }
-        - { name: "filter[sinceVersion]", in: query, schema: { type: string } }
+        - { name: "filter[sinceVersion]", in: query, description: Updates newer than this version (the CLI), schema: { type: string } }
+        - { name: "filter[beforeVersion]", in: query, description: Updates older than this version (the dashboard's Earlier section), schema: { type: string } }
         - { name: page.limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
         - { name: page.offset, in: query, schema: { type: integer, minimum: 0 } }
       responses: { "200": { description: OK }, "401": { description: Missing or invalid credentials } }

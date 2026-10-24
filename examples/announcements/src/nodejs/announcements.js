@@ -73,7 +73,7 @@ function sortEntries(list) {
   });
 }
 
-// List with filters and paging. query keys follow the HAX API conventions: filter[kind], filter[type], filter[sinceVersion], page.limit, page.offset.
+// List with filters and paging. query keys follow the HAX API conventions: filter[kind], filter[type], filter[sinceVersion], filter[beforeVersion], page.limit, page.offset.
 export function list(data, runningVersion, query = {}, overlay = {}) {
   const { entries, types } = data;
   let items = servable(entries, runningVersion);
@@ -82,6 +82,7 @@ export function list(data, runningVersion, query = {}, overlay = {}) {
     const t = typeUuid(types, query["filter[type]"]);
     items = items.filter((e) => e.type === t);
   }
+  if (query["filter[beforeVersion]"]) items = items.filter((e) => e.kind === "update" && compareVersions(e.version, query["filter[beforeVersion]"]) < 0);
   if (query["filter[sinceVersion]"]) items = items.filter((e) => e.kind === "update" && compareVersions(e.version, query["filter[sinceVersion]"]) > 0);
   items = sortEntries(items);
   const total = items.length;

@@ -1,5 +1,5 @@
 # Merlin: "What's new". kind: api lists entries from this plugin's own route with no JavaScript.
-# Choosing a row fires announcements-open with the entry uuid; the dialog opens on that entry.
+# Choosing a row fires hax-dashboard-open: the dashboard opens this plugin's whats-new modal at that entry.
 option:
   title: What's new in HAX
   icon: icons:new-releases
@@ -21,5 +21,5 @@ program:
     title: "{{label}}"
     description: "{{description}}"
     path: "HAX/action/whatsNew/{{slug}}"
-    eventName: announcements-open
-    value: { uuid: "{{uuid}}" }
+    eventName: hax-dashboard-open
+    value: { plugin: announcements, contribution: whats-new, anchor: "{{uuid}}" }
