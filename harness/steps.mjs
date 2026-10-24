@@ -8,7 +8,7 @@ export async function step(backend, s) {
   else if (s.fire) {
     const tx = s.fire.transaction ? { id: "t-fire", origin: s.fire.transaction.origin || "case", bulk: !!s.fire.transaction.bulk, operations: [], marks: {} } : undefined;
     const r = await backend.fire(s.fire.hook, s.fire.subject ?? null, { previous: s.fire.previous, entity: s.fire.entity, transaction: tx });
-    Object.assign(out, { subject: r.subject, veto: r.veto || null, marks: tx ? tx.marks : backend.currentTx ? backend.currentTx.marks : undefined });
+    Object.assign(out, { subject: r.subject, veto: r.veto || null, warnings: r.warnings || [], marks: tx ? tx.marks : backend.currentTx ? backend.currentTx.marks : undefined });
   } else if (s.render) Object.assign(out, await backend.render(s.render.page, s.render));
   else if (s.enable) Object.assign(out, await backend.enable(s.enable));
   else if (s.disable) Object.assign(out, await backend.disable(s.disable));
@@ -16,6 +16,7 @@ export async function step(backend, s) {
   else if (s.upgrade) Object.assign(out, await backend.upgrade(s.upgrade.plugin, s.upgrade.from));
   else if (s.save) { const r = await backend.saveEntity(s.save.type, s.save.record); Object.assign(out, { subject: r.record, veto: r.veto || null }); }
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
+  else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
   else if (s.exportUser) Object.assign(out, { body: backend.exportUser(s.exportUser) });
   else if (s.eraseUser) Object.assign(out, { body: backend.eraseUser(s.eraseUser) });
   else if (s.asUser) { backend.user = s.asUser; }

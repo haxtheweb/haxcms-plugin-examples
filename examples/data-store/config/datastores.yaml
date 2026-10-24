@@ -1,4 +1,4 @@
-# All the writable store scopes (package scope is shown by examples/announcements):
+# All the writable store scopes (package scope is shown by core-plugins/announcements):
 stores:
   - id: votes            # popular content by votes; travels with the site
     scope: site          # <site>/_config/data/data-store/votes.json

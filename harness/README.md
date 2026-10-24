@@ -8,7 +8,7 @@ An in-memory implementation of the HAX backend platform contract (`spec/13-backe
 - `fixtures/`: helper plugins cases can load with `run.with` (for example `quiet-hours`, which vetoes a hook the example plugin defines).
 
 ```sh
-node harness/run-cases.mjs examples/announcements            # both runtimes plus parity
+node harness/run-cases.mjs core-plugins/announcements            # both runtimes plus parity
 node harness/run-cases.mjs examples/example --runtime nodejs
 node harness/run-cases.mjs examples/example --json
 ```

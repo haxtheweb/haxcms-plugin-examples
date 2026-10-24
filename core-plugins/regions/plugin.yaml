@@ -1,0 +1,44 @@
+# Regions: extracted from core. Today themes show pages in named regions (header, sidebars, content top and bottom,
+# footers) from site.json metadata.theme.regions, edited in the site settings form (Regions fieldset) and saved by
+# saveManifest and saveAppearanceSettings; the front-end site store reads it and `site-region` renders it; llms.txt
+# skips region pages (getThemeRegionItemIds). As a plugin it owns the setting and its own storage, keeps `site-region`
+# working through a legacy tag, and tells core which pages are fragments through rebuild.before.
+specVersion: "0.1.0"
+id: regions
+uuid: 6d2f8b4e-1a7c-4e3d-9b5f-0c8a2e7d4f61
+title: Regions
+description: Show the content of chosen pages in theme regions such as the header, sidebars and footers.
+version: 0.1.0
+category: themes
+icon: icons:view-quilt
+tags: [layout, themes]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+datastores: config/datastores.yaml
+tagPrefix: regions-
+staticCapable: true              # the map is published inside site.json and rendered client-side
+capabilities: ["site:read", "site:write", "items:read"]
+legacy:
+  tags:
+    site-region: regions-region  # every theme that uses <site-region name="header"> keeps working
+  settings:
+    header: metadata.theme.regions.header
+    sidebarFirst: metadata.theme.regions.sidebarFirst
+    sidebarSecond: metadata.theme.regions.sidebarSecond
+    contentTop: metadata.theme.regions.contentTop
+    contentBottom: metadata.theme.regions.contentBottom
+    footerPrimary: metadata.theme.regions.footerPrimary
+    footerSecondary: metadata.theme.regions.footerSecondary
+hooks:
+  - name: plugin.after.install   # move metadata.theme.regions out of site.json
+  - name: config.before.save     # every region entry must be a page of this site
+  - name: config.after.save      # publish the map (manifest store) for the region element
+  - name: rebuild.before         # region pages are fragments: not in llms.txt, sitemap or search
+  - name: page.before.delete     # warn when a page used in a region is deleted

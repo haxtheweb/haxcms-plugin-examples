@@ -316,6 +316,13 @@ function validatePlugin(manifestPath) {
     if (sk.audience !== "developer") for (const f of readdirSync(sdir)) if (!/\.(md|json|txt)$/.test(f)) err(where, `published skills may only contain .md, .json or .txt files (found ${f})`);
   }
   for (const f of existsSync(join(dir, "skills")) ? readdirSync(join(dir, "skills")) : []) if (!skillSeen.has(f)) warn(`skills/${f}`, "skill folder not declared in the manifest; it will not be published");
+  if (m.settings && existsSync(join(dir, m.settings))) {
+    const dp = join(dir, dirname(m.settings), "settings.defaults.json");
+    if (existsSync(dp)) {
+      const props = new Set((readJson(join(dir, m.settings)).configure || []).map((f) => f.property));
+      for (const k of Object.keys(readJson(dp))) if (!props.has(k)) err(rel(dp), `default for "${k}", which is not a field in ${m.settings}`);
+    }
+  }
   return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m) };
 }
 

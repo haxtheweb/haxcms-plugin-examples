@@ -1,0 +1,24 @@
+- id: cookie-consent-001
+  title: "no tracker, no banner"
+  hook: render.after.body
+  given: "cookie-consent enabled, nothing that tracks"
+  when: "a page renders"
+  then: "no banner and no banner script"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { notContains: [cookie-consent-banner] }
+- id: cookie-consent-002
+  title: "a tracker brings the banner, with its categories and the default wording"
+  hook: render.after.body
+  given: "google-analytics active"
+  when: "a page renders"
+  then: "the banner lists analytics and loads its script from the plugin's assets"
+  run:
+    with: [core-plugins/google-analytics]
+    stores: {}
+    steps:
+      - config: { plugin: google-analytics, values: { measurementId: G-ABC1234 } }
+        expect: { status: 200 }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['categories="analytics"', 'message="This site uses cookies for analytics. Allow them?"', "x/api/v1/plugins/cookie-consent/assets/cookie-consent-banner.js"] }

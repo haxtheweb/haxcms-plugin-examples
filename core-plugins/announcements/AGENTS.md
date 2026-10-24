@@ -15,7 +15,7 @@ What's New and HAX Tips for HAXcms. Core and required: always on, both runtimes,
 - Entry uuids are permanent.
 
 ## Build, test, validate
-- `hax plugin validate` (or `node scripts/validate.mjs examples/announcements` from the repo root).
+- `hax plugin validate` (or `node scripts/validate.mjs core-plugins/announcements` from the repo root).
 - `node --test tests/nodejs/announcements.test.mjs` from this folder; `npm test` at the repo root also runs the Node/PHP parity check.
 
 ## Diagnose

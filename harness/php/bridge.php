@@ -60,13 +60,33 @@ class HarnessEntities {
   }
 }
 
+class HarnessConfig {
+  public $saves = []; private $ctx;
+  public function __construct($ctx) { $this->ctx = $ctx; }
+  // applied by the harness after the call, through the config hooks
+  public function save($values, $opts = []) { $this->saves[] = $values; $this->ctx->settings = array_merge($this->ctx->settings, $values); return ['status' => 200]; }
+}
+class HarnessPlugins {
+  private $list;
+  public function __construct($list) { $this->list = $list; }
+  public function list() { return $this->list; }
+}
+class HarnessAssets {
+  private $id;
+  public function __construct($id) { $this->id = $id; }
+  public function url($path) {
+    if (!preg_match('#^frontend/dist/[A-Za-z0-9._/-]+$#', $path) || strpos($path, '..') !== false) { throw new Exception("assets->url only serves files under frontend/dist"); }
+    return "x/api/v1/plugins/{$this->id}/assets/" . substr($path, strlen('frontend/dist/'));
+  }
+}
+
 class HarnessHooks {
   public function fire($name, $subject, $opts = []) { return ['subject' => $subject, 'warnings' => []]; }
 }
 
 class HarnessCtx {
   public $subject; public $previous; public $request; public $settings; public $haxcms; public $plugin; public $site; public $user;
-  public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $warnings = []; private $enabled;
+  public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $config; public $plugins; public $assets; public $warnings = []; private $enabled;
   public function __construct($in) {
     $c = $in['ctx'];
     $this->subject = $c['subject'] ?? null;
@@ -84,6 +104,9 @@ class HarnessCtx {
     $this->package = new HarnessPackage($in['pluginDir']);
     $this->log = new HarnessLog();
     $this->hooks = new HarnessHooks();
+    $this->config = new HarnessConfig($this);
+    $this->plugins = new HarnessPlugins($in['activePlugins'] ?? []);
+    $this->assets = new HarnessAssets($in['pluginId'] ?? '');
     $this->entities = new HarnessEntities($in['records'] ?? [], $in['capabilities'] ?? [], $in['currentSite'] ?? null, $in['pluginId'] ?? '');
   }
   public function veto($message, $status = 409) { return ['__veto' => true, 'message' => $message, 'status' => $status]; }
@@ -111,4 +134,5 @@ echo json_encode([
   'warnings' => $ctx->warnings,
   'transaction' => ['marks' => (object) $ctx->transaction['marks']],
   'entitySaves' => $ctx->entities->saves,
+  'configSaves' => $ctx->config->saves,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

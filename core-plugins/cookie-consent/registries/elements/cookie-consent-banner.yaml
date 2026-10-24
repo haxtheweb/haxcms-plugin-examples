@@ -1,0 +1,4 @@
+# Injected by render.after.body; authors never place it, so no haxProperties.
+tag: cookie-consent-banner
+path: frontend/dist/cookie-consent-banner.js
+role: injected

@@ -1092,13 +1092,13 @@
     "phase": "before",
     "definedBy": "core",
     "when": "managed files are about to be regenerated (registries, page shells, static output)",
-    "subject": "`{ scope, siteId?, reason }`",
+    "subject": "`{ scope, siteId?, reason, fragments: [itemIds] }` (fragments: pages that are content pieces rendered inside other pages, such as region content, so they are left out of llms.txt, the sitemap and search)",
     "previous": "none",
-    "returns": "nothing",
+    "returns": "the subject (add item ids to `fragments`)",
     "veto": true,
     "detachable": false,
-    "comment": "prepare for a rebuild, or veto it",
-    "example": "**static-publish** clears its output folder"
+    "comment": "prepare for a rebuild, mark fragment pages, or veto it",
+    "example": "**regions** adds the pages used in theme regions to `fragments`; **static-publish** clears its output folder"
   },
   {
     "name": "rebuild.after",

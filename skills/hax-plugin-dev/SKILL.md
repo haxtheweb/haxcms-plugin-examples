@@ -10,7 +10,7 @@ metadata:
 
 # Building a HAXcms plugin
 
-The spec and examples live in https://github.com/haxtheweb/haxcms-plugin-examples. Read the comprehensive example (`examples/example`) when unsure how a piece looks; read `examples/announcements` for a real plugin.
+The spec and examples live in https://github.com/haxtheweb/haxcms-plugin-examples. Read the comprehensive example (`examples/example`) when unsure how a piece looks; read `core-plugins/announcements` for a real plugin.
 
 ## 1. Decide what the plugin needs
 
@@ -31,7 +31,7 @@ If one plugin would need two tag prefixes, it is two plugins.
 ## 2. Scaffold
 
 - When the CLI has the commands: `hax plugin create`, then `hax plugin add <piece> <name>` for each piece. Each `add` writes the stub where it belongs, registers it, and writes a **commented-out** test case.
-- Until then: copy `examples/minimal-pack` (declarative) or the structure of `examples/announcements` (with code), set `id` to the folder name and generate a new `uuid`.
+- Until then: copy `examples/minimal-pack` (declarative) or the structure of `core-plugins/announcements` (with code), set `id` to the folder name and generate a new `uuid`.
 
 Required for every plugin: `plugin.yaml`, `README.md` (people), `AGENTS.md` (agents: purpose, layout, rules, build/test/validate, diagnose, upgrade notes), `category`, `icon`, and tests unless `untested: true`.
 

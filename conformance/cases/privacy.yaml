@@ -4,6 +4,11 @@
   given: "cookie-consent enabled, no tracker"
   when: "render a page"
   then: "no consent element"
+  run:
+    plugins: [core-plugins/cookie-consent]
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { notContains: [cookie-consent-banner] }
 - id: privacy-002
   title: "enabling a tracker auto-enables cookie-consent after confirmation"
   spec: spec/08-capabilities-privacy.md
@@ -20,11 +25,19 @@
     validate: fx-tracker
     expect: { errors: ["categories"] }
 - id: privacy-004
-  title: "legacy gaID is read as a fallback and migrated by upgrade"
+  title: "legacy gaID is migrated into the plugin setting on first enable"
   spec: spec/08-capabilities-privacy.md
   given: "site with metadata.site.settings.gaID"
   when: "enable google-analytics"
   then: "id honored; upgrade moves it"
+  run:
+    plugins: [core-plugins/cookie-consent, core-plugins/google-analytics]
+    load: { records: { site: { metadata: { site: { settings: { gaID: G-ABC1234 } } } } } }
+    steps:
+      - enable: google-analytics
+        expect: { status: 200, status_of: { google-analytics: active } }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['gtag("config","G-ABC1234")', 'categories="analytics"'] }
 - id: priv-090
   title: "diagnose prompts never include secrets"
   spec: spec/07-registries-settings-assets.md

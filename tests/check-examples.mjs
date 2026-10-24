@@ -12,11 +12,11 @@ const check = (ok, label, detail = "") => { if (!ok) failures++; console.log(`${
 const run = (dir) => spawnSync(process.execPath, [validator, "--json", dir], { encoding: "utf8" });
 
 // 1. every example validates cleanly
-const examples = readdirSync(join(root, "examples"));
+const examples = [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`)];
 for (const name of examples) {
-  const r = run(join(root, "examples", name));
+  const r = run(join(root, name));
   const report = JSON.parse(r.stdout)[0];
-  check(r.status === 0 && report.errors.length === 0, `examples/${name} validates`, JSON.stringify(report.errors));
+  check(r.status === 0 && report.errors.length === 0, `${name} validates`, JSON.stringify(report.errors));
 }
 
 // 2. hook coverage in the comprehensive example

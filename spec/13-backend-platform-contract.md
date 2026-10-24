@@ -69,6 +69,9 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `warn(message, severity = "warning")` | hooks, operations | collect a warning the UI can show; the operation continues |
 | `respond(html)` | `render.before` | short-circuit the render with a finished document |
 | `settings` | everywhere | the plugin's settings for the current scope, read-only; secret values are present server-side and never serialized to clients |
+| `config.save(values, { scope })` | everywhere | write the plugin's own settings (an install migration moving a value out of `site.json`, for example); validated against its settings schema and run through `config.before.save` / `config.after.save` like any other save; `scope` follows `settingsScope` |
+| `plugins.list()` | everywhere | read-only list of active plugins: `{ id, version, privacy, capabilities, derivedTags }`. How cookie consent knows whether any tracker is enabled |
+| `assets.url(path)` | everywhere | the URL of one of the plugin's own files under `frontend/dist`, valid on the live site and in a static publish (spec/07, assets) |
 | `storage.read(storeId)` / `storage.write(storeId, value)` | everywhere | the plugin's own stores (spec/04); `package` stores are read-only; `siteData` stores resolve to the current site |
 | `package.read(path, { binary })` | everywhere | a file under the plugin's `data/` folder; refuses paths outside it |
 | `haxcms` | everywhere | `{ version, runtime }` (`runtime` is `nodejs` or `php`) |
@@ -78,7 +81,7 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `log.info / .warn / .error(message, data?)` | everywhere | the unified log, tagged with plugin, hook or operation, and scope |
 | `fetch(url, init)` | everywhere | outbound HTTP, only with `network:egress` to a host in `egress`. Node returns a standard `Response`; PHP returns `['status', 'headers', 'body', 'json']` (`json` is the decoded body or `null`) |
 | `hooks.fire(name, subject, { previous })` | everywhere | fire a hook **this plugin defines** (`hookDefinitions`); returns `{ subject, veto?, warnings }` after every subscriber ran. Core hooks are fired by the platform only |
-| `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, and entity types other plugins define. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto? }` |
+| `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, and entity types other plugins define. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto?, conflict? }`. A record that changed after this plugin read it is refused with `conflict: true` instead of overwriting the other change: re-read and save again |
 | `pluginEnabled(id)` | everywhere | whether another plugin is enabled and active in this scope |
 | `transaction` | everywhere | `{ id, origin, bulk, operations, marks, run(fn, { bulk, origin }) }` (spec/06, Transactions) |
 
@@ -104,6 +107,7 @@ A plugin that changes its data shape between versions ships one step per version
 - **Calling**: the platform calls the hook with `ctx`. A returned value replaces the subject for the next hook after validation against the contract's subject schema; an invalid return is discarded and logged; returning nothing leaves the subject as it is. Fields a plugin adds to a schema it did not declare in `entities` are discarded with a warning. When a later hook overwrites a field an earlier hook set, the change stands and a warning names both plugins.
 - **Veto** (before hooks only) stops the chain and fails the operation.
 - **Errors and timeouts**: a thrown error or a timeout (before hooks 5 s by default, up to 30 s with `timeout`; detached after hooks 60 s) is logged and the chain continues with the previous subject. `detached: true` after hooks run after the response is sent; they are refused where the contract says they cannot detach.
+- **Config hooks while inactive.** A plugin's own `config.*` hooks run even while it is inactive, so it can validate the setting that would activate it.
 - **Every** discard, warning, veto, timeout and error updates the plugin's health counters (the dashboard chip) and goes to the log plugin when it is enabled.
 
 ## 7. Settings and secrets

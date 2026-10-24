@@ -12,7 +12,7 @@ Example set to start:
 1. **Comprehensive `example`**: implements every hook (log or comment where trivial), every extension point, and the novelty case: a `.awesome` file type (`awesomeFile` extending `file`), an `awesome-explosion` element, an `awesome-explosions` theme built on the theme base, plus an even more awesome child theme that extends it (tests theme-to-theme dependency and fallback) and an `awesome` skeleton that fills a page with explosions, a message overlay, a form extension, an annotation, a settings schema with a secret, a veto and a warning, assets, a public operation, a restricted asset, and a same-named override fixture. Disabled by default.
 2. **Minimal declarative pack**: the smallest valid plugin.
 3. **Data-store plugin**: the writable store kinds, an upgrade step, `personalData`.
-6. **Announcements** (`examples/announcements`): the first real plugin. Core and required, system-scope routes behind both credentials, package stores, both runtimes with a Node/PHP parity test, dashboard elements with role `admin`, Merlin `api` programs, a system skill and a developer skill.
+6. **Announcements** (`core-plugins/announcements`): the first real plugin. Core and required, system-scope routes behind both credentials, package stores, both runtimes with a Node/PHP parity test, dashboard elements with role `admin`, Merlin `api` programs, a system skill and a developer skill.
 4. **Provider-contract pair**: a definer and an implementer, exercising dependency validation.
 5. **Restricted-assets pack**.
 

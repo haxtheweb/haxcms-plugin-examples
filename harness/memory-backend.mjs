@@ -48,6 +48,7 @@ export class MemoryBackend {
     this.entityParents = {}; // entity type -> parent type
     this.log = [];
     // core records plugins reach through ctx.entities: the site's site.json, pages, files
+    this.revs = new Map(); // "type:id" -> revision, bumped on every write (optimistic concurrency for ctx.entities.save)
     this.records = { site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
   }
 
@@ -93,7 +94,8 @@ export class MemoryBackend {
       if (m.datastores) for (const s of readAny(join(p.dir, m.datastores)).stores) p.stores[s.id] = s;
       if (m.entities) { const e = readAny(join(p.dir, m.entities)); p.entities = e.entities || {}; for (const [name, def] of Object.entries(p.entities)) if (def.extends) this.entityParents[name] = def.extends; }
       if (m.hookDefinitions) for (const h of readAny(join(p.dir, m.hookDefinitions))) p.hookDefs[h.name] = h;
-      if (m.settings && existsSync(join(p.dir, m.settings))) for (const f of readAny(join(p.dir, m.settings)).configure || []) if (f.value !== undefined) p.settings[f.property] = f.value;
+      // defaults: config/settings.defaults.json next to the settings form (haxProperties fields carry no default)
+      if (m.settings) { const dp = join(p.dir, dirname(m.settings), "settings.defaults.json"); if (existsSync(dp)) Object.assign(p.settings, readAny(dp)); }
       Object.assign(p.settings, settings[p.id] || {});
       p.storeOverrides = { ...(stores[p.id] || {}) };
       if (m.kind !== "pack" && this.runtime === "nodejs" && m.entry && m.entry.nodejs) {
@@ -205,7 +207,7 @@ export class MemoryBackend {
   writeStore(p, id, value) {
     if (p.stores[id] && p.stores[id].scope === "package") throw new Error(`${p.id}: store "${id}" is read-only (package scope)`);
     if (p.storeOverrides) delete p.storeOverrides[id];
-    if (p.stores[id] && p.stores[id].scope === "manifest") { const site = this.records.site[this.site.id]; site.metadata = site.metadata || {}; site.metadata.plugins = site.metadata.plugins || {}; site.metadata.plugins[p.id] = { ...(site.metadata.plugins[p.id] || {}), [id]: structuredClone(value) }; return; }
+    if (p.stores[id] && p.stores[id].scope === "manifest") { this.bump("site", this.site.id); const site = this.records.site[this.site.id]; site.metadata = site.metadata || {}; site.metadata.plugins = site.metadata.plugins || {}; site.metadata.plugins[p.id] = { ...(site.metadata.plugins[p.id] || {}), [id]: structuredClone(value) }; return; }
     this.memory.set(this.storeKey(p, id), structuredClone(value));
   }
 
@@ -221,6 +223,7 @@ export class MemoryBackend {
   makeCtx(p, extras = {}) {
     const backend = this;
     const warnings = [];
+    const readRevs = new Map();
     const tx = extras.transaction || backend.currentTx || { id: `t${Date.now()}`, origin: "implicit", bulk: false, operations: [], marks: {} };
     const ctx = {
       subject: extras.subject,
@@ -248,10 +251,31 @@ export class MemoryBackend {
         if (!(p.manifest.capabilities || []).includes("network:egress") || !(p.manifest.egress || []).includes(host)) throw new Error(`fetch to ${host} not allowed`);
         throw new Error("network is disabled in the harness");
       },
+      config: { save: async (values) => backend.saveConfig(p.id, values) },
+      plugins: { list: async () => backend.activeList() },
+      assets: { url: (path) => backend.assetUrl(p, path) },
       entities: {
-        get: async (type, id) => { backend.requireCap(p, type, "read"); const r = (backend.records[type] || {})[type === "site" ? id || backend.site.id : id]; return r ? structuredClone(r) : null; },
+        get: async (type, id) => {
+          backend.requireCap(p, type, "read");
+          const key = type === "site" ? id || backend.site.id : id;
+          const r = (backend.records[type] || {})[key];
+          readRevs.set(`${type}:${key}`, backend.rev(type, key));
+          return r ? structuredClone(r) : null;
+        },
         list: async (type, query = {}) => { backend.requireCap(p, type, "read"); return Object.values(backend.records[type] || {}).filter((r) => Object.entries(query).every(([k, v]) => r[k] === v)).map((r) => structuredClone(r)); },
-        save: async (type, record) => { backend.requireCap(p, type, "write"); return backend.saveEntity(type, record); },
+        save: async (type, record) => {
+          backend.requireCap(p, type, "write");
+          const key = type === "site" ? record.id || backend.site.id : record.id || record.uuid;
+          const seen = readRevs.get(`${type}:${key}`);
+          // a copy read before someone else changed the record is refused rather than silently overwriting their change
+          if (seen !== undefined && seen !== backend.rev(type, key)) {
+            backend.log.push({ level: "error", plugin: p.id, message: `stale ${type} ${key}: changed since it was read; re-read and try again` });
+            return { record: structuredClone((backend.records[type] || {})[key]), conflict: true };
+          }
+          const r = await backend.saveEntity(type, record);
+          readRevs.set(`${type}:${key}`, backend.rev(type, key));
+          return r;
+        },
       },
       pluginEnabled: (id) => backend.active(id),
       transaction: Object.defineProperty(tx, "run", { value: (fn, opts = {}) => backend.transaction(fn, opts), enumerable: false, configurable: true }),
@@ -266,6 +290,26 @@ export class MemoryBackend {
     return ctx;
   }
 
+  activeList() {
+    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: x.manifest.privacy || null, capabilities: x.manifest.capabilities || [] }));
+  }
+  assetUrl(p, path) {
+    if (!/^frontend\/dist\/[A-Za-z0-9._\/-]+$/.test(path) || path.includes("..")) throw new Error(`${p.id}: assets.url only serves files under frontend/dist`);
+    return `x/api/v1/plugins/${p.id}/assets/${path.slice("frontend/dist/".length)}`;
+  }
+
+  // ---- rebuild (spec/07 managed files): plugins mark fragment pages, then write their own files ----
+  async rebuild(reason = "save") {
+    const before = await this.fire("rebuild.before", { scope: "site", siteId: this.site.id, reason, fragments: [] });
+    if (before.veto) return { status: 409, body: { error: before.veto.message } };
+    const fragments = [...new Set(before.subject.fragments || [])];
+    const pages = Object.values(this.records.page || {});
+    const listed = pages.filter((pg) => !fragments.includes(pg.id) && pg.published !== false);
+    const llms = listed.map((pg) => `- [${pg.title}](${pg.slug || pg.id})`).join("\n");
+    await this.fire("rebuild.after", { scope: "site", siteId: this.site.id, reason, files: ["llms.txt"] });
+    return { status: 200, body: { fragments, llms } };
+  }
+
   // ---- core entities (spec/13 ctx.entities) ----
   requireCap(p, type, action) {
     const area = { site: "site", page: "items", file: "files" }[type];
@@ -274,6 +318,8 @@ export class MemoryBackend {
     const ok = caps.includes(`${area}:${action}`) || (action === "read" && caps.includes(`${area}:write`));
     if (!ok) throw new Error(`${p.id} needs the ${area}:${action} capability to ${action} ${type} records`);
   }
+  bump(type, id) { const k = `${type}:${id}`; this.revs.set(k, (this.revs.get(k) || 0) + 1); }
+  rev(type, id) { return this.revs.get(`${type}:${id}`) || 0; }
   async saveEntity(type, record) {
     const id = type === "site" ? record.id || this.site.id : record.id || record.uuid;
     const store = (this.records[type] = this.records[type] || {});
@@ -282,6 +328,7 @@ export class MemoryBackend {
     const before = await this.fire(`entity.before.${op}`, { ...record, id }, { entity: type, previous });
     if (before.veto) return { record: previous || null, veto: before.veto };
     store[id] = structuredClone(before.subject);
+    this.bump(type, id);
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
     return { record: after.subject };
   }
@@ -370,7 +417,7 @@ export class MemoryBackend {
     for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package") storeState[id] = this.readStore(p, id);
     const input = {
       entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : name, args,
-      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id,
+      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
       ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
@@ -382,6 +429,7 @@ export class MemoryBackend {
     for (const [id, v] of Object.entries(out.stores || {})) this.writeStore(p, id, v);
     for (const [id, v] of Object.entries(out.manifestStores || {})) this.writeStore(p, id, v);
     for (const { type, record } of out.entitySaves || []) await this.saveEntity(type, record);
+    for (const values of out.configSaves || []) await this.saveConfig(p.id, values);
     for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
     ctx.__warnings.push(...(out.warnings || []));
     Object.assign(ctx.transaction.marks, out.transaction && out.transaction.marks ? out.transaction.marks : {});
@@ -421,7 +469,8 @@ export class MemoryBackend {
     const lineage = entity ? this.lineage(entity) : [];
     this.plugins.forEach((p, order) => {
       if (only && p.id !== only) return;
-      if (!(p.status === "active" || (includeInactive && p.status === "inactive") || (includeInactive && p.status === "enabled"))) return;
+      const ownConfig = name.startsWith("config.") && configOf === p.id && p.status === "inactive";
+      if (!(p.status === "active" || ownConfig || (includeInactive && p.status === "inactive") || (includeInactive && p.status === "enabled"))) return;
       for (const sub of p.manifest.hooks || []) {
         let depthMatch = 0;
         let matches = false;

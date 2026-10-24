@@ -274,6 +274,15 @@
     "settings": {
       "type": "string"
     },
+    "settingsScope": {
+      "enum": [
+        "system",
+        "site",
+        "both"
+      ],
+      "default": "system",
+      "description": "Where the settings form is edited and stored: system (one value for the deployment), site (each site has its own; site.json-style settings such as an analytics id), or both (system default, site override)."
+    },
     "admin": {
       "type": "string"
     },
@@ -527,7 +536,31 @@
     },
     "legacy": {
       "type": "object",
-      "description": "Reserved: aliases for extracted core routes, tags and registry paths."
+      "additionalProperties": false,
+      "description": "Aliases that keep existing sites and callers working after a feature moves from core into this plugin.",
+      "properties": {
+        "tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "old tag -> this plugin's tag; the old tag keeps working (registered as an alias element) so existing themes and content render."
+        },
+        "routes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "old core path -> this plugin's operationId; served at the old path until removed."
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "this plugin's setting -> the dot path in site.json where core used to keep it; read as a fallback until the install migration moves it."
+        }
+      }
     },
     "packaged": {
       "type": "object",
