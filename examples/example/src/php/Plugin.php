@@ -401,6 +401,30 @@ class ExamplePlugin {
     $this->log("user.after.logout", $ctx);
   }
 
+  // refuse the export (for example while an identity check is pending), or veto
+  // hook: user.before.export
+  public function userBeforeExport($ctx) {
+    $this->log("user.before.export", $ctx);
+  }
+
+  // record that an export happened
+  // hook: user.after.export
+  public function userAfterExport($ctx) {
+    $this->log("user.after.export", $ctx);
+  }
+
+  // refuse the erase (for example a legal hold), or veto
+  // hook: user.before.erase
+  public function userBeforeErase($ctx) {
+    $this->log("user.before.erase", $ctx);
+  }
+
+  // clean up copies outside stores: published snapshots, caches, search indexes
+  // hook: user.after.erase
+  public function userAfterErase($ctx) {
+    $this->log("user.after.erase", $ctx);
+  }
+
   // add to the routes list
   // hook: register.before.routes
   public function registerBeforeRoutes($ctx) {
@@ -501,7 +525,7 @@ class ExamplePlugin {
     $this->log("render.after", $ctx);
   }
 
-  // prepare for a rebuild, or veto it
+  // prepare for a rebuild, mark fragment pages, or veto it
   // hook: rebuild.before
   public function rebuildBefore($ctx) {
     $this->log("rebuild.before", $ctx);

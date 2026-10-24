@@ -188,9 +188,28 @@
           },
           "steps": {
             "type": "array",
-            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, record, exportUser, eraseUser, asUser, transaction).",
+            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, delete, record, exportUser, eraseUser, asUser, transaction).",
             "items": {
               "type": "object"
+            }
+          },
+          "exec": {
+            "type": "object",
+            "description": "Fakes for ctx.exec, by command: { rsync: { code, stdout, stderr } }. Nothing runs in the harness; each call is recorded (command, args, temp file names) for the `exec` expectation.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer"
+                },
+                "stdout": {
+                  "type": "string"
+                },
+                "stderr": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
             }
           }
         },

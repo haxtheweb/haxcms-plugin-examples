@@ -12,3 +12,4 @@ tags: [themes, neon]
 docs: { readme: README.md, agents: AGENTS.md }
 license: MIT
 tagPrefix: neon-
+untested: true                     # a fake pack for topology testing; real theme packs add web-test-runner tests in test/

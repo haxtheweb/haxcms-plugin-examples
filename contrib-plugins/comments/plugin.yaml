@@ -1,0 +1,37 @@
+# Comments (fake community plugin). Exercises: a personalData store core exports and erases with no plugin code,
+# moderation by role, `optional` auth (anonymous reads only when the site allows them), cascade delete on
+# page.after.delete, a static snapshot of approved comments in published pages, and user.after.erase to flag
+# pages whose published snapshot named an erased user.
+specVersion: "0.1.0"
+id: comments
+uuid: 2b3c4d5e-6f70-4182-93a4-b5c6d7e8f901
+title: Comments
+description: Lets signed-in readers comment on pages, with moderation and an optional read-only view for visitors.
+version: 0.1.0
+category: content
+icon: icons:question-answer
+tags: [comments, community]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+capabilities: ["userData:read", "userData:write", "items:read", "output:inject"]
+staticCapable: true
+staticFallback: Static copies show the approved comments as they were at publish time; posting and moderation need the server.
+privacy:
+  tracking: false
+  categories: [functional]
+  requiresConsent: []
+  cookies: []
+  recipients: []
+hooks:
+  - name: page.after.delete      # cascade: the page's thread goes with it
+  - name: render.after.content   # static snapshot of approved comments
+  - name: user.before.erase      # note which pages show the user's approved comments (records are gone afterwards)
+  - name: user.after.erase       # pages whose snapshot named the user need a republish

@@ -277,6 +277,22 @@ export default {
     "user.after.logout": async (ctx) => {
       log("user.after.logout", ctx);
     },
+    // refuse the export (for example while an identity check is pending), or veto
+    "user.before.export": async (ctx) => {
+      log("user.before.export", ctx);
+    },
+    // record that an export happened
+    "user.after.export": async (ctx) => {
+      log("user.after.export", ctx);
+    },
+    // refuse the erase (for example a legal hold), or veto
+    "user.before.erase": async (ctx) => {
+      log("user.before.erase", ctx);
+    },
+    // clean up copies outside stores: published snapshots, caches, search indexes
+    "user.after.erase": async (ctx) => {
+      log("user.after.erase", ctx);
+    },
     // add to the routes list
     "register.before.routes": async (ctx) => {
       log("register.before.routes", ctx);
@@ -345,7 +361,7 @@ export default {
     "render.after": async (ctx) => {
       log("render.after", ctx);
     },
-    // prepare for a rebuild, or veto it
+    // prepare for a rebuild, mark fragment pages, or veto it
     "rebuild.before": async (ctx) => {
       log("rebuild.before", ctx);
     },

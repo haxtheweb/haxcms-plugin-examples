@@ -89,7 +89,9 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `pluginEnabled(id)` | everywhere | whether another plugin is enabled and active in this scope |
 | `transaction` | everywhere | `{ id, origin, bulk, operations, marks, run(fn, { bulk, origin }) }` (spec/06, Transactions). In PHP `transaction` is an array and `run` is spelled `$ctx->runTransaction($fn, $opts)` |
 
-There is no general process helper: a plugin with `exec:run` spawns only the commands in its `exec` list with the runtime's own API, and the validator checks the code for anything else.
+| `exec(cmd, args, { cwd?, timeout?, input?, files? })` | everywhere | run a command from the plugin's `exec` list (needs `exec:run`) with an argument list, never a shell; returns `{ code, stdout, stderr }`. `files: { name: { content, mode? } }` are written to a private temp folder for the length of the run and removed afterwards; arguments refer to it as `{tmp}` (an SSH key for rsync never touches the site or the log). Timeout 60 s by default. A command outside the list is refused. Test harnesses answer `exec` from fakes (`run.exec` in a case) and record each call |
+
+`ctx.exec` is the sanctioned way to run a process: the backend enforces the `exec` list at run time, and test cases can fake the command. Spawning with the runtime's own API is still possible for long-lived or streaming use (the git plugin's `execFile`), but then only the static scan guards it; the validator checks that every literal command name in a spawn or `ctx.exec` call is in the `exec` list and warns when the name is computed.
 
 ### Upgrade steps
 
@@ -100,7 +102,7 @@ A plugin that changes its data shape between versions ships one step per version
 - **Mounting.** Each operation mounts under `/x/api/v1/plugins/<id>/` (site scope, the default) or `/system/api/v1/plugins/<id>/` (`x-hax-scope: system`), from the plugin's `config/openapi.yaml`. Plugins cannot place routes elsewhere. Each plugin's document is also served at `.../plugins/<id>/openapi.json` and `.yaml`.
 - **Before the handler runs**, the platform enforces `security` from the contract (both credentials when both are listed), the rate limit for `x-hax-public` operations, and validates parameters and body against the schema. A handler never sees a request that fails these.
 - **Handler signature.** `(ctx, request)` where `request` is `{ params, query, body, headers, files }`.
-- **Response.** Return `{ status, headers?, body }`, or a plain value meaning `200` with that body. `body` may be bytes for binary responses.
+- **Response.** Return `{ status, headers?, body }`, or a plain value meaning `200` with that body. `body` may be bytes for binary responses. A value is read as a response only when `status` is an integer and it has no keys other than `status`, `headers` and `body`; a record that happens to have `status` and `body` fields (a comment whose status is `"pending"`) is a plain value. To return a record that would match, wrap it: `{ status: 200, body: record }`.
 - **Errors.** A thrown error becomes `500` with a generic message; the detail goes to the log only. A veto from a hook inside the operation becomes its status (default `409`) with the veto message.
 - **Front end.** Every operation is callable from the dashboard as `@system/<operationId>` or `@site/<operationId>`, registered from the contract.
 

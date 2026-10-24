@@ -1,0 +1,72 @@
+- id: rsync-deploy-001
+  title: "inactive until a destination and key are set"
+  hook: plugin.before.requirements
+  given: "no settings"
+  when: "load"
+  then: "inactive with two unmet requirements"
+  run:
+    steps:
+      - call: { operation: rsyncDeployNow }
+        expect: { status: 404, status_of: { rsync-deploy: inactive } }
+- id: rsync-deploy-002
+  title: "bad destination and non-key values are refused"
+  hook: config.before.save
+  given: "target 'example.com' then a key that is not a key"
+  when: "save"
+  then: "422 each time"
+  run:
+    steps:
+      - config: { plugin: rsync-deploy, values: { target: example.com } }
+        expect: { status: 422 }
+      - config: { plugin: rsync-deploy, values: { target: "deploy@example.com:/var/www/site", privateKey: hunter2 } }
+        expect: { status: 422 }
+- id: rsync-deploy-003
+  title: "deploy-now runs rsync with an argument list, no shell, .git excluded"
+  given: "a destination and a key"
+  when: "deploy now (rsync is faked)"
+  then: "rsync gets the site folder, --delete and --exclude .git; the key goes in as a temp file and never appears in the call, the response or the log"
+  run:
+    exec: { rsync: { code: 0, stdout: "sent 1,024 bytes" } }
+    settings: { target: "deploy@example.com:/var/www/site", privateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\nx\n-----END OPENSSH PRIVATE KEY-----" }
+    steps:
+      - call: { operation: rsyncDeployNow }
+        expect:
+          status: 200
+          body: { ran: true, reason: manual, output: "sent 1,024 bytes" }
+          exec: { count: 1, contains: ['"cmd":"rsync"', '"--delete"', '"--exclude",".git"', '-i <tmp>/id', '"deploy@example.com:/var/www/site"', '"files":["id"]'], notContains: [BEGIN OPENSSH] }
+          notContains: [BEGIN OPENSSH]
+          log: { notContains: [BEGIN OPENSSH] }
+- id: rsync-deploy-003b
+  title: "a failing rsync is a 502 with the reason in the log"
+  given: "rsync exits 23"
+  when: "deploy now"
+  then: "502; the log has the stderr"
+  run:
+    exec: { rsync: { code: 23, stderr: "some files could not be transferred" } }
+    settings: { target: "deploy@example.com:/var/www/site", privateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\nx\n-----END OPENSSH PRIVATE KEY-----" }
+    steps:
+      - call: { operation: rsyncDeployNow }
+        expect: { status: 502, log: { contains: ["rsync failed: some files could not be transferred"] } }
+- id: rsync-deploy-004
+  title: "with git enabled and deployOnCommit, a commit deploys (detached)"
+  hook: git.after.commit
+  given: "git enabled, deployOnCommit on"
+  when: "git.after.commit fires"
+  then: "a deploy is logged with the commit hash"
+  run:
+    with: [core-plugins/git]
+    exec: { rsync: { code: 0 } }
+    settings: { target: "deploy@example.com:/var/www/site", privateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\nx\n-----END OPENSSH PRIVATE KEY-----", deployOnCommit: true }
+    steps:
+      - fire: { hook: git.after.commit, subject: { siteId: s1, hash: abcdef123456, message: m, files: [], author: a } }
+        expect: { exec: { count: 1 }, log: { contains: ["deployed to deploy@example.com:/var/www/site (commit abcdef1)"] } }
+- id: rsync-deploy-005
+  title: "without git, deployOnCommit saves with a warning"
+  hook: config.before.save
+  given: "git not loaded"
+  when: "save deployOnCommit true"
+  then: "saved, with a warning that it does nothing yet"
+  run:
+    steps:
+      - config: { plugin: rsync-deploy, values: { target: "deploy@example.com:/var/www/site", deployOnCommit: true } }
+        expect: { status: 200, warnings: ["does nothing until the git plugin is enabled"] }

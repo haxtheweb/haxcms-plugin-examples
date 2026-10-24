@@ -146,6 +146,10 @@ hooks:
   - name: user.after.login
   - name: user.before.logout
   - name: user.after.logout
+  - name: user.before.export
+  - name: user.after.export
+  - name: user.before.erase
+  - name: user.after.erase
   - name: register.before.routes
   - name: register.after.routes
   - name: register.before.entities

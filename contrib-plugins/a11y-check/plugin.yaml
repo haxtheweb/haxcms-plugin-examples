@@ -1,0 +1,25 @@
+# Accessibility check (fake community plugin). Exercises: page.before.save warnings that never block unless the
+# site asks for it, render mode (the overlay appears in the editor's preview only, never in published pages), an
+# MCP-visible report operation, and diagnose/howto prompts. Node only.
+specVersion: "0.1.0"
+id: a11y-check
+uuid: 8a9b0c1d-2e3f-4405-9617-28394a5b6c7d
+title: Accessibility check
+description: Flags common accessibility problems when pages are saved and in the preview, with a report for the whole site.
+version: 0.1.0
+category: content
+icon: icons:accessibility
+tags: [accessibility, a11y, wcag]
+docs: { readme: README.md, agents: AGENTS.md, prompts: docs/prompts.yaml }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+openapi: config/openapi.yaml
+staticCapable: false
+capabilities: ["items:read", "output:inject"]
+hooks:
+  - name: page.before.save        # warn (or block, when blockMissingAlt is on)
+  - name: render.after.content    # preview-only outline of problems

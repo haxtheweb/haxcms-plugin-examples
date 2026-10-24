@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: { title: Accessibility check, version: 0.1.0 }
+paths:
+  /report:
+    get:
+      operationId: a11yCheckReport
+      summary: Problems on every page of the site, worst first
+      security: [{ bearerAuth: [] }]
+      x-hax-mcp: true            # read-only; agents can fetch it and propose fixes
+      responses: { "200": { description: OK } }

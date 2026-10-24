@@ -55,6 +55,8 @@ export class MemoryBackend {
     // core records plugins reach through ctx.entities: the site's site.json, pages, files
     this.revs = new Map(); // "type:id" -> revision, bumped on every write (optimistic concurrency for ctx.entities.save)
     this.managed = new Map(); // managed files written by plugins: path -> { plugin, content }
+    this.execCalls = [];
+    this.execFakes = {};
     this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
   }
 
@@ -131,6 +133,27 @@ export class MemoryBackend {
   }
 
   get(id) { return this.plugins.find((x) => x.id === id); }
+  elements(p) {
+    const d = join(p.dir, "registries/elements");
+    return existsSync(d) ? readdirSync(d).filter((f) => /\.(ya?ml|json)$/.test(f)).sort().map((f) => readAny(join(d, f))) : [];
+  }
+  // ctx.exec in the harness: checks the exec list, records the call (file names only, never their content) and
+  // answers from the case's `exec` fakes; nothing runs
+  async execFor(p, cmd, args, opts = {}) {
+    if (!(p.manifest.capabilities || []).includes("exec:run") || !(p.manifest.exec || []).includes(cmd)) throw new Error(`${p.id} may not run "${cmd}" (not in its exec list)`);
+    if (!Array.isArray(args) || args.some((a) => typeof a !== "string")) throw new Error("exec args must be a list of strings (no shell)");
+    const call = { plugin: p.id, cmd, args: args.map((a) => a.replace(/\{tmp\}/g, "<tmp>")), files: Object.keys(opts.files || {}).sort() };
+    this.execCalls.push(call);
+    const fake = (this.execFakes || {})[cmd];
+    if (!fake) throw new Error(`exec "${cmd}" has no fake in this case (run.exec)`);
+    return { code: fake.code ?? 0, stdout: fake.stdout ?? "", stderr: fake.stderr ?? "" };
+  }
+  // privacy.consentSetting: requiresConsent counts only where that boolean setting is on (spec/05)
+  effectivePrivacy(p) {
+    const pr = p.manifest.privacy; if (!pr) return null;
+    if (!pr.consentSetting || p.settings[pr.consentSetting] === true) return pr;
+    return { ...pr, requiresConsent: [] };
+  }
   status() { return this.plugins.map((p) => ({ id: p.id, status: p.status, reason: p.reason, unmet: p.unmet })); }
   active(id) { const p = this.get(id); return !!p && p.status === "active"; }
   hookContract(name) { return CORE_HOOKS.find((c) => c.name === name) || this.plugins.map((p) => p.hookDefs[name]).find(Boolean); }
@@ -176,10 +199,14 @@ export class MemoryBackend {
     if (dependents.length) return { status: 409, body: { error: "other plugins depend on it", dependents } };
     const subject = { id, version: p.manifest.version, scope: "system" };
     const r = await this.fire("plugin.before.disable", subject);
-    if (r.veto) return { status: 409, body: { error: r.veto.message } };
+    if (r.veto) return { status: r.veto.status || 409, body: { error: r.veto.message } };
     await this.fire("plugin.after.disable", subject);
     p.status = "disabled"; p.reason = "disabled";
-    return { status: 200, body: { id, status: "disabled" } };
+    // blocks already placed keep rendering (the registry keeps every element); authors just can no longer insert or
+    // edit them, so the owner is told where they are (spec/07)
+    const tags = this.elements(p).filter((e) => e.role === "block").map((e) => e.tag);
+    const inUse = Object.values(this.records.page || {}).map((pg) => ({ page: pg.id, tags: tags.filter((t) => new RegExp(`<${t}[\\s>/]`).test(pg.content || "")) })).filter((x) => x.tags.length);
+    return { status: 200, body: { id, status: "disabled", ...(inUse.length ? { inUse } : {}) } };
   }
 
   // ---- settings (spec/13 section 7) ----
@@ -187,12 +214,12 @@ export class MemoryBackend {
     const p = this.get(id);
     const subject = { plugin: id, scope: "system", values: { ...p.settings, ...values } };
     const before = await this.fire("config.before.save", subject, { previous: { ...p.settings }, configOf: id });
-    if (before.veto) return { status: 409, body: { error: before.veto.message } };
+    if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     const prev = { ...p.settings };
     p.settings = { ...before.subject.values };
     await this.fire("config.after.save", { ...before.subject }, { previous: prev, configOf: id });
     if (p.status === "active" || p.status === "inactive") await this.refreshStatus(p);
-    return { status: 200, body: { status: p.status } };
+    return { status: 200, body: { status: p.status }, warnings: before.warnings || [] };
   }
 
   // ---- stores ----
@@ -265,6 +292,8 @@ export class MemoryBackend {
         throw new Error("network is disabled in the harness");
       },
       config: { save: async (values) => backend.saveConfig(p.id, values) },
+      // the only sanctioned way to run a process (spec/13): commands outside the exec list are refused
+      exec: async (cmd, args = [], opts = {}) => backend.execFor(p, cmd, args, opts),
       plugins: { list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience), operations: async (filter = {}) => backend.pluginOperations(filter), prompts: async () => backend.pluginPrompts() },
       files: {
         writeManaged: async (path, content) => backend.writeManaged(p, path, content),
@@ -385,7 +414,7 @@ export class MemoryBackend {
     return list;
   }
   activeList() {
-    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: x.manifest.privacy || null, capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [] }));
+    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: this.effectivePrivacy(x), capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [] }));
   }
   assetUrl(p, path) {
     if (!/^frontend\/dist\/[A-Za-z0-9._\/-]+$/.test(path) || path.includes("..")) throw new Error(`${p.id}: assets.url only serves files under frontend/dist`);
@@ -395,13 +424,17 @@ export class MemoryBackend {
   // ---- rebuild (spec/07 managed files): plugins mark fragment pages, then write their own files ----
   async rebuild(reason = "save") {
     const before = await this.fire("rebuild.before", { scope: "site", siteId: this.site.id, reason, fragments: [] });
-    if (before.veto) return { status: 409, body: { error: before.veto.message } };
+    if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     const fragments = [...new Set(before.subject.fragments || [])];
     const pages = Object.values(this.records.page || {});
     const listed = pages.filter((pg) => !fragments.includes(pg.id) && pg.published !== false);
     const llms = listed.map((pg) => `- [${pg.title}](${pg.slug || pg.id})`).join("\n");
-    await this.fire("rebuild.after", { scope: "site", siteId: this.site.id, reason, files: ["llms.txt"] });
-    return { status: 200, body: { fragments, llms } };
+    // authoring side: the block list comes from active plugins only; the element registry keeps every installed
+    // element so placed blocks keep hydrating after their pack is turned off (spec/07)
+    const blocks = this.plugins.filter((x) => x.status === "active").flatMap((x) => this.elements(x).filter((e) => e.role === "block").map((e) => e.tag)).sort();
+    const registry = Object.fromEntries(this.plugins.filter((x) => x.status !== "refused").flatMap((x) => this.elements(x).map((e) => [e.tag, e.path.startsWith("frontend/dist/") ? this.assetUrl(x, e.path) : e.path])).sort(([a], [b]) => a.localeCompare(b)));
+    await this.fire("rebuild.after", { scope: "site", siteId: this.site.id, reason, files: ["llms.txt", "wc-registry.json", "appstore.json"] });
+    return { status: 200, body: { fragments, llms, blocks, registry } };
   }
 
   // ---- core entities (spec/13 ctx.entities) ----
@@ -427,12 +460,13 @@ export class MemoryBackend {
     const previous = store[id] ? structuredClone(store[id]) : undefined;
     const op = previous ? "update" : "create";
     const before = await this.fire(`entity.before.${op}`, { ...record, id }, { entity: type, previous });
-    if (before.veto) return { record: previous || null, veto: before.veto };
+    if (before.veto) return { record: previous || null, veto: before.veto, warnings: before.warnings || [] };
     store[id] = structuredClone(before.subject);
     this.bump(type, id);
     this.writeToDisk(type, store[id]);
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
-    return { record: after.subject };
+    // before-hook warnings travel back to whoever saved (the editor shows them; spec/06)
+    return { record: after.subject, warnings: before.warnings || [] };
   }
 
   async deleteEntity(type, id) {
@@ -453,7 +487,11 @@ export class MemoryBackend {
     for (const p of this.plugins) for (const s of Object.values(p.stores)) if (s.personalData && s.scope !== "package") out.push({ p, s, key: s.userKey || "userId" });
     return out;
   }
-  exportUser(userId) {
+  // export and erase are core operations with before/after hooks (spec/04); plugins that keep personal data outside
+  // personalData stores answer through the privacy.export / privacy.delete contracts
+  async exportUser(userId) {
+    const before = await this.fire("user.before.export", { userId });
+    if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     const out = {};
     for (const { p, s, key } of this.personalStores()) {
       const v = this.readStore(p, s.id);
@@ -461,16 +499,28 @@ export class MemoryBackend {
       const mine = rows.filter((r) => r && r[key] === userId);
       if (mine.length) out[`${p.id}.${s.id}`] = mine;
     }
-    return out;
+    for (const r of await this.callContract("privacy.export", "export", { userId })) if (r.result != null) out[r.plugin] = r.result;
+    await this.fire("user.after.export", { userId, stores: Object.keys(out) });
+    return { status: 200, body: out };
   }
-  eraseUser(userId) {
+  // one transaction, so a before hook can leave marks for its after hook (the records are gone by then)
+  async eraseUser(userId) { return this.transaction(() => this.eraseUserNow(userId), { bulk: false, origin: "privacy" }); }
+  async eraseUserNow(userId) {
+    const before = await this.fire("user.before.erase", { userId });
+    if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     let removed = 0;
+    const by = {};
     for (const { p, s, key } of this.personalStores()) {
       const v = this.readStore(p, s.id);
-      if (Array.isArray(v)) { const keep = v.filter((r) => !(r && r[key] === userId)); removed += v.length - keep.length; this.writeStore(p, s.id, keep); }
-      else if (v && typeof v === "object") { const keep = Object.fromEntries(Object.entries(v).filter(([, r]) => !(r && r[key] === userId))); removed += Object.keys(v).length - Object.keys(keep).length; this.writeStore(p, s.id, keep); }
+      let n = 0;
+      if (Array.isArray(v)) { const keep = v.filter((r) => !(r && r[key] === userId)); n = v.length - keep.length; if (n) this.writeStore(p, s.id, keep); }
+      else if (v && typeof v === "object") { const keep = Object.fromEntries(Object.entries(v).filter(([, r]) => !(r && r[key] === userId))); n = Object.keys(v).length - Object.keys(keep).length; if (n) this.writeStore(p, s.id, keep); }
+      if (n) by[`${p.id}.${s.id}`] = n;
+      removed += n;
     }
-    return { removed };
+    for (const r of await this.callContract("privacy.delete", "delete", { userId })) { const n = (r.result && r.result.removed) || 0; if (n) by[r.plugin] = n; removed += n; }
+    await this.fire("user.after.erase", { userId, removed: by });
+    return { status: 200, body: { removed } };
   }
 
   // ---- upgrade steps (spec/13): every step newer than the installed version, in order ----
@@ -538,6 +588,7 @@ export class MemoryBackend {
       capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
+      exec: { allowed: (p.manifest.capabilities || []).includes("exec:run") ? p.manifest.exec || [] : [], fakes: this.execFakes || {} },
       ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
     };
     const r = spawnSync("php", [join(here, "php/bridge.php")], { input: JSON.stringify(input), encoding: "utf8" });
@@ -556,6 +607,8 @@ export class MemoryBackend {
     for (const values of out.configSaves || []) await this.saveConfig(p.id, values);
     for (const [path, content] of Object.entries(out.managedWrites || {})) this.writeManaged(p, path, content);
 
+    for (const call of out.execCalls || []) this.execCalls.push({ plugin: p.id, ...call });
+    if (out.execError) throw new Error(out.execError);
     for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
     ctx.__warnings.push(...(out.warnings || []));
     Object.assign(ctx.transaction.marks, out.transaction && out.transaction.marks ? out.transaction.marks : {});
@@ -592,7 +645,10 @@ export class MemoryBackend {
     const p = this.plugins.find((x) => x.ops[operationId]);
     if (!p || p.status !== "active") return { status: 404, body: { error: "not found" } };
     const op = p.ops[operationId];
-    if (!op.public) {
+    // `optional` auth (spec/05): an empty requirement {} next to the others lets anonymous calls through; the
+    // handler sees ctx.user = null and applies its own setting-based filter
+    const optional = op.security.some((req) => req && Object.keys(req).length === 0);
+    if (!op.public && !(optional && credentials === "none")) {
       const needsJwt = op.security.some((req) => "bearerAuth" in req);
       const needsUser = op.security.some((req) => "userTokenHeader" in req || "siteTokenHeader" in req);
       if (needsJwt && credentials === "none") return { status: 401, body: { error: "unauthorized" } };
@@ -603,11 +659,15 @@ export class MemoryBackend {
     if (before.veto) return { status: before.veto.status || 403, body: { error: before.veto.message } };
     req = { ...req, ...before.subject };
     const ctx = this.makeCtx(p, { request: req });
+    if (credentials === "none") ctx.user = null; // no credentials, no user, even on a public route
     try {
       const r = await this.invoke(p, "operation", operationId, ctx, [req]);
       if (r.missing) return { status: 501, body: { error: `operation ${operationId} is not implemented in ${this.runtime}` } };
       const v = r.value;
-      const res = v && typeof v === "object" && "status" in v && "body" in v ? v : { status: 200, body: v };
+      // a response envelope has a numeric status and only status/headers/body keys (spec/13); anything else is a body,
+      // so a record with its own status and body fields (a comment: status "pending") is not mistaken for one
+      const envelope = v && typeof v === "object" && !Array.isArray(v) && Number.isInteger(v.status) && Object.keys(v).every((k) => ["status", "headers", "body"].includes(k));
+      const res = envelope ? v : { status: 200, body: v };
       if (Buffer.isBuffer(res.body)) res.body = res.body.toString("utf8");
       const after = await this.fire("rest.after.request", { status: res.status, headers: res.headers || {}, body: res.body });
       return { ...res, ...after.subject, warnings: ctx.__warnings };
@@ -690,8 +750,9 @@ export class MemoryBackend {
   }
 
   // ---- render pipeline (spec/06): the same stages run for live pages and static publish ----
-  async render(page, { theme = "clean-one" } = {}) {
-    const ctx0 = { site: { id: this.site.id, name: this.site.name }, page, theme, head: [], content: page.content || "", body: { start: [], end: [] }, html: null };
+  // mode: dynamic (served by the server), preview (the editor's preview) or publish (static output); spec/06
+  async render(page, { theme = "clean-one", mode = "dynamic" } = {}) {
+    const ctx0 = { site: { id: this.site.id, name: this.site.name }, page, theme, mode, head: [], content: page.content || "", body: { start: [], end: [] }, html: null };
     const before = await this.fire("render.before", ctx0);
     if (before.respond !== undefined) return { html: before.respond, cached: true };
     let c = before.subject;

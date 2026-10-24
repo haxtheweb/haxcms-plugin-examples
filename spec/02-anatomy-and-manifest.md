@@ -64,9 +64,10 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `assets` | generated list of web-reachable files with hash, size, type, optional `redistribution` per asset |
 | `tagPrefix` | the only prefix the plugin's custom element tags may use; one namespace per plugin, by design |
 | `staticCapable` | whether the plugin works on a statically published site. `false` is shown as a "needs a server" tag wherever the plugin is listed and the publish step warns, because it infringes the portable-static pillar. The validator warns when a plugin with routes leaves it unset or true |
+| `staticFallback` | for a plugin with routes that still sets `staticCapable: true`: one sentence on what a statically hosted copy gets instead ("static copies show approved comments as of publish time; posting needs the server"). Shown on the plugin screen; without it the validator asks for `staticCapable: false` |
 | `egress` | outbound hosts the plugin may call |
 | `capabilities` | permissions requested, shown at enable time (see 9.1) |
-| `privacy` | `tracking`, categories, cookies set, hosts that receive data, `requiresConsent` categories |
+| `privacy` | `tracking`, categories, cookies set, hosts that receive data, `requiresConsent` categories, and optionally `consentSetting`: a boolean setting that decides per site whether `requiresConsent` applies (a cookieless tracker that asks only when the site's policy wants it). Core resolves it before handing the plugin list to anyone, so a consent plugin only sees what is in effect |
 | `managedFiles` | managed output paths the plugin owns |
 | `schedules` | recurring jobs: `id`, `cron`, `handler` (exported by the backend entry), `scope` (system or once per site), optional `timeout`; run by `hax plugin schedule run` (spec/06) |
 | `legacy` | keeps existing sites working after a feature moves out of core: `tags` (old tag → plugin tag, the old tag still renders), `routes` (old core path, optionally after a method such as `DELETE /x/api/v1/files/{fileUuid}`, → operationId in this plugin's contract), `settings` (plugin setting → old `site.json` path, read as a fallback until the install migration runs) |

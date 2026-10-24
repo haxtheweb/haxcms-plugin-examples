@@ -135,19 +135,25 @@ function validatePlugin(manifestPath) {
     else if (!existsSync(join(dir, entry))) err(`/entry/${rt}`, `file not found: ${entry}`);
   }
   for (const rt of Object.keys(m.entry || {})) if (!(m.runtimes || []).includes(rt)) err("/entry", `entry.${rt} but runtime ${rt} is not in runtimes`);
-  if (!m.core && m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") warn("/runtimes", "single runtime: first-party plugins should provide both nodejs and php");
+  // core plugins ship with both backends, so they must run on both; a community plugin may pick one (derived tag single-runtime)
+  if (m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") {
+    const other = ["nodejs", "php"].filter((r) => !m.runtimes.includes(r)).join(" and ");
+    if (m.core) err("/runtimes", `core plugins must provide both nodejs and php (missing ${other})`);
+    else warn("/runtimes", `single runtime: this plugin will not load on ${other} backends`);
+  }
   if (m.openapi && existsSync(join(dir, m.openapi))) {
     const api = readAny(join(dir, m.openapi));
     const scopes = [api["x-hax-scope"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-scope"]))].filter((x) => x !== undefined);
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && typeof op === "object" && op.operationId && op["x-hax-public"] !== true && !op.security && !api.security) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" declares no security; add security or x-hax-public: true (fail-closed)`);
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) { const sec = op && typeof op === "object" && (op.security || api.security); if (op && op.operationId && Array.isArray(sec) && sec.length && sec.every((r) => !r || !Object.keys(r).length)) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" lists only the optional requirement {}; pair it with a real one (bearerAuth) or mark it x-hax-public: true`); }
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && op.operationId && m.id && !op.operationId.startsWith(m.id.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase()))) err(`${m.openapi}/paths/${path}/${verb}`, `operationId "${op.operationId}" must start with the plugin id "${m.id}"`);
   }
   if (m.legacy && m.legacy.routes) for (const [path, op] of Object.entries(m.legacy.routes)) {
     if (!/^((GET|POST|PUT|PATCH|DELETE) )?\/(x|system)\/api\//.test(path)) err(`/legacy/routes/${path}`, "old route must be a core path (/x/api/... or /system/api/...), optionally after a method");
     if (m.openapi && existsSync(join(dir, m.openapi))) { const api = readAny(join(dir, m.openapi)); const ids = Object.values(api.paths || {}).flatMap((v) => Object.values(v).map((o) => o && o.operationId)); if (!ids.includes(op)) err(`/legacy/routes/${path}`, `"${op}" is not an operation in ${m.openapi}`); }
   }
-  if (m.openapi && m.staticCapable !== false) warn("/staticCapable", "plugin has routes: set staticCapable: false so it is tagged as needing a server (or explain how it degrades statically)");
+  if (m.openapi && m.staticCapable !== false && !m.staticFallback) warn("/staticCapable", "plugin has routes: set staticCapable: false so it is tagged as needing a server, or say what static copies get in staticFallback");
   // plugin-defined hooks and aliases
   const ownHooks = {};
   if (m.hookDefinitions && existsSync(join(dir, m.hookDefinitions))) {
@@ -177,14 +183,21 @@ function validatePlugin(manifestPath) {
   };
   // static scan: child processes must be declared (exec:run capability and the exec list)
   // JS: any use of child_process; PHP: the process functions (a method call such as regex.exec() is not one)
-  const execPatternJs = /\bchild_process\b|\b(execSync|execFileSync|spawnSync)\s*\(/;
-  const execPatternPhp = /(?<![>\w:$])(shell_exec|proc_open|passthru|popen|exec|system|pcntl_exec)\s*\(|`[^`]*\$/;
+  const execPatternJs = /\bchild_process\b|\b(execSync|execFileSync|spawnSync)\s*\(|\bctx\.exec\s*\(/;
+  const execPatternPhp = /(?<![>\w:$])(shell_exec|proc_open|passthru|popen|exec|system|pcntl_exec)\s*\(|`[^`]*\$|\$ctx->exec\s*\(/;
   for (const rt of ["nodejs", "php"]) {
     const srcDir = join(dir, "src", rt);
     const walk = (d) => (existsSync(d) ? readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)])) : []);
     for (const f of walk(srcDir).filter((x) => /\.(m?js|cjs|php)$/.test(x))) {
       const code = readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
       if ((f.endsWith(".php") ? execPatternPhp : execPatternJs).test(code) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
+      // the command named in the call must be in the exec list; a computed command name cannot be checked
+      const callRe = f.endsWith(".php") ? /(?:\bproc_open\(\s*\[|\$ctx->exec\()\s*['"]([^'"]+)['"]/g : /\b(?:spawn|execFile|spawnSync|execFileSync|ctx\.exec)\(\s*(?:(["'`])([^"'`]+)\1|([A-Za-z_$][\w$.]*))/g;
+      for (const mm of code.matchAll(callRe)) {
+        const cmd = f.endsWith(".php") ? mm[1] : mm[2];
+        if (cmd && !(m.exec || []).includes(cmd)) err(rel2(f), `runs "${cmd}", which is not in the exec list`);
+        if (!cmd && !f.endsWith(".php")) warn(rel2(f), `runs a command named by ${mm[3]}; only literal names can be checked against the exec list`);
+      }
     }
   }
   // registries
@@ -358,6 +371,11 @@ function validatePlugin(manifestPath) {
       const props = new Set((readJson(join(dir, m.settings)).configure || []).map((f) => f.property));
       for (const k of Object.keys(readJson(dp))) if (!props.has(k)) err(rel(dp), `default for "${k}", which is not a field in ${m.settings}`);
     }
+  }
+  if (m.privacy && m.privacy.consentSetting) {
+    const f = m.settings && existsSync(join(dir, m.settings)) ? (readJson(join(dir, m.settings)).configure || []).find((x) => x.property === m.privacy.consentSetting) : null;
+    if (!f) err("/privacy/consentSetting", `"${m.privacy.consentSetting}" is not a field in the settings form`);
+    else if (f.inputMethod !== "boolean") err("/privacy/consentSetting", `"${m.privacy.consentSetting}" must be a boolean field`);
   }
   return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m) };
 }

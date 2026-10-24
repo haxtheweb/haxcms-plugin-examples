@@ -1,0 +1,36 @@
+- id: plausible-analytics-001
+  title: "inactive until a domain is set"
+  hook: plugin.before.requirements
+  given: "no domain"
+  when: "a page renders"
+  then: "inactive; no script"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { status_of: { plausible-analytics: inactive }, notContains: [plausible.io] }
+- id: plausible-analytics-002
+  title: "a bad domain is refused; a URL is trimmed to its domain"
+  hook: config.before.save
+  given: "domain 'not a domain' then 'https://example.com/'"
+  when: "save settings"
+  then: "422 for the first; example.com stored for the second"
+  run:
+    steps:
+      - config: { plugin: plausible-analytics, values: { domain: not a domain } }
+        expect: { status: 422 }
+      - config: { plugin: plausible-analytics, values: { domain: "https://example.com/" } }
+        expect: { status: 200 }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['s.dataset.domain="example.com"'] }
+- id: plausible-analytics-003
+  title: "with cookie-consent and waitForConsent, the loader waits for analytics consent"
+  hook: render.before.head
+  given: "cookie-consent enabled, waitForConsent on"
+  when: "a page renders"
+  then: "the loader runs inside HAXConsent.onGrant and the banner asks for analytics, though neither plugin names the other"
+  run:
+    with: [core-plugins/cookie-consent]
+    settings: { domain: example.com, waitForConsent: true }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['c.onGrant("analytics",go)', 'categories="analytics"'] }

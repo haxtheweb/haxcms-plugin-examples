@@ -143,6 +143,16 @@ class HarnessCtx {
   public function respond($html) { return ['__respond' => $html]; }
   public function pluginEnabled($id) { return in_array($id, $this->enabled, true); }
   public function fetch($url, $init = []) { throw new Exception('network is disabled in the harness'); }
+  // PHP spelling of ctx.exec(): commands outside the exec list are refused; the harness answers from fakes
+  public $execCalls = []; public $execSpec = ['allowed' => [], 'fakes' => []];
+  public function exec($cmd, $args = [], $opts = []) {
+    if (!in_array($cmd, $this->execSpec['allowed'], true)) { throw new Exception("{$this->plugin['id']} may not run \"$cmd\" (not in its exec list)"); }
+    $files = array_keys($opts['files'] ?? []); sort($files);
+    $this->execCalls[] = ['cmd' => $cmd, 'args' => array_map(function ($a) { return str_replace('{tmp}', '<tmp>', $a); }, $args), 'files' => $files];
+    $fake = $this->execSpec['fakes'][$cmd] ?? null;
+    if (!$fake) { throw new Exception("exec \"$cmd\" has no fake in this case (run.exec)"); }
+    return ['code' => $fake['code'] ?? 0, 'stdout' => $fake['stdout'] ?? '', 'stderr' => $fake['stderr'] ?? ''];
+  }
 }
 
 $in = json_decode(stream_get_contents(STDIN), true);
@@ -155,6 +165,7 @@ if ($in['method'] === '__list_upgrades') {
 }
 if (!method_exists($plugin, $in['method'])) { echo json_encode(['missing' => true]); exit(0); }
 $ctx = new HarnessCtx($in);
+$ctx->execSpec = $in['exec'] ?? ['allowed' => [], 'fakes' => []];
 $result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
 echo json_encode([
   'result' => $result,
@@ -169,4 +180,5 @@ echo json_encode([
   'managedWrites' => (object) $ctx->files->writes,
   'sitePuts' => (object) $ctx->files->puts,
   'siteRemoves' => $ctx->files->removes,
+  'execCalls' => $ctx->execCalls,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

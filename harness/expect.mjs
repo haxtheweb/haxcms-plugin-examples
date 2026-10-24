@@ -33,6 +33,12 @@ export function check(out, e = {}) {
     if (e.log.order) { let i = -1; for (const s of e.log.order) { const j = lines.findIndex((l, k) => k > i && l.includes(s)); if (j < 0) { errors.push(`log order: ${JSON.stringify(s)} missing or out of order`); break; } i = j; } }
     for (const [s, n] of Object.entries(e.log.count || {})) { const c = lines.filter((l) => l.includes(s)).length; if (c !== n) errors.push(`log "${s}" appears ${c} times, expected ${n}`); }
   }
+  if (e.exec) {
+    const calls = JSON.stringify(out.exec || []);
+    if (e.exec.count !== undefined && (out.exec || []).length !== e.exec.count) errors.push(`exec ran ${(out.exec || []).length} times, expected ${e.exec.count}`);
+    for (const s of e.exec.contains || []) if (!calls.includes(s)) errors.push(`exec calls should contain ${JSON.stringify(s)}`);
+    for (const s of e.exec.notContains || []) if (calls.includes(s)) errors.push(`exec calls should not contain ${JSON.stringify(s)}`);
+  }
   for (const w of e.warnings || []) if (!(out.warnings || []).some((x) => String(x.message).includes(w))) errors.push(`warnings should include ${JSON.stringify(w)}`);
   if (e.errors) for (const s of e.errors) if (!(out.errors || []).some((x) => x.includes(s))) errors.push(`validator should report ${JSON.stringify(s)} (got ${JSON.stringify(out.errors)})`);
   return errors;

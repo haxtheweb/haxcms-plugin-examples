@@ -1,0 +1,38 @@
+openapi: 3.1.0
+info: { title: Comments, version: 0.1.0 }
+paths:
+  /pages/{pageId}/comments:
+    get:
+      operationId: commentsList
+      summary: Comments on a page. Anonymous callers get approved comments only, and only when anonymousRead is on.
+      security: [{}, { bearerAuth: [] }]   # optional auth (spec/05): {} lets anonymous calls reach the handler
+      x-hax-rate-limit: 60/minute
+      parameters: [{ name: pageId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "401": { description: Visitors cannot read comments on this site } }
+    post:
+      operationId: commentsCreate
+      summary: Post a comment as the signed-in user
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: pageId, in: path, required: true, schema: { type: string } }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string, maxLength: 2000 } } } } } }
+      responses: { "200": { description: OK }, "404": { description: No such page }, "422": { description: Empty or too long } }
+  /comments/{id}:
+    put:
+      operationId: commentsModerate
+      summary: Approve or reject a comment (editors and admins)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [status], properties: { status: { enum: [approved, rejected] } } } } } }
+      responses: { "200": { description: OK }, "403": { description: Not a moderator }, "404": { description: Not found } }
+    delete:
+      operationId: commentsDelete
+      summary: Delete a comment (its author, or a moderator)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "403": { description: Not allowed }, "404": { description: Not found } }
+  /republish:
+    get:
+      operationId: commentsRepublish
+      summary: Pages whose published snapshot still names an erased user
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: OK } }

@@ -59,7 +59,7 @@
         "type": "string",
         "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
       },
-      "description": "Kinds of site this plugin suits (course, blog, portfolio, documentation, \u2026; open vocabulary). Reserved for recommendations: telling owners of a matching site that the plugin exists, locally and later from remote registries."
+      "description": "Kinds of site this plugin suits (course, blog, portfolio, documentation, …; open vocabulary). Reserved for recommendations: telling owners of a matching site that the plugin exists, locally and later from remote registries."
     },
     "icon": {
       "type": "string",
@@ -484,6 +484,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "consentSetting": {
+          "type": "string",
+          "description": "Name of a boolean setting. When present, requiresConsent applies only on sites where that setting is true (a cookieless tracker that asks only when the site's policy wants it). Backends resolve it before handing the plugin list to anyone, so consent plugins see the effective list."
         }
       }
     },
@@ -578,6 +582,11 @@
         "pattern": "^[A-Za-z0-9._-]+$"
       },
       "description": "Command names the plugin may run as child processes. Requires the exec:run capability; audited by static scan."
+    },
+    "staticFallback": {
+      "type": "string",
+      "minLength": 10,
+      "description": "For a plugin with routes that still marks itself staticCapable: what visitors of a statically hosted copy get instead (shown on the plugin screen and in the pillar report)."
     }
   },
   "$defs": {

@@ -6,6 +6,7 @@ import { check } from "./expect.mjs";
 export async function step(backend, raw, vars = {}) {
   const s = JSON.parse(JSON.stringify(raw).replace(/\{\{\$(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]).replace(/"/g, '\\"') : m)));
   const out = {};
+  const execFrom = (backend.execCalls || []).length;
   if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {}, headers: s.call.headers || {} }, { credentials: s.call.credentials || "both" }));
   else if (s.fire) {
     const tx = s.fire.transaction ? { id: "t-fire", origin: s.fire.transaction.origin || "case", bulk: !!s.fire.transaction.bulk, operations: [], marks: {} } : undefined;
@@ -16,13 +17,14 @@ export async function step(backend, raw, vars = {}) {
   else if (s.disable) Object.assign(out, await backend.disable(s.disable));
   else if (s.config) Object.assign(out, await backend.saveConfig(s.config.plugin, s.config.values));
   else if (s.upgrade) Object.assign(out, await backend.upgrade(s.upgrade.plugin, s.upgrade.from));
-  else if (s.save) { const r = await backend.saveEntity(s.save.type, s.save.record); Object.assign(out, { subject: r.record, veto: r.veto || null }); }
+  else if (s.save) { const r = await backend.saveEntity(s.save.type, s.save.record); Object.assign(out, { subject: r.record, veto: r.veto || null, warnings: r.warnings || [] }); }
+  else if (s.delete) { const r = await backend.deleteEntity(s.delete.type, s.delete.id); Object.assign(out, { body: { deleted: r.deleted }, veto: r.veto || null }); }
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
   else if (s.contract) Object.assign(out, { body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) });
   else if (s.managed) Object.assign(out, { body: (backend.managed.get(s.managed) || {}).content ?? null, status: backend.managed.has(s.managed) ? 200 : 404 });
-  else if (s.exportUser) Object.assign(out, { body: backend.exportUser(s.exportUser) });
-  else if (s.eraseUser) Object.assign(out, { body: backend.eraseUser(s.eraseUser) });
+  else if (s.exportUser) Object.assign(out, await backend.exportUser(s.exportUser));
+  else if (s.eraseUser) Object.assign(out, await backend.eraseUser(s.eraseUser));
   else if (s.asUser) { backend.user = s.asUser; }
   else if (s.transaction) {
     let marks;
@@ -32,6 +34,7 @@ export async function step(backend, raw, vars = {}) {
   if (backend.flushLog) await backend.flushLog();
   out.statusOf = Object.fromEntries(backend.status().map((x) => [x.id, x.status]));
   out.log = backend.log;
+  if (backend.execCalls && backend.execCalls.length > execFrom) out.exec = backend.execCalls.slice(execFrom);
   for (const [name, path] of Object.entries(s.capture || {})) vars[name] = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), out);
   return { out, errors: check(out, s.expect || {}) };
 }

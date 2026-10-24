@@ -28,6 +28,7 @@ async function runCase(c) {
   }
   const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, ...(r.user ? { user: r.user } : {}) });
   await backend.load((r.plugins || []).map(fx), r.load || {});
+  backend.execFakes = r.exec || {};
   const errors = [];
   if (r.expect) errors.push(...check({ statusOf: Object.fromEntries(backend.status().map((x) => [x.id, x.status])), log: backend.log }, r.expect));
   const vars = {};
