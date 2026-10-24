@@ -1,0 +1,6 @@
+machineName: awesome-explode
+title: Explode the page
+path: HAX/action/explode
+kind: module
+module: frontend/dist/explode-program.js
+export: createExplodeProgram

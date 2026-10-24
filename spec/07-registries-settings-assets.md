@@ -12,6 +12,9 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 | `skeletons/` | skeleton list | existing skeleton JSON |
 | `elements/` | tag-to-file registry (`wc-registry.json`) | one file per tag; `role: block` (insertable, needs `haxProperties`) or `injected` (page singleton, none needed) |
 | `locales/` | languages and message overlays | `en.yaml` with only changed keys, merged per key with fallback |
+| `merlin/` | Merlin (super-daemon) options and programs | one YAML declaration per option; `kind: static\|api\|module` (7.2) |
+| `editor/` | HAX editor entries (block-picker category, media source) | provisional; same data-plus-lazy-module pattern |
+| `embeds/` | embed providers (video, oEmbed) | provisional |
 | `forms/` | reserved: extensions to existing core forms; plugin settings default to their own panel (see 7.1) | additional fields |
 | later | deploy targets, import platforms | same pattern |
 
@@ -21,6 +24,16 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 - When a setting moves out of core into a plugin, it leaves the core form and appears only in that plugin's panel. Plugin settings are stored outside `site.json` by default (the `site` data store, 4.2), which keeps the manifest from growing further. The `manifest` store stays available for data that must travel inside `site.json`.
 - Legacy: a plugin may read and interpret an old core location (such as `metadata.site.settings.gaID`) as a fallback, with a one-time `upgrade` step to move it.
 - Admin menu structure is not final; this area will be informed by the API structure and revised.
+
+### 7.2 Merlin programs (provisional)
+
+A program is split into data and code so options are listed without loading any plugin JavaScript. Field names are provisional until checked against the super-daemon option and program shape (schema: `schema/merlin-program.schema.json`).
+
+- `kind: static`: the results are listed in the declaration. No JS.
+- `kind: api`: names an operation from the plugin's own contract and a `map` from response fields to result fields. Announcements' tip of the day and What's New fit here. No JS.
+- `kind: module`: points at an ES module under `frontend/dist` that exports a program factory. The module is imported lazily when the program runs. The factory receives a host context (an authenticated call helper for the plugin's operations, translation helpers, the site context) and nothing else.
+
+At load the host registers every declaration with Merlin, so options appear without importing plugin code.
 
 ## Front-end assets
 
@@ -37,3 +50,7 @@ Sites load `./custom/build/custom.es6.js` as a module with an import map scope m
 7. **Editing.** Blocks authors can insert must ship `haxProperties`. Injected singletons (a paywall scrim) need none and arrive through `output.alterPage`.
 8. **Trust.** Front-end plugin code runs in every visitor's browser. HAXiam production allows it only from admin-installed tiers. Assets are same-origin with no inline script, so a CSP stays enforceable.
 9. **Small platform changes this implies:** the shell generator emits the extra registry file and import map scope; `dynamic-import-registry` accepts a verbatim path; theme and element registries merge plugin entries; the publish-time copy step.
+
+### Authoring
+
+Plugins ship plain ES modules resolved through import maps, the same way custom elements work in sites today. A compile/optimize step (hash, minify, asset manifest) runs as part of `hax plugin build` when preparing to ship; there is no required build step during development.

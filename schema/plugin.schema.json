@@ -230,6 +230,24 @@
           "items": {
             "type": "string"
           }
+        },
+        "merlin": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "editor": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "embeds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

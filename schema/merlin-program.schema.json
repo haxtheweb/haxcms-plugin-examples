@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/merlin-program.schema.json",
+  "title": "Merlin program declaration (registries/merlin/*.yaml) - PROVISIONAL",
+  "description": "Provisional: field names must be checked against the super-daemon option and program shape before this schema is relied on. A declaration is data and is listed without loading plugin JS. kind static lists results; kind api maps a plugin operation's response to results; kind module lazily imports a JS program factory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "machineName",
+    "title",
+    "path",
+    "kind"
+  ],
+  "properties": {
+    "machineName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "icon": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "path": {
+      "type": "string",
+      "description": "Where the option appears, e.g. HAX/action/whatsNew."
+    },
+    "context": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Surfaces where the option applies (provisional)."
+    },
+    "kind": {
+      "enum": [
+        "static",
+        "api",
+        "module"
+      ]
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "value": {}
+        }
+      }
+    },
+    "operation": {
+      "type": "string",
+      "description": "Operation id from this plugin's own contract."
+    },
+    "map": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Result field -> response field path."
+    },
+    "module": {
+      "type": "string",
+      "description": "Path under frontend/dist exporting a program factory."
+    },
+    "export": {
+      "type": "string",
+      "default": "default"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "static"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "results"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "operation"
+              ]
+            },
+            {
+              "required": [
+                "module"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "api"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "operation",
+          "map"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "results"
+              ]
+            },
+            {
+              "required": [
+                "module"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "module"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "module"
+        ],
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "results"
+              ]
+            },
+            {
+              "required": [
+                "operation"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
