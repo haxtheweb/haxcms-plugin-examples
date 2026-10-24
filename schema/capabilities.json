@@ -1,0 +1,17 @@
+[
+  "items:read",
+  "items:write",
+  "files:read",
+  "files:write",
+  "site:create",
+  "site:read",
+  "site:write",
+  "site:delete",
+  "users:read",
+  "userData:read",
+  "userData:write",
+  "network:egress",
+  "settings:secret",
+  "output:inject",
+  "output:managedFiles"
+]

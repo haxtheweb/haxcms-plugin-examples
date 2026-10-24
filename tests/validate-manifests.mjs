@@ -13,10 +13,10 @@ const merlinOption = JSON.parse(readFileSync(join(root, "node_modules/@haxtheweb
 ajv.addSchema(merlinOption);
 const validateOption = ajv.getSchema(merlinOption.$id);
 const addPkg = (pkgPath) => { const sc = JSON.parse(readFileSync(join(root, "node_modules", pkgPath), "utf8")); ajv.addSchema(sc); return sc; };
-const haxProps = addPkg("hax-schema/schema/haxProperties.schema.json");
-addPkg("json-outline-schema/schema/json-outline-schema.schema.json");
-const siteSchema = addPkg("json-outline-schema/schema/haxcms-site.schema.json");
-const skeletonSchema = addPkg("json-outline-schema/schema/skeleton.schema.json");
+const haxProps = addPkg("@haxtheweb/hax-schema/schema/haxProperties.schema.json");
+addPkg("@haxtheweb/json-outline-schema-spec/schema/json-outline-schema.schema.json");
+const siteSchema = addPkg("@haxtheweb/json-outline-schema-spec/schema/haxcms-site.schema.json");
+const skeletonSchema = addPkg("@haxtheweb/json-outline-schema-spec/schema/skeleton.schema.json");
 const external = {
   "ext:skeleton": ajv.getSchema(skeletonSchema.$id),
   "ext:haxProperties": ajv.getSchema(haxProps.$id),

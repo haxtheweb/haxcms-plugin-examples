@@ -10,7 +10,7 @@ const dir = process.argv[2];
 if (!dir) { console.error("usage: check-core-config.mjs <coreConfig dir>"); process.exit(2); }
 const read = (p) => JSON.parse(readFileSync(p, "utf8"));
 const ajv = new Ajv2020({ allErrors: true, strict: false });
-const haxProps = read(join(root, "node_modules/hax-schema/schema/haxProperties.schema.json"));
+const haxProps = read(join(root, "node_modules/@haxtheweb/hax-schema/schema/haxProperties.schema.json"));
 ajv.addSchema(haxProps);
 const theme = ajv.compile(read(join(root, "schema/theme-registry-entry.schema.json")));
 const field = ajv.compile({ $ref: `${haxProps.$id}#/$defs/field` });

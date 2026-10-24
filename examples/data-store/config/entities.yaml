@@ -1,0 +1,8 @@
+# Illustrative entity declarations.
+entities:
+  note:
+    primaryKey: uuid
+    scope: siteData
+    store: notes
+    requiredFields: [uuid, body]
+    personalData: true

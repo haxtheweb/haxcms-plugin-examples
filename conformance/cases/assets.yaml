@@ -1,0 +1,30 @@
+- id: assets-001
+  title: "only files in the asset manifest are served"
+  spec: spec/07-registries-settings-assets.md
+  given: "file in frontend/dist not in manifest"
+  when: "GET assets/<id>"
+  then: "404"
+- id: assets-002
+  title: "src/, config/ and data/ are never served"
+  spec: spec/07-registries-settings-assets.md
+  given: "request ../config/openapi.yaml"
+  when: "GET assets path traversal"
+  then: "404 or 400"
+- id: assets-003
+  title: "a hash mismatch refuses the asset"
+  spec: spec/07-registries-settings-assets.md
+  given: "file edited after build"
+  when: "GET asset"
+  then: "refused"
+- id: assets-004
+  title: "restricted assets are excluded from remix and export for others"
+  spec: spec/07-registries-settings-assets.md
+  given: "asset redistribution: restricted"
+  when: "export for others"
+  then: "asset absent; theme falls back with a warning"
+- id: assets-005
+  title: "asset URLs carry a content hash, never the HAXcms version"
+  spec: spec/07-registries-settings-assets.md
+  given: "any asset"
+  when: "GET asset URL"
+  then: "no version string"

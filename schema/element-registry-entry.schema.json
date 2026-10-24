@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/element-registry-entry.schema.json",
+  "title": "Plugin element registry entry (DRAFT)",
+  "description": "registries/elements/<tag>.yaml. Feeds the tag-to-file registry (wc-registry.json). role block = insertable by authors, needs haxProperties; role injected = page singleton, none needed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tag",
+    "path",
+    "role"
+  ],
+  "properties": {
+    "tag": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)+$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Module path under frontend/dist."
+    },
+    "role": {
+      "enum": [
+        "block",
+        "injected"
+      ]
+    },
+    "haxProperties": {
+      "type": "string",
+      "description": "Path to the element's *.haxProperties.json (validated with hax-schema). Required for role block."
+    }
+  },
+  "if": {
+    "properties": {
+      "role": {
+        "const": "block"
+      }
+    }
+  },
+  "then": {
+    "required": [
+      "haxProperties"
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+- id: privacy-001
+  title: "consent UI loads only when an enabled plugin declares tracking"
+  spec: spec/08-capabilities-privacy.md
+  given: "cookie-consent enabled, no tracker"
+  when: "render a page"
+  then: "no consent element"
+- id: privacy-002
+  title: "enabling a tracker auto-enables cookie-consent after confirmation"
+  spec: spec/08-capabilities-privacy.md
+  given: "google-analytics depends on cookie-consent"
+  when: "enable google-analytics"
+  then: "both enabled after confirm"
+- id: privacy-003
+  title: "a tracking plugin must declare categories and requiresConsent"
+  spec: spec/08-capabilities-privacy.md
+  given: "privacy.tracking true without categories"
+  when: "load"
+  then: "manifest rejected"
+- id: privacy-004
+  title: "legacy gaID is read as a fallback and migrated by upgrade"
+  spec: spec/08-capabilities-privacy.md
+  given: "site with metadata.site.settings.gaID"
+  when: "enable google-analytics"
+  then: "id honored; upgrade moves it"

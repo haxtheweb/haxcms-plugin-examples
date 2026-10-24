@@ -1,0 +1,24 @@
+- id: load-001
+  title: "a plugin with an unknown manifest key is rejected and disabled with a reason"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "plugins: [{id: bad, manifest: {surprise: true}}]"
+  when: "load"
+  then: "bad: disabled, reason mentions the key; boot continues"
+- id: load-002
+  title: "an invalid plugin never stops boot"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugins: [broken, good]"
+  when: "boot"
+  then: "good enabled; broken disabled with reason"
+- id: load-003
+  title: "a plugin whose specVersion is newer than the loader is refused"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "plugin specVersion: 99.0.0"
+  when: "load"
+  then: "refused with a version message"
+- id: load-004
+  title: "pack plugins never run backend code at any tier"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "kind: pack at tier site with backend flag off"
+  when: "load"
+  then: "enabled; no backend entry executed"

@@ -1,0 +1,2 @@
+stores:
+  - { id: tally, scope: site, file: tally.json }

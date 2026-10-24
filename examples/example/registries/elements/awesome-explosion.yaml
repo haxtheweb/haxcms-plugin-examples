@@ -1,0 +1,4 @@
+tag: awesome-explosion
+path: frontend/dist/awesome-explosion.js
+role: block
+haxProperties: frontend/dist/awesome-explosion.haxProperties.json

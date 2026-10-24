@@ -15,14 +15,14 @@ Example set to start:
 
 ## Shape checks against other plugins (informative; not built)
 
-- **Views** (core, optional first, later required): entity `view` (site scope, with write routes), a separate read-only system entity for built-in views (two entities), contracts `views.source` and `views.display`, a `public: true` results operation with its own anonymous filtering, `rebuild.after` writing snapshots and feeds to `managedFiles`, an upgrade step from `site.json`, `legacy` aliases for `/x/api/v1/views`.
+- **Views** (core, optional first, later required): entity `view` (site scope, with write routes), a separate read-only system entity for built-in views (two entities), contracts `views.source` and `views.display`, a `x-hax-public: true` results operation with its own anonymous filtering, `rebuild.after` writing snapshots and feeds to `managedFiles`, an upgrade step from `site.json`, `legacy` aliases for `/x/api/v1/views`.
 - **Comments:** `comment` entity in `siteData`, `personalData: true`, signed-in HAXcms users only until local login lands, `optional` read access by setting, injected thread element, moderation panel, cascade delete through entity hooks, read-only snapshot at rebuild for static sites, `suggests` views.
 - **Custom importer:** provider contract `import.platform` with `inputMode: url|upload` and `surfaces: [admin, cli, mcp]`; cannot override a core importer; guarded fetch, secret settings, declared egress; progress reserved.
 - **PSU pack** (HAXiam contrib, locked): themes, skeletons, `polaris-` elements, locale overlay, restricted assets, built in the owner's own repo with `hax plugin build`; legacy registry paths reserved so existing sites keep working.
 
 ## Implement now versus reserve
 
-**Implement now:** manifest schema and reserved keys; five tiers, rescan, status and lock config; dependencies with ranges and `suggests`; unified contract with scoping, `public: true`, `optional` auth, `rateLimit`; the full hook list with before/after pairs; entity `extends` and annotations; the four store kinds, storage helper and upgrade steps; registry merging for themes, skeletons, elements, locales and forms; assets (route, caching, publish copy, redistribution); declared and shown capabilities and privacy; dashboard plugin list; `hax plugin` commands and pillar report; conformance suite and examples; announcements.
+**Implement now:** manifest schema and reserved keys; five tiers, rescan, status and lock config; dependencies with ranges and `suggests`; unified contract with scoping, `x-hax-public: true`, `optional` auth, `x-hax-rate-limit`; the full hook list with before/after pairs; entity `extends` and annotations; the four store kinds, storage helper and upgrade steps; registry merging for themes, skeletons, elements, locales and forms; assets (route, caching, publish copy, redistribution); declared and shown capabilities and privacy; dashboard plugin list; `hax plugin` commands and pillar report; conformance suite and examples; announcements.
 
 **Reserve only (keys and docs, no behavior):** scheduler runner and `schedules`; importer jobs and progress; signing and integrity verification; `legacy`; translations; mail transport; the import, export, search, consent and spam contracts themselves (the contract mechanism ships; these specific contracts follow).
 

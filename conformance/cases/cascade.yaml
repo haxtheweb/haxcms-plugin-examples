@@ -1,0 +1,42 @@
+- id: cascade-001
+  title: "higher tier wins on a name collision and warns"
+  spec: spec/03-tiers-and-enablement.md
+  given: "same id at system-core and site"
+  when: "load"
+  then: "site copy active; warning names both"
+- id: cascade-002
+  title: "a required core plugin cannot be disabled"
+  spec: spec/03-tiers-and-enablement.md
+  given: "announcements required: true"
+  when: "disable"
+  then: "refused"
+- id: cascade-003
+  title: "a required core plugin cannot be supplanted"
+  spec: spec/03-tiers-and-enablement.md
+  given: "same id at site tier as a required core plugin"
+  when: "load"
+  then: "core copy stays active; site copy rejected"
+- id: cascade-004
+  title: "disabling a plugin others depend on returns 409 with dependents"
+  spec: spec/03-tiers-and-enablement.md
+  given: "B depends on A"
+  when: "disable A"
+  then: "409 listing B"
+- id: cascade-005
+  title: "enabling auto-enables dependencies only after confirmation"
+  spec: spec/03-tiers-and-enablement.md
+  given: "B depends on A (disabled)"
+  when: "enable B without confirm"
+  then: "no change, prompt; with confirm both enabled"
+- id: cascade-006
+  title: "a contrib plugin cannot declare itself required"
+  spec: spec/03-tiers-and-enablement.md
+  given: "core: false, required: true"
+  when: "load"
+  then: "manifest rejected"
+- id: cascade-007
+  title: "auth is supplied only by the highest-order context of the deployment profile"
+  spec: spec/03-tiers-and-enablement.md
+  given: "site plugin implements auth in a multi-site deployment"
+  when: "load"
+  then: "rejected"

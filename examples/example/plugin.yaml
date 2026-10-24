@@ -1,0 +1,77 @@
+specVersion: "0.1.0"
+id: example
+uuid: 2f5d3a0e-7c1b-4a52-9d5a-3b1f6e8c9a10
+title: Example (awesome)
+description: Exercises every hook and extension point. Disabled by default.
+version: 0.1.0
+group: Examples
+defaultEnabled: false
+lifecycle: experimental
+license: Apache-2.0
+redistribution: allowed
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+entities: config/entities.yaml
+contracts: config/contracts.yaml
+datastores: config/datastores.yaml
+settings: config/settings.schema.json
+admin: config/admin.yaml
+tagPrefix: awesome-
+staticCapable: true
+capabilities: ["items:read", "files:read", "output:inject", "settings:secret"]
+privacy:
+  tracking: false
+hooks:
+  - name: entity.before.create
+    entities: [awesomeFile]
+  - name: entity.after.create
+    entities: [awesomeFile]
+  - name: entity.before.read
+    entities: [awesomeFile]
+  - name: entity.after.read
+    entities: [awesomeFile]
+  - name: entity.before.update
+    entities: [awesomeFile]
+  - name: entity.after.update
+    entities: [awesomeFile]
+  - name: entity.before.delete
+    entities: [awesomeFile]
+  - name: entity.after.delete
+    entities: [awesomeFile]
+  - name: rest.request
+  - name: rest.response
+  - name: plugin.before.install
+  - name: plugin.after.install
+  - name: plugin.before.enable
+  - name: plugin.after.enable
+  - name: plugin.before.disable
+  - name: plugin.after.disable
+  - name: plugin.before.uninstall
+  - name: plugin.after.uninstall
+  - name: plugin.before.upgrade
+  - name: plugin.after.upgrade
+  - name: site.before.create
+  - name: site.after.create
+  - name: site.before.duplicate
+  - name: site.after.duplicate
+  - name: site.before.archive
+  - name: site.after.archive
+  - name: site.before.delete
+  - name: site.after.delete
+  - name: site.before.export
+  - name: site.after.export
+  - name: user.before.login
+  - name: user.after.login
+  - name: user.before.logout
+  - name: user.after.logout
+  - name: register.routes
+  - name: register.entities
+  - name: register.contracts
+  - name: output.alterHead
+  - name: output.alterPage
+  - name: rebuild.before
+  - name: rebuild.after
+  - name: schedule.run

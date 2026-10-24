@@ -1,0 +1,22 @@
+{
+  "configure": [
+    {
+      "property": "intensity",
+      "title": "Intensity",
+      "description": "How big the explosions are.",
+      "inputMethod": "select",
+      "options": {
+        "1": "Small",
+        "2": "Medium",
+        "3": "Huge"
+      }
+    },
+    {
+      "property": "apiKey",
+      "title": "API key",
+      "description": "A secret; never returned by the API.",
+      "inputMethod": "textfield",
+      "x-secret": true
+    }
+  ]
+}

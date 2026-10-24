@@ -1,0 +1,42 @@
+- id: hooks-001
+  title: "before hooks may veto with a message"
+  spec: spec/06-hooks-and-contracts.md
+  given: "example vetoes boring.awesome"
+  when: "create awesomeFile named boring.awesome"
+  then: "rejected with the message"
+- id: hooks-002
+  title: "a hook returning an invalid entity is discarded and the chain continues"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hook returns entity missing required field"
+  when: "create"
+  then: "previous data used; error logged"
+- id: hooks-003
+  title: "after hooks cannot veto"
+  spec: spec/06-hooks-and-contracts.md
+  given: "after hook returns veto"
+  when: "create"
+  then: "operation succeeds; veto ignored and logged"
+- id: hooks-004
+  title: "a throwing hook does not crash the operation"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hook throws"
+  when: "any operation"
+  then: "operation completes; error logged"
+- id: hooks-005
+  title: "chain order: required first, then tier low to high, then priority, then alphabetical"
+  spec: spec/06-hooks-and-contracts.md
+  given: "three plugins with mixed tiers and priorities"
+  when: "invoke hook"
+  then: "documented order"
+- id: hooks-006
+  title: "a hung hook is stopped by the per-hook timeout"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hook never resolves"
+  when: "invoke"
+  then: "operation continues after timeout"
+- id: hooks-007
+  title: "every hook in schema/hooks.json is implemented by examples/example"
+  spec: spec/10-examples-conformance.md
+  given: "examples/example"
+  when: "static check"
+  then: "all present in manifest, nodejs and php"

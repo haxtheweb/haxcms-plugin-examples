@@ -1,0 +1,6 @@
+specVersion: "0.1.0"
+id: minimal-pack
+title: Minimal pack
+description: Smallest valid plugin; declarative only, safe at any tier.
+version: 0.1.0
+kind: pack

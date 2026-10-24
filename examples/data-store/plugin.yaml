@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: data-store
+title: Data store example
+description: Uses all four store kinds, an upgrade step and personal-data flags.
+version: 0.2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+datastores: config/datastores.yaml
+entities: config/entities.yaml
+capabilities: ["userData:read", "userData:write", "site:read"]

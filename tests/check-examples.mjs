@@ -1,0 +1,52 @@
+// Validates examples/* with the plugin validator and enforces hook coverage in the comprehensive example.
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const validator = join(root, "scripts/validate.mjs");
+let failures = 0;
+const check = (ok, label, detail = "") => { if (!ok) failures++; console.log(`${ok ? "ok  " : "FAIL"} ${label}${ok ? "" : " " + detail}`); };
+const run = (dir) => spawnSync(process.execPath, [validator, "--json", dir], { encoding: "utf8" });
+
+// 1. every example validates cleanly
+const examples = readdirSync(join(root, "examples"));
+for (const name of examples) {
+  const r = run(join(root, "examples", name));
+  const report = JSON.parse(r.stdout)[0];
+  check(r.status === 0 && report.errors.length === 0, `examples/${name} validates`, JSON.stringify(report.errors));
+}
+
+// 2. hook coverage in the comprehensive example
+const hooks = JSON.parse(readFileSync(join(root, "schema/hooks.json"), "utf8"));
+const ex = join(root, "examples/example");
+const manifest = readFileSync(join(ex, "plugin.yaml"), "utf8");
+const node = readFileSync(join(ex, "src/nodejs/index.js"), "utf8");
+const php = readFileSync(join(ex, "src/php/Plugin.php"), "utf8");
+for (const h of hooks) {
+  check(manifest.includes(`name: ${h}\n`) || manifest.includes(`name: ${h}`), `hook ${h} in plugin.yaml`);
+  check(node.includes(`"${h}"`), `hook ${h} in src/nodejs`);
+  check(php.includes(`// hook: ${h}\n`), `hook ${h} in src/php`);
+}
+
+// 3. the validator rejects broken copies of the example
+const broken = [
+  ["missing entry file", (d) => rmSync(join(d, "src/php/Plugin.php"))],
+  ["tag outside tagPrefix", (d) => writeFileSync(join(d, "registries/elements/awesome-counter.yaml"), "tag: other-counter\npath: frontend/dist/awesome-counter.js\nrole: injected\n")],
+  ["block element without haxProperties", (d) => writeFileSync(join(d, "registries/elements/awesome-explosion.yaml"), "tag: awesome-explosion\npath: frontend/dist/awesome-explosion.js\nrole: block\n")],
+  ["id differs from folder", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("id: example\n", "id: other\n"))],
+  ["bad merlin declaration", (d) => writeFileSync(join(d, "registries/merlin/explode.yaml"), "option: { title: X, eventName: super-daemon-run-program, value: { name: X, machineName: x } }\n")],
+  ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
+];
+for (const [label, mutate] of broken) {
+  const tmp = mkdtempSync(join(tmpdir(), "plugin-"));
+  const dir = join(tmp, "example");
+  cpSync(ex, dir, { recursive: true });
+  mutate(dir);
+  const r = run(dir);
+  check(r.status === 1, `validator rejects: ${label}`, r.stdout.slice(0, 200));
+  rmSync(tmp, { recursive: true, force: true });
+}
+if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }

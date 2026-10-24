@@ -1,0 +1,4 @@
+contracts:
+  example.sparkle:
+    description: Something that can sparkle
+    operations: [sparkle]

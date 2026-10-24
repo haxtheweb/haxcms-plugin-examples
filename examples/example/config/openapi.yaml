@@ -1,0 +1,23 @@
+openapi: 3.1.0
+info:
+  title: Example plugin
+  version: 0.1.0
+# Paths are relative; the platform mounts them at /v1/plugins/example/
+paths:
+  /explosions:
+    get:
+      operationId: exampleListExplosions
+      summary: List explosions (authenticated)
+      security:
+        - bearerAuth: []
+          userTokenHeader: []
+      responses:
+        "200": { description: OK }
+  /public/ping:
+    get:
+      operationId: examplePing
+      summary: Public ping
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 30, per: minute }
+      responses:
+        "200": { description: OK }

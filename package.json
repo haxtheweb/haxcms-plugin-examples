@@ -1,18 +1,56 @@
 {
-  "name": "haxcms-plugin-examples",
-  "private": true,
+  "name": "@haxtheweb/haxcms-plugin-spec",
   "type": "module",
   "description": "Spec, schema, conformance fixtures and example plugins for HAXcms plugins",
   "scripts": {
-    "test": "node tests/validate-manifests.mjs"
+    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs"
   },
-  "devDependencies": {
-    "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haxtheweb/haxcms-plugin-examples.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haxtheweb/issues/issues"
+  },
+  "bin": {
+    "hax-plugin-validate": "scripts/validate.mjs"
+  },
+  "files": [
+    "schema/",
+    "scripts/validate.mjs",
+    "spec/"
+  ],
+  "exports": {
+    "./schema/*": "./schema/*",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
-    "hax-element-schema": "github:haxtheweb/hax-element-schema#45712aead49ba8c1de0e7eb6f43600d8b14956c0",
-    "hax-schema": "github:haxtheweb/hax-schema#269988cecf63c0f64ec89a4367492852b22c4f86",
-    "json-outline-schema": "github:haxtheweb/json-outline-schema#e06cfbdf264b12d292158a4fec935b65f495a45d",
     "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@haxtheweb/hax-element-schema": "github:haxtheweb/hax-element-schema#45712aead49ba8c1de0e7eb6f43600d8b14956c0",
+    "@haxtheweb/hax-schema": "github:haxtheweb/hax-schema#269988cecf63c0f64ec89a4367492852b22c4f86",
+    "@haxtheweb/json-outline-schema-spec": "github:haxtheweb/json-outline-schema#e06cfbdf264b12d292158a4fec935b65f495a45d",
+    "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e"
+  },
+  "peerDependencies": {
+    "@haxtheweb/hax-schema": "*",
+    "@haxtheweb/json-outline-schema-spec": "*",
+    "@haxtheweb/merlin-schema": "*"
+  },
+  "peerDependenciesMeta": {
+    "@haxtheweb/hax-schema": {
+      "optional": true
+    },
+    "@haxtheweb/json-outline-schema-spec": {
+      "optional": true
+    },
+    "@haxtheweb/merlin-schema": {
+      "optional": true
+    }
   }
 }

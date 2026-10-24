@@ -14,5 +14,6 @@ Status: draft for review. Each document is a section of the decision issue https
 | [08-capabilities-privacy](08-capabilities-privacy.md) | capabilities, privacy, cookie-consent flow |
 | [09-packaging-tooling](09-packaging-tooling.md) | packaging, dashboard, CLI, audit, pillar report |
 | [11-related-schemas](11-related-schemas.md) | existing HAX schemas the spec reuses |
+| [GAPS](GAPS.md) | open decisions and holes found while building the examples |
 | [CHANGELOG](CHANGELOG.md) | spec changes with upgrade recipes |
 | [10-examples-conformance](10-examples-conformance.md) | example set, shape checks, implement-now vs reserve |

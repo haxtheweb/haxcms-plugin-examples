@@ -1,0 +1,42 @@
+- id: routes-001
+  title: "every plugin path is mounted under /v1/plugins/<id>/"
+  spec: spec/05-routes-and-security.md
+  given: "plugin declares /explosions"
+  when: "request /system/api/v1/plugins/example/explosions"
+  then: "200 with credentials"
+- id: routes-002
+  title: "a plugin cannot place a route outside its prefix"
+  spec: spec/05-routes-and-security.md
+  given: "openapi declares /v1/sites"
+  when: "load"
+  then: "plugin rejected"
+- id: routes-003
+  title: "an operation without explicit security is rejected"
+  spec: spec/05-routes-and-security.md
+  given: "operation lacks security and x-hax-public"
+  when: "load"
+  then: "plugin rejected"
+- id: routes-004
+  title: "a disabled plugin's paths return 404"
+  spec: spec/05-routes-and-security.md
+  given: "plugin disabled"
+  when: "request any path"
+  then: "404"
+- id: routes-005
+  title: "x-hax-public operations work without credentials and are rate limited"
+  spec: spec/05-routes-and-security.md
+  given: "example /public/ping"
+  when: "31 requests in a minute"
+  then: "first 30 ok, then 429"
+- id: routes-006
+  title: "no response outside doubly authenticated callers contains the HAXcms version"
+  spec: spec/05-routes-and-security.md
+  given: "JWT only"
+  when: "list plugins and entities"
+  then: "no version field"
+- id: routes-007
+  title: "unauthenticated /x/api/v1/entities lists only site-scope descriptors"
+  spec: spec/05-routes-and-security.md
+  given: "no credentials, ?scope=system"
+  when: "GET entities"
+  then: "no plugin or system descriptors"

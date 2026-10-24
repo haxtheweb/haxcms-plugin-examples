@@ -1,0 +1,11 @@
+# Illustrative: the entity extension format is not formalized yet (see spec gap list).
+entities:
+  awesomeFile:
+    extends: file
+    description: A .awesome file
+    fields:
+      fireworks: { type: boolean, default: true }
+    storage: inherited      # same store as file
+annotations:
+  item:
+    ext.awesome.explosions: { type: integer, note: "added on the way out; never stored" }
