@@ -9,6 +9,7 @@ import { createRequire } from "node:module";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename, resolve } from "node:path";
+import { missingDocblocks } from "./plugin-docs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -65,6 +66,7 @@ function derivedTags(m) {
   if (m.untested === true) t.push("untested");
   if (has("users:full")) t.push("full-user-records");
   if ((m.egress || []).some((e) => e && e.any === true)) t.push("reaches-any-host");
+  if ((m.egress || []).some((e) => e && e.input)) t.push("reaches-given-url");
   if ([...(m.egress || []), ...((m.privacy && m.privacy.recipients) || [])].some((e) => e && e.setting)) t.push("admin-chosen-hosts");
   return t;
 }
@@ -210,7 +212,9 @@ function validatePlugin(manifestPath) {
     const walk = (d) => (existsSync(d) ? readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)])) : []);
     for (const f of walk(srcDir).filter((x) => /\.(m?js|cjs|php)$/.test(x))) {
       const code = readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
-      if ((f.endsWith(".php") ? execPatternPhp : execPatternJs).test(code) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
+      // PHP: look for the backtick operator and process functions outside string literals (a regex such as '/`x`/' is not one)
+      const scan = f.endsWith(".php") ? code.replace(/'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"/g, "''") : code;
+      if ((f.endsWith(".php") ? execPatternPhp : execPatternJs).test(scan) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
       // the runtime clock makes generated output differ between runs and backends; ctx.now() is frozen in tests
       if ((f.endsWith(".php") ? /(?<![>\w:$])(time|microtime)\s*\(|new\s+DateTime\(\s*['"]now['"]/ : /\bDate\.now\s*\(/).test(code)) warn(rel2(f), "reads the runtime clock; use ctx.now() so output is reproducible and testable");
       // the command named in the call must be in the exec list; a computed command name cannot be checked
@@ -345,7 +349,14 @@ function validatePlugin(manifestPath) {
   // full user records need export and delete for whatever the plugin keeps outside personalData stores
   // implementing a core contract: every operation must be present in each runtime's entry
   const coreContracts = parse(readFileSync(join(root, "schema/core-contracts.yaml"), "utf8")).contracts;
-  for (const c of m.implements || []) {
+  const implNames = (m.implements || []).map((e) => (typeof e === "string" ? e : e.name));
+  for (const [i, e] of (m.implements || []).entries()) {
+    const n = typeof e === "string" ? e : e.name;
+    const def = coreContracts[n];
+    if (def && def.dispatch === "accepts" && !(e && e.accepts)) err(`/implements/${i}`, `${n} dispatches by file type: list the extensions you convert ({ name: ${n}, accepts: [.ext] })`);
+    if (e && e.accepts && def && def.dispatch !== "accepts") err(`/implements/${i}/accepts`, `${n} does not dispatch by file type`);
+  }
+  for (const c of implNames) {
     const def = coreContracts[c];
     if (!def) continue; // a plugin-defined contract; checked against its definer when that plugin is present
     for (const op of def.operations) for (const [rt, entry] of Object.entries(m.entry || {})) {
@@ -356,7 +367,7 @@ function validatePlugin(manifestPath) {
       if (!found) err(`/implements`, `implements ${c} but ${entry} has no ${rt === "php" ? phpName : `contracts["${c}"].${op}`}`);
     }
   }
-  if ((m.capabilities || []).includes("users:full")) for (const c of ["privacy.export", "privacy.delete"]) if (!(m.implements || []).includes(c)) err("/implements", `users:full requires implementing ${c}`);
+  if ((m.capabilities || []).includes("users:full")) for (const c of ["privacy.export", "privacy.delete"]) if (!implNames.includes(c)) err("/implements", `users:full requires implementing ${c}`);
   // schedules: handlers must exist in each runtime entry
   for (const [i, j] of (m.schedules || []).entries()) for (const [rt, entry] of Object.entries(m.entry || {})) {
     const f = join(dir, entry);
@@ -406,7 +417,8 @@ function validatePlugin(manifestPath) {
     }
   }
   for (const [i, e] of (m.egress || []).entries()) if (typeof e === "object" && e.any) warn(`/egress/${i}`, `reaches any public host (${e.reason}); core still refuses private and link-local addresses, and deployments may refuse the plugin`);
-  for (const [i, e] of (m.egress || []).entries()) if (typeof e === "object" && !e.any) {
+  for (const [i, e] of (m.egress || []).entries()) if (typeof e === "object" && e.input && !(m.implements || []).length) err(`/egress/${i}`, "egress { input: url } opens the host of a contract call's input URL; the plugin implements no contract");
+  for (const [i, e] of (m.egress || []).entries()) if (typeof e === "object" && !e.any && !e.input) {
     const f = m.settings && existsSync(join(dir, m.settings)) ? (readJson(join(dir, m.settings)).configure || []).find((x) => x.property === e.setting) : null;
     if (!f) err(`/egress/${i}`, `egress setting "${e.setting}" is not a field in the settings form`);
     else warn(`/egress/${i}`, `destinations come from the "${e.setting}" setting: admins choose where data goes, and deployments may forbid that`);
@@ -419,6 +431,8 @@ function validatePlugin(manifestPath) {
     if (!f) err("/privacy/consentSetting", `"${m.privacy.consentSetting}" is not a field in the settings form`);
     else if (f.inputMethod !== "boolean") err("/privacy/consentSetting", `"${m.privacy.consentSetting}" must be a boolean field`);
   }
+  // every hook, operation, contract operation and schedule has an "Implements ..." docblock in each runtime (spec/02)
+  for (const x of missingDocblocks(dir, m)) err("/docs", `${x} (see scripts/plugin-docs.mjs for the convention)`);
   return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m) };
 }
 

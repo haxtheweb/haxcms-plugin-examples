@@ -1,0 +1,114 @@
+- id: importer-drupal-001
+  title: "a Drupal site comes over following its main menu, with media, files and unlinked pages"
+  given: "www.example.edu with JSON:API at the root (the URL given is /about), two pages of node--page results, files (one temporary, one .exe), an image media embed, a main menu with a structural Services parent, an unpublished page in no menu"
+  when: "convert with https://www.example.edu/about"
+  then: "pages follow the menu (Team under About us; Services dropped, Consulting promoted); the embed becomes media-image; file links point at files/; the unlinked page sits under a hidden additional-pages group; only allowed files are listed"
+  run:
+    fetch:
+      "https://www.example.edu/about/jsonapi": { status: 404, body: "" }
+      "https://www.example.edu/jsonapi": { status: 200, body: { jsonapi: { version: "1.0" }, links: { self: { href: "https://www.example.edu/jsonapi" }, "node--page": { href: "https://www.example.edu/jsonapi/node/page" }, "node--article": { href: "https://www.example.edu/jsonapi/node/article" }, "file--file": { href: "https://www.example.edu/jsonapi/file/file" }, "media--image": { href: "https://www.example.edu/jsonapi/media/image" }, "menu_link_content--menu_link_content": { href: "https://www.example.edu/jsonapi/menu_link_content/menu_link_content" } } } }
+      "https://www.example.edu/jsonapi/node/page?page[limit]=50":
+        status: 200
+        body:
+          data:
+            - { type: node--page, id: n-1, attributes: { drupal_internal__nid: 1, title: "About us", status: true, created: "2024-01-02T00:00:00+00:00", path: { alias: /about }, body: { value: "<p>Who we are</p><drupal-media data-entity-type=\"media\" data-entity-uuid=\"m-1\"></drupal-media><p><a href=\"/sites/default/files/2024-06/report.pdf\">Report</a> <a href=\"/contact\" onclick=\"bad()\">Contact</a></p><script>bad()</script>" } } }
+            - { type: node--page, id: n-2, attributes: { drupal_internal__nid: 2, title: Team, status: true, created: "2024-01-03T00:00:00+00:00", path: { alias: /about/team }, body: { value: "<p>People</p>" } } }
+            - { type: node--page, id: n-3, attributes: { drupal_internal__nid: 3, title: Services, status: true, created: "2024-01-04T00:00:00+00:00", path: { alias: /services }, body: null } }
+          links: { next: { href: "https://www.example.edu/jsonapi/node/page?page[limit]=50&page[offset]=50" } }
+      "https://www.example.edu/jsonapi/node/page?page[limit]=50&page[offset]=50":
+        status: 200
+        body:
+          data:
+            - { type: node--page, id: n-4, attributes: { drupal_internal__nid: 4, title: Consulting, status: true, created: "2024-01-05T00:00:00+00:00", path: { alias: /services/consulting }, body: { value: "<p>We advise.</p>" } } }
+            - { type: node--page, id: n-5, attributes: { drupal_internal__nid: 5, title: "Old page", status: false, created: "2023-01-01T00:00:00+00:00", path: { alias: null }, body: { value: "<p>Retired</p>" } } }
+          links: {}
+      "https://www.example.edu/jsonapi/file/file?page[limit]=50":
+        status: 200
+        body:
+          data:
+            - { type: file--file, id: f-1, attributes: { filename: report.pdf, status: true, uri: { value: "public://2024-06/report.pdf", url: /sites/default/files/2024-06/report.pdf } } }
+            - { type: file--file, id: f-2, attributes: { filename: team.jpg, status: true, uri: { value: "public://2024-06/team.jpg", url: /sites/default/files/2024-06/team.jpg } } }
+            - { type: file--file, id: f-3, attributes: { filename: draft.png, status: false, uri: { url: /sites/default/files/draft.png } } }
+            - { type: file--file, id: f-4, attributes: { filename: tool.exe, status: true, uri: { url: /sites/default/files/tool.exe } } }
+      "https://www.example.edu/jsonapi/media/image?page[limit]=50":
+        status: 200
+        body: { data: [{ type: media--image, id: m-1, attributes: { name: "Team photo" }, relationships: { field_media_image: { data: { type: file--file, id: f-2, meta: { alt: "The team" } } } } }] }
+      "https://www.example.edu/jsonapi/menu_link_content/menu_link_content?page[limit]=100":
+        status: 200
+        body:
+          data:
+            - { type: menu_link_content--menu_link_content, id: l-1, attributes: { title: "About us", menu_name: main, weight: 0, parent: null, link: { uri: "entity:node/1" } } }
+            - { type: menu_link_content--menu_link_content, id: l-2, attributes: { title: Team, menu_name: main, weight: 0, parent: "menu_link_content:l-1", link: { uri: "internal:/node/2" } } }
+            - { type: menu_link_content--menu_link_content, id: l-3, attributes: { title: Services, menu_name: main, weight: 1, parent: null, link: { uri: "entity:node/3" } } }
+            - { type: menu_link_content--menu_link_content, id: l-4, attributes: { title: Consulting, menu_name: main, weight: 0, parent: "menu_link_content:l-3", link: { uri: "entity:node/4" } } }
+            - { type: menu_link_content--menu_link_content, id: l-5, attributes: { title: Elsewhere, menu_name: footer, weight: 0, parent: null, link: { uri: "https://other.example.org/" } } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-drupal, input: { url: "https://www.example.edu/about" } }
+        expect:
+          body:
+            - result:
+                title: about
+                items:
+                  - { id: item-1, title: "About us", slug: about, parent: null, order: 0, indent: 0, content: "<p>Who we are</p><media-image source=\"files/2024-06/team.jpg\" alt=\"The team\"></media-image><p><a href=\"files/2024-06/report.pdf\">Report</a> <a href=\"https://www.example.edu/contact\">Contact</a></p>", metadata: { sourceType: drupal-node, source: "https://www.example.edu/node/1", published: true, drupal: { nid: 1, uuid: n-1, type: node--page, inOutline: true } } }
+                  - { id: item-2, title: Team, slug: about/team, parent: item-1, order: 0, indent: 1, content: "<p>People</p>" }
+                  - { id: item-4, title: Consulting, slug: consulting, parent: null, order: 1, indent: 0 }
+                  - { id: item-additional-pages, slug: additional-pages, parent: null, order: 2, metadata: { hideInMenu: true } }
+                  - { id: item-5, slug: additional-pages/old-page, parent: item-additional-pages, order: 0, indent: 1, metadata: { published: false, drupal: { inOutline: false } } }
+                files:
+                  - { path: files/2024-06/report.pdf, url: "https://www.example.edu/sites/default/files/2024-06/report.pdf" }
+                  - { path: files/2024-06/team.jpg, url: "https://www.example.edu/sites/default/files/2024-06/team.jpg" }
+          notContains: ["bad()", "item-3", "draft.png", "tool.exe", "drupal-media"]
+- id: importer-drupal-002
+  title: "a URL that is not a Drupal site, or one without pages, is an error"
+  given: "a host that answers /jsonapi with 404, a Drupal site exposing only articles, and a call with no url"
+  when: "convert"
+  then: "each comes back as { error } without throwing"
+  run:
+    fetch:
+      blog.example.com: { status: 404, body: "Not found" }
+      "https://news.example.org/jsonapi": { status: 200, body: { links: { self: { href: "https://news.example.org/jsonapi" }, "node--article": { href: "https://news.example.org/jsonapi/node/article" } } } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-drupal, input: { url: "https://blog.example.com/posts" } }
+        expect: { body: [{ result: { error: "no Drupal JSON:API found at this URL or its parents (expected <base>/jsonapi)" } }], fetch: { count: 2 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-drupal, input: { url: "https://news.example.org/" } }
+        expect: { body: [{ result: { error: "Drupal JSON:API found, but it exposes neither node--page nor node--book (found: node--article)" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-drupal, input: {} }
+        expect: { body: [{ result: { error: url is required } }] }
+- id: importer-drupal-003
+  title: "only the named site is reachable"
+  given: "a next link pointing at another host, and a file served from a CDN host"
+  when: "convert"
+  then: "the next page on the other host is never fetched; the CDN file is listed for core to fetch but this plugin does not read it"
+  run:
+    fetch:
+      "https://site.example.edu/jsonapi": { status: 200, body: { links: { "node--page": { href: "https://site.example.edu/jsonapi/node/page" }, "file--file": { href: "https://site.example.edu/jsonapi/file/file" } } } }
+      "https://site.example.edu/jsonapi/node/page?page[limit]=50": { status: 200, body: { data: [{ type: node--page, id: n-7, attributes: { drupal_internal__nid: 7, title: Home, status: true, body: { value: "<p>Hi</p>" } } }], links: { next: { href: "https://other.example.net/jsonapi/node/page?page[offset]=50" } } } }
+      "https://site.example.edu/jsonapi/file/file?page[limit]=50": { status: 200, body: { data: [{ type: file--file, id: f-9, attributes: { filename: a.png, status: true, uri: { url: "https://cdn.example.net/sites/default/files/a.png" } } }] } }
+      other.example.net: { status: 200, body: { data: [{ type: node--page, id: n-8, attributes: { drupal_internal__nid: 8, title: Injected, status: true } }] } }
+      cdn.example.net: { status: 200, body: "png" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-drupal, input: { url: "https://site.example.edu/" } }
+        expect:
+          body: [{ result: { title: site-example-edu, items: [{ id: item-7, slug: home, content: "<p>Hi</p>" }], files: [{ path: files/a.png, url: "https://cdn.example.net/sites/default/files/a.png" }] } }]
+          notContains: [Injected, item-8]
+          fetch: { notContains: ['"url":"https://other.example.net', '"url":"https://cdn.example.net'] }
+- id: importer-drupal-004
+  title: "a book site without menu links follows its book outline"
+  given: "only node--book is exposed; chapters carry book.pid and book.weight"
+  when: "convert"
+  then: "chapters sit under the book in weight order"
+  run:
+    fetch:
+      "https://books.example.edu/jsonapi": { status: 200, body: { links: { "node--book": { href: "https://books.example.edu/jsonapi/node/book" } } } }
+      "https://books.example.edu/jsonapi/node/book?page[limit]=50":
+        status: 200
+        body:
+          data:
+            - { type: node--book, id: b-10, attributes: { drupal_internal__nid: 10, title: Guide, status: true, body: { value: "<p>Guide</p>" }, book: { pid: 0, weight: 0 } } }
+            - { type: node--book, id: b-12, attributes: { drupal_internal__nid: 12, title: "Chapter Two", status: true, body: { value: "<p>2</p>" }, book: { pid: "10", weight: 5 } } }
+            - { type: node--book, id: b-11, attributes: { drupal_internal__nid: 11, title: "Chapter One", status: true, body: { value: "<p>1</p>" }, book: { pid: 10, weight: -1 } } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-drupal, input: { url: "https://books.example.edu" } }
+        expect:
+          body: [{ result: { items: [{ id: item-10, slug: guide, parent: null }, { id: item-11, slug: guide/chapter-one, parent: item-10, order: 0 }, { id: item-12, slug: guide/chapter-two, parent: item-10, order: 1 }] } }]
+          notContains: [additional-pages]

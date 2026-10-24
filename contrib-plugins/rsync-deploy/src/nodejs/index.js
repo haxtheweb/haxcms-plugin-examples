@@ -19,12 +19,30 @@ async function deploy(ctx, reason) {
 
 export default {
   operations: {
+    /**
+     * Implements operation rsyncDeployNow.
+     *
+     * Copies the site to the configured target with rsync right away, for an admin who does not want to wait for a
+     * commit.
+     *
+     * @param {object} ctx
+     * @returns {object}  { ran, reason, dryRun, output }, or a 502 response when rsync fails (details go to the log).
+     */
     async rsyncDeployNow(ctx) {
       try { return await deploy(ctx, "manual"); }
       catch (e) { ctx.log.error(`rsync failed: ${e.message}`); return { status: 502, body: { error: "rsync failed; see the log" } }; }
     },
   },
   hooks: {
+    /**
+     * Implements hook config.before.save.
+     *
+     * Refuses a target that is not user@host:/path and a key that is not a private key, and warns when deploy after
+     * commit is on but the git plugin is off.
+     *
+     * @param {object} ctx  ctx.subject: the settings being saved (values); ctx.previous: the stored settings.
+     * @returns {Promise<object>}  the settings, or a veto.
+     */
     "config.before.save": async (ctx) => {
       const v = ctx.subject.values;
       if (v.target && !TARGET.test(v.target)) return ctx.veto(`"${v.target}" is not user@host:/path`, 422);
@@ -32,7 +50,15 @@ export default {
       if (v.deployOnCommit && !ctx.pluginEnabled("git")) ctx.warn("deploy after commit does nothing until the git plugin is enabled");
       return ctx.subject;
     },
-    // detached: runs after the commit response is sent; failures go to the log
+    /**
+     * Implements hook git.after.commit.
+     *
+     * Copies the site to the target after each commit when deployOnCommit is on. Detached: it runs after the commit
+     * response is sent, and failures go to the log.
+     *
+     * @param {object} ctx  ctx.subject: the commit (hash, message, author).
+     * @returns {Promise<undefined>}
+     */
     "git.after.commit": async (ctx) => {
       if (!ctx.settings.deployOnCommit) return;
       try { await deploy(ctx, `commit ${String(ctx.subject.hash).slice(0, 7)}`); }

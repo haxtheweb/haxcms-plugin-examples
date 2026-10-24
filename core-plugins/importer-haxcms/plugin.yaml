@@ -1,0 +1,25 @@
+# HAXcms importer: extracted from core (systemRoutes/v1/routes/imports/convertHaxcmsToSite.js). Copies a published
+# HAXcms site into a new one: its site.json outline, every page, the files pages list, and the theme overrides.
+# Implements import.platform; it may fetch only the site the person points it at (egress { input: url }).
+specVersion: "0.1.0"
+id: importer-haxcms
+uuid: 2c4e6a7b-9d1f-4b3c-8e6a-7b9d1f3c5e7a
+title: Import from HAXcms
+description: Copies a published HAXcms site, with its pages, files and theme overrides, into a new site.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, haxcms]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the published site the person names: its site.json, pages and files."
+staticCapable: false

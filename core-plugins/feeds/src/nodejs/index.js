@@ -19,6 +19,14 @@ export async function newest(ctx) {
 
 export default {
   hooks: {
+    /**
+     * Implements hook rebuild.after.
+     *
+     * Writes rss.xml and atom.xml from the newest public pages (limit setting, default 25), so feed readers only see what an anonymous visitor can open. Both runtimes write identical bytes.
+     *
+     * @param {object} ctx  ctx.subject: { scope, siteId?, reason, files }; ctx.settings: { limit, fullContent }.
+     * @returns {Promise<void>}
+     */
     "rebuild.after": async (ctx) => {
       const site = (await ctx.entities.get("site")) || {};
       const base = ctx.site.url;

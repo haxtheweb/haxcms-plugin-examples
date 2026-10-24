@@ -5,9 +5,26 @@ const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
 
 export default {
   operations: {
+    /**
+     * Implements operation outlineGet.
+     *
+     * Lists every page as { id, title, parent, order, slug } in outline order, which is what the outline designer loads.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @returns {Promise<object>}  { items }.
+     */
     async outlineGet(ctx) {
       return { items: (await ctx.entities.list("page")).sort(byOrder).map(({ id, title, parent = null, order = 0, slug = null }) => ({ id, title, parent, order, slug })) };
     },
+    /**
+     * Implements operation outlineUpdate.
+     *
+     * Applies a whole outline in one bulk transaction: removes pages left out, creates new ones and saves only the pages whose title, parent or order changed, so page and site hooks fire and git makes one commit. The outline is checked first (ids, parents, no loops); a veto from another plugin comes back as 409 with the outline as it stands.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @param {object} req  req.body.items: [{ id, title, parent, order }]; ids not yet on the site are new pages.
+     * @returns {Promise<object>}  { items, idMap } (idMap maps request ids to new page ids), or { status, body: { error } }.
+     */
     async outlineUpdate(ctx, req) {
       const wanted = (req.body.items || []).map((it, i) => ({ ...it, order: it.order ?? i, parent: it.parent || null }));
       const problem = check(wanted);

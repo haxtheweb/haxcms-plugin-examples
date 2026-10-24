@@ -9,6 +9,15 @@ export const description = (md) => { const m = /^---\n[\s\S]*?^description:\s*(.
 
 export default {
   hooks: {
+    /**
+     * Implements hook rebuild.after.
+     *
+     * Publishes the agent skills discovery files under .well-known/agent-skills: every skill this plugin ships plus the
+     * site skills of each active plugin, with index.json (digests per file) and the .htaccess that serves them.
+     *
+     * @param {object} ctx  ctx.subject: { scope, siteId, reason, files } of the rebuild that finished.
+     * @returns {Promise<void>}  nothing.
+     */
     "rebuild.after": async (ctx) => {
       const skills = [];
       // the core set this plugin ships (data/skills/<name>/...)

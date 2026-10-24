@@ -1,0 +1,25 @@
+# ELMS:LN importer: extracted from core (systemRoutes/v1/routes/imports/convertElmslnToSite.js and
+# convertElmslnToSite.php). Copies an ELMS:LN course site, which publishes a JSON Outline Schema site.json, into a new
+# site. Implements import.platform; it may fetch only the site the person points it at (egress { input: url }).
+specVersion: "0.1.0"
+id: importer-elmsln
+uuid: 159de33e-3c07-47d4-8b20-3eebe57c3556
+title: Import from ELMS:LN
+description: Copies an ELMS:LN course site, with its page tree and files, into a new site.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, elmsln]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the ELMS:LN site the person names: its site.json, pages and files."
+staticCapable: false

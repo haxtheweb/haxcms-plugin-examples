@@ -13,6 +13,8 @@ import { step } from "../harness/steps.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
+const backendArg = args.includes("--backend") ? args[args.indexOf("--backend") + 1] : null;
+const backendFactory = backendArg ? await import((await import("node:url")).pathToFileURL((await import("node:path")).resolve(backendArg)).href) : null;
 const only = args.includes("--case") ? args[args.indexOf("--case") + 1] : null;
 const fx = (p) => (typeof p === "string" ? join(root, p.includes("/") ? p : `conformance/fixtures/${p}`) : { ...p, path: join(root, p.path.includes("/") ? p.path : `conformance/fixtures/${p.path}`) });
 
@@ -26,10 +28,13 @@ async function runCase(c) {
     if (r.expect && r.expect.valid === false && !out.errors.length) errs.push("expected the validator to reject it");
     return errs;
   }
-  const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, ...(r.user ? { user: r.user } : {}) });
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, ...(r.user ? { user: r.user } : {}) };
+  // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
+  const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
   await backend.load((r.plugins || []).map(fx), r.load || {});
   backend.execFakes = r.exec || {};
   backend.fetchFakes = r.fetch || {};
+  backend.urlAliases = r.urlAliases || [];
   if (r.now) backend.now = Date.parse(r.now);
   const errors = [];
   if (r.expect) errors.push(...check({ statusOf: Object.fromEntries(backend.status().map((x) => [x.id, x.status])), log: backend.log }, r.expect));
@@ -54,6 +59,6 @@ for (const f of readdirSync(join(root, "conformance/cases")).filter((n) => n.end
 if (args.includes("--json")) console.log(JSON.stringify({ executable, prose, failed, results }, null, 2));
 else {
   for (const r of results) if (!r.ok) console.log(`FAIL ${r.id}\n      ${r.errors.join("\n      ")}`);
-  console.log(`${failed ? "FAIL" : "ok  "} conformance: ${executable - failed}/${executable} executable cases pass against the reference harness; ${prose} still prose only`);
+  console.log(`${failed ? "FAIL" : "ok  "} conformance: ${executable - failed}/${executable} executable cases pass against ${backendArg ? backendArg : "the reference harness"}; ${prose} still prose only`);
 }
 process.exit(failed ? 1 : 0);

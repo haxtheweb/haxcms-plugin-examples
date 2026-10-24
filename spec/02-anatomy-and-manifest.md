@@ -73,3 +73,34 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `legacy` | keeps existing sites working after a feature moves out of core: `tags` (old tag → plugin tag, the old tag still renders), `routes` (old core path, optionally after a method such as `DELETE /x/api/v1/files/{fileUuid}`, → operationId in this plugin's contract), `settings` (plugin setting → old location: a `site.json` path, or `config:<path>` in the core config). Reads fall back to the old location until a value is saved; on the first enable in a scope core moves each value into the plugin's settings, coerced to the settings field's type (`"1"` → `true` for a boolean field), removes the old key and any parent it leaves empty, through the normal config and entity hooks. A plugin writes no install code for this; if the old shape needs converting, `config.before.save` normalizes it. Moving needs no capability, because core does it |
 | `settingsScope` | `system` (default), `site` (each site has its own values, like the old `site.json` settings) or `both` (system default, site override) |
 | `packaged`, `integrity` | reserved: written by `hax plugin pack` (date, hash, signature reference) |
+
+### 2.2 Documenting what a plugin implements
+
+Every implementation carries a docblock, the way Drupal documented each `hook_*()` implementation: the first line says what it implements, the next paragraph says what this plugin does there and why, then the parameters. Both runtimes use the same text.
+
+```js
+/**
+ * Implements hook page.before.save.
+ *
+ * Counts the words of the page and stores the reading time in metadata.plugins.reading-time, so themes and the
+ * render hook can show it without counting again.
+ *
+ * @param {object} ctx  ctx.subject: the page as submitted; ctx.previous: the stored page.
+ * @returns {Promise<object>}  the page with the computed fields.
+ */
+"page.before.save": async (ctx) => { ... }
+```
+
+```php
+/**
+ * Implements hook page.before.save.
+ *
+ * Counts the words of the page and stores the reading time in metadata.plugins.reading-time, ...
+ *
+ * @param object $ctx  subject: the page as submitted; previous: the stored page.
+ * @return array  the page with the computed fields.
+ */
+public function pageBeforeSave($ctx) { ... }
+```
+
+The first line is one of `Implements hook <name>.`, `Implements operation <operationId>.`, `Implements contract <name>, operation <op>.`, `Implements schedule <id>.` or `Implements upgrade <version>.`. The validator requires one for every hook subscription, operation, contract operation and schedule in each runtime, and `scripts/plugin-docs.mjs` writes the README's **What it implements** table from `plugin.yaml`, the hook contracts (when each hook runs) and the first sentence of each docblock, so a person sees every hook a plugin leans on and an agent can read the same list. Declarative pieces (proxy operations, registries) are listed from the manifest.

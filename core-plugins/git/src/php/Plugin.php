@@ -45,6 +45,15 @@ class GitPlugin {
     return null;
   }
 
+  /**
+   * Implements operation gitHistory.
+   *
+   * Lists the site's most recent commits (hash and message), newest first; limit is clamped to 1-100, default 20.
+   *
+   * @param object $ctx  Platform context (spec/13); site path is the repository.
+   * @param array  $req  query.limit.
+   * @return array  [items => [[hash, message]]], empty when the site has no repository.
+   */
   public function gitHistory($ctx, $req) {
     $dir = $ctx->site['path'];
     if (!file_exists("$dir/.git")) { return ['items' => []]; }
@@ -55,18 +64,71 @@ class GitPlugin {
     return ['items' => $items];
   }
 
-  // hook: page.after.save
+  /**
+   * Implements hook page.after.save.
+   *
+   * Commits the site after a page is saved, or marks the change for one commit at the end of a bulk transaction.
+   * The commit fires git.before.commit and git.after.commit, and pushes when autoPush is on.
+   *
+   * @param object $ctx  subject: the page as saved; previous: the page before the save.
+   *                    transaction tells a bulk change apart.
+   * @return null
+   */
   public function pageAfterSave($ctx) { return $this->changed($ctx, 'Page saved'); }
-  // hook: page.after.delete
+  /**
+   * Implements hook page.after.delete.
+   *
+   * Commits the site after a page is deleted, or marks the change for one commit at the end of a bulk transaction.
+   * The commit fires git.before.commit and git.after.commit, and pushes when autoPush is on.
+   *
+   * @param object $ctx  subject: the page that was deleted.
+   *                    transaction tells a bulk change apart.
+   * @return null
+   */
   public function pageAfterDelete($ctx) { return $this->changed($ctx, 'Page deleted'); }
-  // hook: manifest.after.save
+  /**
+   * Implements hook manifest.after.save.
+   *
+   * Commits the site after site.json is saved, or marks the change for one commit at the end of a bulk transaction.
+   * The commit fires git.before.commit and git.after.commit, and pushes when autoPush is on.
+   *
+   * @param object $ctx  subject: the manifest as saved; previous: the manifest before the save.
+   *                    transaction tells a bulk change apart.
+   * @return null
+   */
   public function manifestAfterSave($ctx) { return $this->changed($ctx, 'Site updated'); }
-  // hook: file.after.save
+  /**
+   * Implements hook file.after.save.
+   *
+   * Commits the site after a file is saved, or marks the change for one commit at the end of a bulk transaction.
+   * The commit fires git.before.commit and git.after.commit, and pushes when autoPush is on.
+   *
+   * @param object $ctx  subject: the file record as stored; previous: the record before the update, on update.
+   *                    transaction tells a bulk change apart.
+   * @return null
+   */
   public function fileAfterSave($ctx) { return $this->changed($ctx, 'File saved'); }
-  // hook: file.after.delete
+  /**
+   * Implements hook file.after.delete.
+   *
+   * Commits the site after a file is deleted, or marks the change for one commit at the end of a bulk transaction.
+   * The commit fires git.before.commit and git.after.commit, and pushes when autoPush is on.
+   *
+   * @param object $ctx  subject: the file that was deleted.
+   *                    transaction tells a bulk change apart.
+   * @return null
+   */
   public function fileAfterDelete($ctx) { return $this->changed($ctx, 'File deleted'); }
 
-  // hook: transaction.before.end
+  /**
+   * Implements hook transaction.before.end.
+   *
+   * Makes one commit for everything a bulk transaction changed, with a message that lists the first few changes.
+   *
+   * @param object $ctx  subject: the transaction, with marks['git.commit']
+   *                    holding the messages queued by the other hooks.
+   * @return null
+   */
   public function transactionBeforeEnd($ctx) {
     $msgs = $ctx->subject['marks']['git.commit'] ?? [];
     if (!$msgs) { return null; }

@@ -20,6 +20,14 @@ class FeedsPlugin {
     return array_slice($pages, 0, max(1, (int) ($ctx->settings['limit'] ?? 25) ?: 25));
   }
 
+  /**
+   * Implements hook rebuild.after.
+   *
+   * Writes rss.xml and atom.xml from the newest public pages (limit setting, default 25), so feed readers only see what an anonymous visitor can open. Both runtimes write identical bytes.
+   *
+   * @param object $ctx  subject: [scope, siteId?, reason, files]; settings: [limit, fullContent].
+   * @return void
+   */
   public function rebuildAfter($ctx) {
     $site = $ctx->entities->get('site') ?: [];
     $base = $ctx->site['url'];

@@ -233,6 +233,25 @@
             "type": "string",
             "format": "date-time",
             "description": "The time ctx.now() returns during the case (default 2026-01-01T00:00:00Z)."
+          },
+          "urlAliases": {
+            "type": "array",
+            "description": "Deployment host aliases core applies to input URLs before contract calls (HAXiam serves iam. sites from oer.).",
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to"
+              ],
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
+              }
+            }
           }
         },
         "required": [],

@@ -1,0 +1,147 @@
+- id: importer-vitepress-001
+  title: "a VitePress site on GitHub comes over following its sidebar"
+  given: "oer-lab/web-course: docs/.vitepress/config.mts with base /web-course/, a commented-out title, siteUrl and a sidebar (a group with three links, one base-prefixed, one missing; then Home); pages with front matter, containers (tip, details, warning, an OER learning objective), VideoEmbed, an unknown Vue component, a public/ image, an svg, a code fence with line highlights and an onerror handler"
+  when: "convert with the repository URL"
+  then: "Guide landing page, its three children, Home; the sidebar label is replaced by the front matter title; containers mapped; logo listed in files; the missing page links to the published site; only GitHub's hosts fetched"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://api.github.com/repos/oer-lab/web-course": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/oer-lab/web-course/git/trees/main?recursive=1":
+        status: 200
+        body: { tree: [{ path: docs/.vitepress/config.mts, type: blob }, { path: docs/index.md, type: blob }, { path: docs/guide/intro.md, type: blob }, { path: docs/guide/setup.md, type: blob }, { path: docs/guide/diagram.svg, type: blob }, { path: docs/public/logo.png, type: blob }, { path: README.md, type: blob }, { path: package.json, type: blob }] }
+      "https://raw.githubusercontent.com/oer-lab/web-course/main/docs/.vitepress/config.mts":
+        status: 200
+        body: |
+          import { defineConfig } from 'vitepress'
+          // title: "Not this one"
+          export default defineConfig({
+            title: "Web Course",
+            base: "/web-course/",
+            themeConfig: {
+              siteUrl: 'https://oer-lab.github.io',
+              nav: [{ text: 'Home', link: '/' }],
+              sidebar: [
+                {
+                  text: 'Guide',
+                  items: [
+                    { text: 'Introduction', link: '/guide/intro' },
+                    { text: 'Setup', link: '/web-course/guide/setup.html' }, // base-prefixed
+                    { text: "Missing", link: "/guide/missing" },
+                  ],
+                },
+                { text: 'Home', link: '/' },
+              ],
+            },
+          })
+      "https://raw.githubusercontent.com/oer-lab/web-course/main/docs/guide/intro.md":
+        status: 200
+        body: |
+          ---
+          title: "Getting started"
+          ---
+
+          Welcome! See [setup](./setup.md#install) and [home](/index.md).
+
+          ::: tip Remember
+          Save **often**.
+          :::
+
+          ::: learning-objective skill="Build a page" course="WEB 101"
+          Write HTML by hand.
+          :::
+
+          <VideoEmbed src="https://www.youtube.com/watch?v=xyz" caption="Tags & elements" />
+
+          <Badge type="info">new</Badge> ![Logo](/logo.png) and ![diagram](diagram.svg)
+
+          ```js{2}
+          const a = 1;
+          ```
+
+          <img src="x.png" onerror="alert(1)">
+      "https://raw.githubusercontent.com/oer-lab/web-course/main/docs/guide/setup.md":
+        status: 200
+        body: |
+          ## Install
+
+          ::: details Show commands
+          ```bash
+          npm i
+          ```
+          :::
+
+          ::: warning
+          Node 18+
+          :::
+      "https://raw.githubusercontent.com/oer-lab/web-course/main/docs/guide/missing.md": { status: 404, body: "" }
+      "https://raw.githubusercontent.com/oer-lab/web-course/main/docs/index.md": { status: 200, body: "# Welcome\n\nHello." }
+      oer-lab.github.io: { status: 200, body: "should not be read" }
+      www.youtube.com: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { url: "https://github.com/oer-lab/web-course" } }
+        expect:
+          body:
+            - plugin: importer-vitepress
+              result:
+                title: Web Course
+                items:
+                  - { id: item-1, title: Guide, slug: guide, parent: null, order: 0, content: "<p></p>", metadata: { sourceType: vitepress, vitepress: { repo: oer-lab/web-course, branch: main, path: null } } }
+                  - { id: item-2, title: Getting started, slug: guide/introduction, parent: item-1, order: 0, indent: 1, content: '<p>Welcome! See <a href="guide/setup#install">setup</a> and <a href="home">home</a>.</p><stop-note status="success" title="Remember"><div slot="message"><p>Save <strong>often</strong>.</p></div></stop-note><oer-schema typeof="LearningObjective"><oer-schema oer-property="skill" text="Build a page"></oer-schema><oer-schema oer-property="forCourse" text="WEB 101"></oer-schema><p>Write HTML by hand.</p></oer-schema><video-player source="https://www.youtube.com/watch?v=xyz" media-title="Tags &amp; elements"><div slot="caption">Tags &amp; elements</div></video-player><p>new <media-image source="files/logo.png" alt="Logo"></media-image> and <img src="https://raw.githubusercontent.com/oer-lab/web-course/main/docs/guide/diagram.svg" alt="diagram"></p><pre><code class="language-js">const a = 1;</code></pre><p><media-image source="https://raw.githubusercontent.com/oer-lab/web-course/main/docs/guide/x.png" alt=""></media-image></p>', metadata: { vitepress: { path: docs/guide/intro.md }, source: "https://oer-lab.github.io/web-course/guide/intro" } }
+                  - { id: item-3, title: Setup, slug: guide/setup, parent: item-1, order: 1, content: '<h2>Install</h2><details><summary>Show commands</summary><pre><code class="language-bash">npm i</code></pre></details><stop-note status="warning" title="Warning"><div slot="message"><p>Node 18+</p></div></stop-note>', metadata: { source: "https://oer-lab.github.io/web-course/guide/setup.html" } }
+                  - { id: item-4, title: Missing, slug: guide/missing, parent: item-1, order: 2, content: '<p>Read this page on <a href="https://oer-lab.github.io/web-course/guide/missing">the source site</a>.</p>' }
+                  - { id: item-5, title: Home, slug: home, parent: null, order: 1, content: "<h1>Welcome</h1><p>Hello.</p>", metadata: { vitepress: { path: docs/index.md } } }
+                files: [{ path: files/logo.png, url: "https://raw.githubusercontent.com/oer-lab/web-course/main/docs/public/logo.png" }]
+          notContains: ["Not this one", "onerror", "alert(1)", "<Badge", "VideoEmbed", ":::"]
+          fetch: { count: 7, notContains: [oer-lab.github.io, youtube.com] }
+- id: importer-vitepress-002
+  title: "an uploaded zip without a readable sidebar follows the file tree"
+  given: "tests/fixtures/notes.zip (under notes-main/): .vitepress/config.js whose sidebar is a function call, index, birds (front matter title, info container, image), plants/ferns, a markdown file inside .vitepress"
+  when: "convert with files: [notes.zip]"
+  then: "Home, Birds of the marsh, Ferns in tree order; the config is not executed; nothing fetched"
+  run:
+    with: [core-plugins/import-markdown]
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { files: [{ name: notes.zip, data: "UEsDBBQAAAAIADiUWF0coNDLbAAAAIkAAAAfAAAAbm90ZXMtbWFpbi8udml0ZXByZXNzL2NvbmZpZy5qc12NMQoCMRRE+5xiuigsa59WsLTxBJFM1i/JRpIvCJK7u7ta2T7evJH8KFXxxsSZ1SsvEnj1FR2xlgw7HtqXjPdmDV+bHhj9My0zA6hoooM9CVPAuSibHVZ+Y+axzFEmt/R/Ffd/tNujD6abD1BLAwQUAAAACAA4lFhdNzoS+A0AAAALAAAAJQAAAG5vdGVzLW1haW4vLnZpdGVwcmVzcy90aGVtZS9oaWRkZW4ubWTLyy9RSFQoSExP5QIAUEsDBBQAAAAIADiUWF1wnGVdLQAAAC8AAAATAAAAbm90ZXMtbWFpbi9pbmRleC5tZFNWcMtMzUlR8MsvSS3m4gouSSwqUSjPLMlQiE7KLEopjtXQ0wcz9HJTNPW4AFBLAwQUAAAACAA4lFhdAOy0hFUAAABbAAAAEwAAAG5vdGVzLW1haW4vYmlyZHMubWTT1dXlKsksyUm1UnDKLEopVshPUyjJSFXITSwqzuDSBcpyWVlZKWTmpeVzORVl5qUraCVl5uUnl+YAFWjpgSS5uBSjM1KL8vNiNfT0wQy9rIJ0TS4AUEsDBBQAAAAIADiUWF1y7uHKFAAAABIAAAAaAAAAbm90ZXMtbWFpbi9wbGFudHMvZmVybnMubWRzSy3KK1bIycxOVSjOSExJ1eMCAFBLAwQUAAAACAA4lFhdfKHvKQoAAAAIAAAAFAAAAG5vdGVzLW1haW4vaGVyb24uanBn+3/j/wMvN083AFBLAQIUAxQAAAAIADiUWF0coNDLbAAAAIkAAAAfAAAAAAAAAAAAAACAAQAAAABub3Rlcy1tYWluLy52aXRlcHJlc3MvY29uZmlnLmpzUEsBAhQDFAAAAAgAOJRYXTc6EvgNAAAACwAAACUAAAAAAAAAAAAAAIABqQAAAG5vdGVzLW1haW4vLnZpdGVwcmVzcy90aGVtZS9oaWRkZW4ubWRQSwECFAMUAAAACAA4lFhdcJxlXS0AAAAvAAAAEwAAAAAAAAAAAAAAgAH5AAAAbm90ZXMtbWFpbi9pbmRleC5tZFBLAQIUAxQAAAAIADiUWF0A7LSEVQAAAFsAAAATAAAAAAAAAAAAAACAAVcBAABub3Rlcy1tYWluL2JpcmRzLm1kUEsBAhQDFAAAAAgAOJRYXXLu4coUAAAAEgAAABoAAAAAAAAAAAAAAIAB3QEAAG5vdGVzLW1haW4vcGxhbnRzL2Zlcm5zLm1kUEsBAhQDFAAAAAgAOJRYXXyh7ykKAAAACAAAABQAAAAAAAAAAAAAAIABKQIAAG5vdGVzLW1haW4vaGVyb24uanBnUEsFBgAAAAAGAAYArAEAAGUCAAAAAA==" }] } }
+        expect:
+          body:
+            - result:
+                title: Field Notes
+                items:
+                  - { id: item-1, title: Home, slug: home, parent: null, order: 0, content: '<h1>Field Notes</h1><p>Start with <a href="birds">birds</a>.</p>', metadata: { vitepress: { repo: null, path: index.md } } }
+                  - { id: item-2, title: Birds of the marsh, slug: birds, order: 1, content: '<stop-note status="info" title="Info"><div slot="message"><p>Bring <em>binoculars</em>.</p></div></stop-note><p><media-image source="./heron.jpg" alt="heron"></media-image></p>' }
+                  - { id: item-3, title: Ferns, slug: ferns, order: 2, content: "<p>Ferns like shade.</p>", metadata: { vitepress: { path: plants/ferns.md } } }
+                files: []
+          notContains: ["not a page", "generateSidebar"]
+          fetch: { count: 0 }
+- id: importer-vitepress-003
+  title: "only GitHub repositories are read, and nothing is fetched for anything else"
+  given: "a URL on another host, then no input, then a .tgz upload"
+  when: "convert"
+  then: "error results and no fetch at all"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      docs.example.org: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { url: "https://docs.example.org/guide/" } }
+        expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { files: [{ name: site.tgz, data: "AAAA" }] } }
+        expect: { body: [{ result: { error: "expected a .zip of the VitePress site" } }] }
+- id: importer-vitepress-004
+  title: "a repository without a VitePress config, or a zip that is not one, is an error"
+  given: "acme/docs on branch v2 (from /tree/v2) whose tree has only markdown; an upload named .zip that is not a zip"
+  when: "convert each"
+  then: "error results; the default branch is not looked up when the URL names one"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://api.github.com/repos/acme/docs": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/acme/docs/git/trees/v2?recursive=1": { status: 200, body: { tree: [{ path: README.md, type: blob }, { path: guide.md, type: blob }] } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { url: "https://github.com/acme/docs/tree/v2" } }
+        expect: { body: [{ result: { error: "no .vitepress/config file found in acme/docs" } }], fetch: { count: 2, contains: [trees/v2] } }
+      - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { files: [{ name: site.zip, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "the file is not a zip archive" } }] }

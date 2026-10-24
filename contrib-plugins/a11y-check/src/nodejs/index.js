@@ -18,6 +18,14 @@ export function check(html) {
 
 export default {
   operations: {
+    /**
+     * Implements operation a11yCheckReport.
+     *
+     * Runs the markup rules over every page and lists the pages with problems, those with the most errors first.
+     *
+     * @param {object} ctx
+     * @returns {array}  { page, title, problems } per page that has problems.
+     */
     async a11yCheckReport(ctx) {
       const pages = await ctx.entities.list("page");
       return pages
@@ -27,6 +35,15 @@ export default {
     },
   },
   hooks: {
+    /**
+     * Implements hook page.before.save.
+     *
+     * Checks the page markup and reports each problem as a save warning; with blockMissingAlt on, it refuses pages
+     * that have images without alt text.
+     *
+     * @param {object} ctx  ctx.subject: the page as submitted; ctx.previous: the stored page.
+     * @returns {Promise<object>}  the page, or a veto.
+     */
     "page.before.save": async (ctx) => {
       const problems = check(ctx.subject.content);
       const missingAlt = problems.filter((p) => p.rule === "img-alt");
@@ -34,7 +51,15 @@ export default {
       for (const p of problems) ctx.warn(`${p.message}: ${p.where}`, p.level === "error" ? "warning" : "notice");
       return ctx.subject;
     },
-    // preview only: published pages never carry the overlay
+    /**
+     * Implements hook render.after.content.
+     *
+     * Outlines images without alt text and adds a problem count above the content in preview, when previewOverlay is
+     * on. Published pages never carry the overlay.
+     *
+     * @param {object} ctx  ctx.subject: the render state (mode, content, head).
+     * @returns {object|undefined}  the render state with the overlay, or nothing outside preview.
+     */
     "render.after.content": async (ctx) => {
       if (ctx.subject.mode !== "preview" || !ctx.settings.previewOverlay) return;
       const problems = check(ctx.subject.content);

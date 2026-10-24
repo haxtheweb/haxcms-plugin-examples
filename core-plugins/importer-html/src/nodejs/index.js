@@ -26,6 +26,15 @@ export function convert(html) {
 export default {
   contracts: {
     "import.platform": {
+      /**
+       * Implements contract import.platform, operation convert (dispatch: chosen).
+       *
+       * Splits an HTML document into pages at each h2, with the h1 (or title) as the site title and text before the first h2 as Introduction. Scripts, styles and event handlers are dropped; core sanitizes again on save.
+       *
+       * @param {object} ctx    Platform context (spec/13); unused.
+       * @param {object} input  { html }.
+       * @returns {Promise<object>}  { title, items } or { error }.
+       */
       async convert(ctx, input) {
         if (!input || typeof input.html !== "string") return { error: "html is required" };
         return convert(input.html);

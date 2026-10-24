@@ -10,7 +10,8 @@
     "veto": true,
     "detachable": false,
     "comment": "validate or normalize the new record, or veto with a message",
-    "example": "**comments** rejects a comment over the length limit or from a blocked user; **spam** vetoes obvious spam"
+    "example": "**comments** rejects a comment over the length limit or from a blocked user; **spam** vetoes obvious spam",
+    "common": true
   },
   {
     "name": "entity.after.create",
@@ -128,7 +129,8 @@
     "veto": true,
     "detachable": false,
     "comment": "inspect or adjust the page before it is written (for example clean up markup), or veto",
-    "example": "**a11y-check** warns about images without alt text; **content-sanitize** strips pasted Word markup"
+    "example": "**a11y-check** warns about images without alt text; **content-sanitize** strips pasted Word markup",
+    "common": true
   },
   {
     "name": "page.after.save",
@@ -155,7 +157,8 @@
     "veto": false,
     "detachable": true,
     "comment": "react to the saved page: re-index for search, invalidate a cache, notify",
-    "example": "**search** re-indexes the page; **page-cache** drops that page's cached HTML; **xapi** records an authoring event"
+    "example": "**search** re-indexes the page; **page-cache** drops that page's cached HTML; **xapi** records an authoring event",
+    "common": true
   },
   {
     "name": "page.before.delete",
@@ -197,7 +200,8 @@
     "veto": false,
     "detachable": true,
     "comment": "clean up anything tied to the deleted page",
-    "example": "**comments** deletes the thread; **search** drops the page from the index"
+    "example": "**comments** deletes the thread; **search** drops the page from the index",
+    "common": true
   },
   {
     "name": "manifest.before.save",
@@ -239,7 +243,8 @@
     "veto": false,
     "detachable": true,
     "comment": "react to outline or settings changes: rebuild a derived file, notify",
-    "example": "**sitemap / llms.txt** regenerate; **page-cache** clears the menu-dependent cache"
+    "example": "**sitemap / llms.txt** regenerate; **page-cache** clears the menu-dependent cache",
+    "common": true
   },
   {
     "name": "theme.before.change",
@@ -422,7 +427,8 @@
     "veto": true,
     "detachable": false,
     "comment": "validate or normalize a settings change, or veto",
-    "example": "**google-analytics** rejects a malformed measurement ID"
+    "example": "**google-analytics** rejects a malformed measurement ID",
+    "common": true
   },
   {
     "name": "config.after.save",
@@ -526,7 +532,8 @@
     "veto": true,
     "detachable": false,
     "comment": "check or adjust the request before the handler runs, or refuse it",
-    "example": "**rate-limit-plus** applies a stricter limit per token; **mcp** checks the scoped token's site and read-only flag"
+    "example": "**rate-limit-plus** applies a stricter limit per token; **mcp** checks the scoped token's site and read-only flag",
+    "common": true
   },
   {
     "name": "rest.after.request",
@@ -552,7 +559,8 @@
     "veto": false,
     "detachable": false,
     "comment": "report unmet requirements; the plugin stays enabled but inactive until the list is empty",
-    "example": "**google-analytics** stays inactive until a measurement ID is set; a plugin that needs **cookie-consent** waits for it"
+    "example": "**google-analytics** stays inactive until a measurement ID is set; a plugin that needs **cookie-consent** waits for it",
+    "common": true
   },
   {
     "name": "plugin.after.requirements",
@@ -1059,7 +1067,8 @@
     "veto": false,
     "detachable": false,
     "comment": "add meta, link and script tags to the head",
-    "example": "**google-analytics** adds the consent-gated loader; **seo-plus** adds extra meta tags"
+    "example": "**google-analytics** adds the consent-gated loader; **seo-plus** adds extra meta tags",
+    "common": true
   },
   {
     "name": "render.after.head",
@@ -1098,7 +1107,8 @@
     "veto": false,
     "detachable": false,
     "comment": "inspect or post-process the placed content",
-    "example": "**a11y-check** flags the rendered page in preview mode"
+    "example": "**a11y-check** flags the rendered page in preview mode",
+    "common": true
   },
   {
     "name": "render.before.body",
@@ -1124,7 +1134,8 @@
     "veto": false,
     "detachable": false,
     "comment": "inject singletons and scripts at the end of the body, with settings baked in from the plugin's config",
-    "example": "**cookie-consent** banner, **announcements** toast, **example** `awesome-counter` singleton with settings baked in"
+    "example": "**cookie-consent** banner, **announcements** toast, **example** `awesome-counter` singleton with settings baked in",
+    "common": true
   },
   {
     "name": "render.after",
@@ -1168,7 +1179,8 @@
     "veto": false,
     "detachable": true,
     "comment": "write this plugin's own managed files",
-    "example": "**sitemap / llms.txt**, **views** snapshots and feeds, **search** index file"
+    "example": "**sitemap / llms.txt**, **views** snapshots and feeds, **search** index file",
+    "common": true
   },
   {
     "name": "schedule.before.run",

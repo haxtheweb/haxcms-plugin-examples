@@ -5,6 +5,15 @@ class FilesPlugin {
   const MIME = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml', 'pdf' => 'application/pdf', 'txt' => 'text/plain', 'mp4' => 'video/mp4', 'mp3' => 'audio/mpeg'];
   private function safeName($n) { return substr(ltrim(preg_replace('/[^a-z0-9._-]+/', '-', strtolower((string) $n)), '-.'), 0, 120); }
 
+  /**
+   * Implements operation filesList.
+   *
+   * Lists the site's files sorted by name, optionally filtered by part of the name, for the editor's Local files browser.
+   *
+   * @param object $ctx  Platform context (spec/13).
+   * @param array  $req  query.name: optional filter (lower-case substring of the file name).
+   * @return array  [items, total].
+   */
   public function filesList($ctx, $req) {
     $q = strtolower((string) ($req['query']['name'] ?? ''));
     $items = array_values(array_filter($ctx->entities->list('file'), function ($f) use ($q) { return $q === '' || strpos($f['name'], $q) !== false; }));
@@ -12,6 +21,15 @@ class FilesPlugin {
     return ['items' => $items, 'total' => count($items)];
   }
 
+  /**
+   * Implements operation filesUpload.
+   *
+   * Stores an upload under files/ with the same rules as core today: allowed extensions only, a safe lower-case name and the maxUploadMb limit. The file record is saved through $ctx->entities, so file.before.save and file.after.save fire; a veto removes the stored bytes and returns 409.
+   *
+   * @param object $ctx  Platform context (spec/13); settings.maxUploadMb (default 50).
+   * @param array  $req  body: [name, data (base64), alt].
+   * @return array  the saved file record, or [status, body => [error]].
+   */
   public function filesUpload($ctx, $req) {
     $name = $this->safeName($req['body']['name'] ?? '');
     $ext = strpos($name, '.') !== false ? substr($name, strrpos($name, '.') + 1) : '';
@@ -21,14 +39,25 @@ class FilesPlugin {
     $uuid = 'file-' . (count($ctx->entities->list('file')) + 1);
     $record = ['uuid' => $uuid, 'id' => $uuid, 'name' => $name, 'path' => "files/$name", 'url' => "files/$name", 'mimeType' => self::MIME[$ext] ?? 'application/octet-stream', 'size' => strlen($bytes), 'alt' => $req['body']['alt'] ?? ''];
     $ctx->files->put($record['path'], base64_encode($bytes));
-    $ctx->entities->save('file', $record);
-    return $record;
+    $r = $ctx->entities->save('file', $record); // file.before.save / file.after.save fire here
+    if (!empty($r['veto'])) { $ctx->files->remove($record['path']); return ['status' => 409, 'body' => ['error' => $r['veto']['message']]]; }
+    return $r['record'];
   }
 
+  /**
+   * Implements operation filesDelete.
+   *
+   * Deletes a file record (file.before.delete can veto with 409) and then its bytes under files/.
+   *
+   * @param object $ctx  Platform context (spec/13).
+   * @param array  $req  params.uuid: the file to delete.
+   * @return array  [deleted => uuid], or [status, body => [error]] (404 when unknown).
+   */
   public function filesDelete($ctx, $req) {
     $f = $ctx->entities->get('file', $req['params']['uuid']);
     if (!$f) { return ['status' => 404, 'body' => ['error' => 'not found']]; }
-    $ctx->entities->delete('file', $f['id']);
+    $r = $ctx->entities->delete('file', $f['id']);
+    if (!empty($r['veto'])) { return ['status' => 409, 'body' => ['error' => $r['veto']['message']]]; }
     $ctx->files->remove($f['path']);
     return ['deleted' => $f['uuid']];
   }

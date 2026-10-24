@@ -1,0 +1,22 @@
+# PDF import: extracted from core (systemRoutes/v1/routes/importPdf.js, which runs lib/pdfToSemanticHtml.js and then
+# core's importHtmlToItems). As a plugin it implements import.file for .pdf: it reads the text of each content stream,
+# turns larger type into headings and the rest into paragraphs, and core makes the pages.
+specVersion: "0.1.0"
+id: import-pdf
+uuid: 9f1b3d4e-6a8c-4e0f-9b3d-4e6a8c0f2b4e
+title: Import PDF documents
+description: Turns the text of a PDF into pages, using larger type as headings.
+version: 0.1.0
+category: authoring
+icon: icons:picture-in-picture
+tags: [import, pdf]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements:
+  - { name: import.file, accepts: [.pdf] }
+staticCapable: false

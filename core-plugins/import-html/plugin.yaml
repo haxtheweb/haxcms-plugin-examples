@@ -1,0 +1,22 @@
+# HTML file import: extracted from core (systemRoutes/v1/routes/importHtml.js: sanitizeUntrustedHtml, then
+# importHtmlToItems). Implements import.file for .html and .htm: pages added to a site. (importer-html is the other
+# HTML plugin: it implements import.platform and creates a whole new site from an HTML document.)
+specVersion: "0.1.0"
+id: import-html
+uuid: 1b3d5f6a-8c0e-4a2b-9d5f-6a8c0e2b4d6f
+title: Import HTML files
+description: Turns an HTML file into pages, one per heading, without its scripts and styles.
+version: 0.1.0
+category: authoring
+icon: icons:code
+tags: [import, html]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements:
+  - { name: import.file, accepts: [.html, .htm] }
+staticCapable: false

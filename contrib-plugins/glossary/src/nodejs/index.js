@@ -5,9 +5,26 @@ const norm = (t) => String(t || "").trim().toLowerCase();
 
 export default {
   operations: {
+    /**
+     * Implements operation glossaryList.
+     *
+     * Lists the glossary terms in alphabetical order.
+     *
+     * @param {object} ctx
+     * @returns {array}  glossaryTerm records.
+     */
     async glossaryList(ctx) {
       return (await ctx.entities.list("glossaryTerm")).sort((a, b) => norm(a.term).localeCompare(norm(b.term)));
     },
+    /**
+     * Implements operation glossaryCreate.
+     *
+     * Adds a term with its definition and aliases; the entity hooks refuse duplicates and terms without a definition.
+     *
+     * @param {object} ctx
+     * @param {object} req  req.body { term, definition, aliases }.
+     * @returns {object}  the stored term, or a 409/422 response.
+     */
     async glossaryCreate(ctx, req) {
       const b = req.body || {};
       const r = await ctx.entities.save("glossaryTerm", { uuid: `term-${norm(b.term).replace(/[^a-z0-9]+/g, "-")}`, term: String(b.term || "").trim(), definition: String(b.definition || "").trim(), aliases: (b.aliases || []).map(String) });
@@ -16,7 +33,15 @@ export default {
     },
   },
   hooks: {
-    // the entity hooks guard the glossary for every writer (this plugin's route, an import, another plugin)
+    /**
+     * Implements hook entity.before.create.
+     *
+     * Refuses a new glossary term without a definition, or whose name or aliases are already in the glossary. The
+     * entity hooks guard the glossary for every writer (this plugin's route, an import, another plugin).
+     *
+     * @param {object} ctx  ctx.subject: the glossaryTerm record being created.
+     * @returns {Promise<object>}  the term, or a veto.
+     */
     "entity.before.create": async (ctx) => {
       const t = ctx.subject;
       if (!t.term || !t.definition) return ctx.veto("a term needs a definition", 422);
@@ -25,8 +50,24 @@ export default {
       for (const n of [t.term, ...(t.aliases || [])].map(norm)) if (names.has(n)) return ctx.veto(`"${n}" is already in the glossary`, 409);
       return t;
     },
+    /**
+     * Implements hook entity.before.update.
+     *
+     * Refuses a glossary term update that leaves out the term or its definition, for every writer.
+     *
+     * @param {object} ctx  ctx.subject: the glossaryTerm record as updated; ctx.previous: the stored record.
+     * @returns {Promise<object>}  the term, or a veto.
+     */
     "entity.before.update": async (ctx) => (ctx.subject.term && ctx.subject.definition ? ctx.subject : ctx.veto("a term needs a definition", 422)),
-    // first appearance of each term in text (never inside tags, links, headings or code) becomes <glossary-term>
+    /**
+     * Implements hook render.after.content.
+     *
+     * Wraps the first appearance of each term in the page text in <glossary-term> with its definition, never inside
+     * tags, links, headings or code.
+     *
+     * @param {object} ctx  ctx.subject: the render state (page, content).
+     * @returns {Promise<object|undefined>}  the render state with terms marked, or nothing when the glossary is empty.
+     */
     "render.after.content": async (ctx) => {
       const terms = (await ctx.entities.list("glossaryTerm")).flatMap((t) => [t.term, ...(t.aliases || [])].map((name) => ({ name, def: t.definition }))).sort((a, b) => b.name.length - a.name.length);
       if (!terms.length) return;

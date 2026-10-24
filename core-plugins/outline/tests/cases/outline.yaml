@@ -62,3 +62,16 @@
     steps:
       - call: { operation: outlineUpdate, credentials: jwt, body: { items: [] } }
         expect: { status: 401, message: "X-HAXCMS-Site-Token header is required" }
+- id: outline-veto
+  title: "a veto from another plugin comes back as 409 with the outline as it stands"
+  operation: outlineUpdate
+  given: "pages p1 and p2; a plugin that vetoes any page titled forbidden"
+  when: "rename p2 to Forbidden topic"
+  then: "409 naming the veto; p2 keeps its old title in both runtimes"
+  parityIgnore: [hash]
+  run:
+    with: [core-plugins/git, conformance/fixtures/fx-vetoer]
+    records: { page: [{ id: p1, title: One, order: 0 }, { id: p2, title: Two, order: 1 }] }
+    steps:
+      - call: { operation: outlineUpdate, body: { items: [{ id: p1, title: One }, { id: p2, title: Forbidden topic }] } }
+        expect: { status: 409, message: "fx-vetoer: forbidden", body: { items: [{ id: p1, title: One }, { id: p2, title: Two }] } }

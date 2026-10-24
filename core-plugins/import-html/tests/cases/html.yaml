@@ -1,0 +1,26 @@
+- id: import-html-001
+  title: "an HTML file becomes pages without scripts, styles, embeds or handlers"
+  given: "a saved web page with two h2 sections and plenty of risky markup"
+  when: "imported as a branch"
+  then: "Intro and More, clean"
+  run:
+    steps:
+      - importFile: { name: page.html, method: branch, data: "PCFkb2N0eXBlIGh0bWw+PGh0bWw+PGhlYWQ+PHRpdGxlPk9sZCBTaXRlIFBhZ2U8L3RpdGxlPjxzY3JpcHQ+dHJhY2soKTwvc2NyaXB0PjxzdHlsZT5we308L3N0eWxlPjwvaGVhZD4KPGJvZHkgb25sb2FkPSJ4KCkiPjxoMj5JbnRybzwvaDI+PHAgb25jbGljaz0ic3RlYWwoKSI+SGVsbG8gPGEgaHJlZj0iamF2YXNjcmlwdDphbGVydCgxKSI+dGhlcmU8L2E+LjwvcD4KPCEtLSBoaWRkZW4gbm90ZSAtLT48aWZyYW1lIHNyYz0iaHR0cHM6Ly9hZHMuZXhhbXBsZSI+PC9pZnJhbWU+CjxoMj5Nb3JlPC9oMj48cD5CeWU8L3A+PC9ib2R5PjwvaHRtbD4=" }
+        expect:
+          status: 200
+          body: { plugin: import-html, title: Old Site Page, items: [{ title: Intro, content: '<p>Hello <a href="#">there</a>.</p>' }, { title: More, content: "<p>Bye</p>" }] }
+          notContains: [track, steal, iframe, hidden note, "p{}"]
+- id: import-html-002
+  title: "the two import contracts side by side"
+  given: "import-html (import.file) and importer-html (import.platform)"
+  when: "list implementers of each; import a .txt file"
+  then: "each contract lists its own plugin with what it accepts; no importer accepts .txt"
+  run:
+    with: [core-plugins/importer-html]
+    steps:
+      - implementers: import.file
+        expect: { body: [{ id: import-html, accepts: [.html, .htm] }] }
+      - implementers: import.platform
+        expect: { body: [{ id: importer-html }] }
+      - importFile: { name: notes.txt, data: "aGk=" }
+        expect: { status: 400, message: "no active import.file implementer accepts .txt" }

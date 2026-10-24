@@ -5,6 +5,14 @@ class SitemapPlugin {
   private function ms($v, $fallback) { if ($v === null || $v === '' || !is_numeric($v)) { return $fallback; } $n = $v + 0; return $n < 1e12 ? $n * 1000 : $n; }
   private function iso($t) { return gmdate('Y-m-d\TH:i:s', intdiv((int) $t, 1000)) . sprintf('.%03dZ', ((int) $t) % 1000); }
 
+  /**
+   * Implements hook rebuild.after.
+   *
+   * Writes sitemap.xml and sitemap-index.xml from public pages only, with priority by depth and lastmod from the page's updated or created time. Both runtimes write identical bytes.
+   *
+   * @param object $ctx  subject: [scope, siteId?, reason, files]; site['url'] is the base for locations.
+   * @return void
+   */
   public function rebuildAfter($ctx) {
     $base = $ctx->site['url'];
     $pages = $ctx->entities->list('page', ['listed' => true]);

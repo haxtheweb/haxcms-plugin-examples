@@ -3,7 +3,7 @@
   "type": "module",
   "description": "Spec, schema, conformance fixtures and example plugins for HAXcms plugins",
   "scripts": {
-    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node tests/check-plugin-tests.mjs && node conformance/run.mjs"
+    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node scripts/plugin-docs.mjs --check && node tests/check-plugin-tests.mjs && node conformance/run.mjs"
   },
   "version": "0.1.0",
   "license": "Apache-2.0",
@@ -25,10 +25,19 @@
     "conformance/",
     "examples/",
     "skills/",
-    "harness/"
+    "harness/",
+    "core-plugins/",
+    "contrib-plugins/",
+    "scripts/"
   ],
   "exports": {
     "./schema/*": "./schema/*",
+    "./harness/*": "./harness/*",
+    "./conformance/*": "./conformance/*",
+    "./scripts/*": "./scripts/*",
+    "./core-plugins/*": "./core-plugins/*",
+    "./contrib-plugins/*": "./contrib-plugins/*",
+    "./examples/*": "./examples/*",
     "./package.json": "./package.json"
   },
   "dependencies": {

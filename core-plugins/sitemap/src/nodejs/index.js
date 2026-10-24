@@ -4,6 +4,14 @@ const ms = (v, fallback) => { const n = Number(v); if (v === undefined || v === 
 
 export default {
   hooks: {
+    /**
+     * Implements hook rebuild.after.
+     *
+     * Writes sitemap.xml and sitemap-index.xml from public pages only, with priority by depth and lastmod from the page's updated or created time. Both runtimes write identical bytes.
+     *
+     * @param {object} ctx  ctx.subject: { scope, siteId?, reason, files }; ctx.site.url is the base for locations.
+     * @returns {Promise<void>}
+     */
     "rebuild.after": async (ctx) => {
       const base = ctx.site.url;
       const pages = await ctx.entities.list("page", { listed: true });

@@ -5,6 +5,14 @@ class SearchPlugin {
   private function clean($html) { return trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', str_replace("'", '', mb_strtolower(strtr(preg_replace('/<[^>]*>/', ' ', (string) $html), ['&amp;' => '&', '&lt;' => '<', '&gt;' => '>', '&quot;' => '"', '&apos;' => "'", '&#39;' => "'", '&nbsp;' => ' ']))))); }
   private function ref($id) { return substr(preg_replace('/^item/', '', str_replace('-', '', (string) $id)), 0, 29); }
 
+  /**
+   * Implements hook rebuild.after.
+   *
+   * Writes lunrSearchIndex.json from public pages in outline order, in the format the site-search element reads. Both runtimes write identical bytes.
+   *
+   * @param object $ctx  subject: [scope, siteId?, reason, files].
+   * @return void
+   */
   public function rebuildAfter($ctx) {
     $pages = $ctx->entities->list('page', ['listed' => true]);
     usort($pages, function ($a, $b) { return ((int) ($a['order'] ?? 0) <=> (int) ($b['order'] ?? 0)) ?: strcmp((string) $a['id'], (string) $b['id']); });

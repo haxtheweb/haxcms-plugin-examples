@@ -288,11 +288,37 @@
     },
     "implements": {
       "type": "array",
-      "uniqueItems": true,
       "items": {
-        "type": "string",
-        "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-      }
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*\\.[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+              },
+              "accepts": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\.[a-z0-9]+$"
+                },
+                "description": "For contracts dispatched by file type (import.file): the file extensions this implementer converts."
+              }
+            }
+          }
+        ]
+      },
+      "description": "Core (or plugin-defined) contracts this plugin implements. An entry is the contract name, or { name, accepts } when the contract dispatches by file type."
     },
     "hooks": {
       "type": "array",
@@ -477,6 +503,24 @@
                 "type": "string",
                 "minLength": 10,
                 "description": "Why the plugin must reach hosts it cannot list (a link checker). Shown to admins; deployments may refuse such plugins."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "input",
+              "reason"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "input": {
+                "const": "url"
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 10,
+                "description": "Why the plugin fetches the URL a person gives it (a site importer reading a Drupal or Pressbooks site). Only that URL's host is reachable, and only during that contract call."
               }
             }
           }

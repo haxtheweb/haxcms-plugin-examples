@@ -9,7 +9,8 @@ import { readFileSync, existsSync, mkdtempSync, readdirSync, statSync, mkdirSync
 import { tmpdir } from "node:os";
 import { join, resolve, dirname, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { spawnSync } from "node:child_process";
+import { spawnSync, spawn } from "node:child_process";
+import { inflateRawSync } from "node:zlib";
 import { parse } from "yaml";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -18,6 +19,68 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const readAny = (p) => (p.endsWith(".json") ? JSON.parse(readFileSync(p, "utf8")) : parse(readFileSync(p, "utf8")));
 const CORE_CONTRACTS = parse(readFileSync(join(root, "schema/core-contracts.yaml"), "utf8")).contracts;
+// core's shared HTML-to-pages step (haxcms-nodejs importHtmlToItems): site splits at the highest heading level and its
+// next level; branch at the highest level only; page keeps one page. Text before the first heading becomes a page
+// titled after the file, so nothing is lost.
+const slugify = (t) => String(t).toLowerCase().replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "page";
+const textOf = (h) => String(h).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+export function outlineFromHtml(html, { method = "site", parentId = null, titleValue = "import" } = {}) {
+  const items = [];
+  const add = (title, content, parent, slug, indent = 0) => { const it = { id: `item-${items.length + 1}`, title, slug, parent, order: items.filter((x) => x.parent === parent).length, indent, content: content.trim() || "<p></p>" }; items.push(it); return it; };
+  const levels = [1, 2, 3, 4].filter((n) => new RegExp(`<h${n}[\\s>]`, "i").test(html));
+  if (method === "page" || !levels.length) { add(titleValue, html, parentId, slugify(titleValue)); return items; }
+  const top = levels[0], child = method === "site" && top < 4 ? top + 1 : null;
+  const parts = html.split(new RegExp(`(?=<h${top}[\\s>])`, "i"));
+  if (!new RegExp(`^<h${top}[\\s>]`, "i").test(parts[0])) { const pre = parts.shift(); if (textOf(pre)) add(titleValue, pre, parentId, slugify(titleValue)); }
+  for (const part of parts) {
+    const m = new RegExp(`^<h${top}[^>]*>([\\s\\S]*?)</h${top}>`, "i").exec(part);
+    const body = part.slice(m[0].length);
+    const title = textOf(m[1]) || titleValue;
+    if (!child) { add(title, body, parentId, slugify(title)); continue; }
+    const kids = body.split(new RegExp(`(?=<h${child}[\\s>])`, "i"));
+    const root = add(title, new RegExp(`^<h${child}[\\s>]`, "i").test(kids[0]) ? "" : kids.shift(), parentId, slugify(title));
+    for (const k of kids) {
+      const km = new RegExp(`^<h${child}[^>]*>([\\s\\S]*?)</h${child}>`, "i").exec(k);
+      if (!km) continue;
+      const kt = textOf(km[1]) || title;
+      add(kt, k.slice(km[0].length), root.id, `${root.slug}/${slugify(kt)}`, 1);
+    }
+  }
+  return items;
+}
+// ctx.archive.read (spec/13): a bounded zip reader core owns, so importers of docx, pptx, xlsx and site exports do not
+// each ship their own (and their own zip-bomb mistakes). Returns { path: utf8 text } for entries matching `match`.
+export function readZip(b64, { match = ".*", maxEntries = 5000, maxBytes = 100 * 1024 * 1024, binary = false } = {}) {
+  const buf = Buffer.from(String(b64 || ""), "base64");
+  if (buf.length < 22 || buf.readUInt32LE(0) !== 0x04034b50) throw new Error("not a zip archive");
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("zip archive has no central directory");
+  const count = buf.readUInt16LE(eocd + 10);
+  if (count > maxEntries) throw new Error(`zip archive has ${count} entries (limit ${maxEntries})`);
+  const re = new RegExp(match);
+  const out = {};
+  let total = 0;
+  let p = buf.readUInt32LE(eocd + 16);
+  for (let n = 0; n < count; n++) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error("corrupt zip central directory");
+    const method = buf.readUInt16LE(p + 10), csize = buf.readUInt32LE(p + 20), usize = buf.readUInt32LE(p + 24);
+    const nlen = buf.readUInt16LE(p + 28), elen = buf.readUInt16LE(p + 30), clen = buf.readUInt16LE(p + 32), off = buf.readUInt32LE(p + 42);
+    const name = buf.toString("utf8", p + 46, p + 46 + nlen);
+    p += 46 + nlen + elen + clen;
+    if (name.endsWith("/") || !re.test(name)) continue;
+    total += usize;
+    if (total > maxBytes) throw new Error(`zip archive expands beyond ${maxBytes} bytes`);
+    const start = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28);
+    const raw = buf.subarray(start, start + csize);
+    const data = method === 0 ? raw : method === 8 ? inflateRawSync(raw, { maxOutputLength: Math.max(usize, 1) }) : null;
+    if (!data) throw new Error(`zip entry ${name} uses unsupported compression ${method}`);
+    out[name] = data.toString(binary ? "base64" : "utf8");
+  }
+  return out;
+}
+// implements entries are a name or { name, accepts }
+const implEntry = (m, name) => (m.implements || []).map((e) => (typeof e === "string" ? { name: e } : e)).find((e) => e.name === name) || null;
 const contractMethod = (name, op) => name.split(".").map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join("") + op[0].toUpperCase() + op.slice(1);
 const CORE_HOOKS = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8"));
 const SPEC_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
@@ -207,8 +270,19 @@ export class MemoryBackend {
     }
     return core[element] ? { ...core[element], plugin: null } : null;
   }
+  // import.file (spec/06 contracts): the implementer for the file's extension converts; core turns HTML into pages
+  async importFile(input) {
+    let results;
+    try { results = await this.callContract("import.file", "convert", input); } catch (e) { return { status: 400, body: { error: e.message } }; }
+    const r = results[0];
+    if (!r || !r.result) return { status: 500, body: { error: "the importer returned nothing" } };
+    if (r.result.error) return { status: 422, body: { error: r.result.error, plugin: r.plugin } };
+    const title = r.result.title || String(input.name || "import").replace(/\.[^.]+$/, "");
+    const items = r.result.items || outlineFromHtml(r.result.html || "", { method: input.method || "site", type: input.type || "", parentId: input.parentId || null, titleValue: title });
+    return { status: 200, body: { plugin: r.plugin, title, items, ...(r.result.files ? { files: r.result.files.map((f) => f.path) } : {}) } };
+  }
   // what an import screen (or any chooser) lists for a contract
-  contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description })); }
+  contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description, ...(implEntry(x.manifest, name).accepts ? { accepts: implEntry(x.manifest, name).accepts } : {}) })); }
   isListed(pg) {
     const m = pg.metadata || {};
     const no = (v) => v === false || v === 0 || ["false", "0", "no", "off"].includes(String(v).toLowerCase());
@@ -284,21 +358,31 @@ export class MemoryBackend {
   // ctx.fetch in the harness: egress is checked, the call recorded, and the answer comes from the case's `fetch`
   // fakes by host; without a fake the network is simply off
   async fetchFor(p, url, init = {}) {
-    const host = new URL(url).hostname;
-    const hosts = this.egressHosts(p);
-    // the SSRF guard applies to every fetch; with { any: true } it is the only limit
-    if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith(".internal") || host.endsWith(".local")) throw new Error(`fetch to ${host} not allowed (private address)`);
-    if (!(p.manifest.capabilities || []).includes("network:egress") || !(hosts.includes("*") || hosts.includes(host))) throw new Error(`fetch to ${host} not allowed`);
-    this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url });
-    const fake = (this.fetchFakes || {})[host];
-    if (!fake) throw new Error("network is disabled in the harness");
-    const body = typeof fake.body === "string" ? fake.body : JSON.stringify(fake.body ?? null);
-    return { status: fake.status ?? 200, ok: (fake.status ?? 200) < 400, headers: new Map(Object.entries(fake.headers || {})), text: async () => body, json: async () => JSON.parse(body) };
+    // redirects are followed (up to 5), and every hop is checked again: egress list, then the SSRF guard (spec/13)
+    let current = String(url);
+    for (let hop = 0; hop < 6; hop++) {
+      const host = new URL(current).hostname;
+      const hosts = this.egressHosts(p);
+      if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith(".internal") || host.endsWith(".local")) throw new Error(`fetch to ${host} not allowed (private address)`);
+      if (!(p.manifest.capabilities || []).includes("network:egress") || !(hosts.includes("*") || hosts.includes(host))) throw new Error(`fetch to ${host} not allowed${hop ? " (redirected)" : ""}`);
+      this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url: current });
+      // fakes match the exact URL first, then the URL without its query, then the host
+      const fakes = this.fetchFakes || {};
+      const fake = fakes[current] || fakes[current.split("?")[0]] || fakes[host];
+      if (!fake) throw new Error("network is disabled in the harness");
+      const status = fake.status ?? 200;
+      const headers = Object.fromEntries(Object.entries(fake.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
+      if ([301, 302, 303, 307, 308].includes(status) && headers.location) { current = new URL(headers.location, current).toString(); continue; }
+      const body = typeof fake.body === "string" ? fake.body : JSON.stringify(fake.body ?? null);
+      return { status, ok: status < 400, url: current, headers: new Map(Object.entries(headers)), text: async () => body, json: async () => JSON.parse(body) };
+    }
+    throw new Error("too many redirects");
   }
+
   // egress: fixed hosts, plus hosts of the URLs in any setting named by { setting } (spec/08)
   egressHosts(p) {
     const eff = this.effectiveSettings(p);
-    return (p.manifest.egress || []).flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
+    return (p.manifest.egress || []).flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : e.input ? (p.inputHost ? [p.inputHost] : []) : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
   }
   // x-hax-proxy (spec/05): a GET operation answered by core from the declaration, with no plugin code. Templates may
   // read settings ({{settings.apiKey}}) and only the listed query parameters pass through from the caller.
@@ -481,6 +565,15 @@ export class MemoryBackend {
       config: { save: async (values) => backend.saveConfig(p.id, values) },
       // the only sanctioned way to run a process (spec/13): commands outside the exec list are refused
       exec: async (cmd, args = [], opts = {}) => backend.execFor(p, cmd, args, opts),
+      archive: { read: async (data, opts = {}) => readZip(data, opts) },
+      // call a core contract another plugin implements (a site importer hands markdown to import.file); the callee
+      // runs with its own ctx and capabilities. Returns the implementer's result (or { error }).
+      contracts: {
+        call: async (name, op, input, opts = {}) => {
+          try { const r = await backend.callContract(name, op, input, { only: opts.plugin }); return r.length ? r[0].result : { error: `no active implementer of ${name}` }; }
+          catch (e) { return { error: e.message }; }
+        },
+      },
       // merged registries (core plus active plugins), read-only
       registries: { theme: async (element) => backend.themeEntry(element) },
       plugins: { contract: async (opts = {}) => backend.unifiedContract(opts), list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience), operations: async (filter = {}) => backend.pluginOperations(filter), prompts: async () => backend.pluginPrompts() },
@@ -785,23 +878,15 @@ export class MemoryBackend {
       capabilities: p.manifest.capabilities || [], records: this.records, listedPages: Object.values(this.records.page || {}).filter((pg) => this.isListed(pg)).map((pg) => pg.id), currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
+      contractImpls: Object.fromEntries(Object.keys(CORE_CONTRACTS).map((n) => [n, this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, n) && x.manifest.entry && x.manifest.entry.php).map((x) => ({ plugin: x.id, entry: join(x.dir, x.manifest.entry.php), class: studly(x.id), method: contractMethod(n, CORE_CONTRACTS[n].operations[0]), accepts: implEntry(x.manifest, n).accepts || null, dispatch: CORE_CONTRACTS[n].dispatch || "all" }))])),
       fetch: { egress: (p.manifest.capabilities || []).includes("network:egress") ? this.egressHosts(p) : [], fakes: this.fetchFakes || {} },
       exec: { allowed: (p.manifest.capabilities || []).includes("exec:run") ? p.manifest.exec || [] : [], fakes: this.execFakes || {} },
       ctx: { now: this.now, entityType: ctx.entityType, subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
     };
-    const r = spawnSync("php", [join(here, "php/bridge.php")], { input: JSON.stringify(input), encoding: "utf8" });
-    if (r.status !== 0) throw new Error(`php bridge failed: ${r.stderr || r.stdout}`);
-    const out = JSON.parse(r.stdout);
+    const out = await this.runPhp(input, p, ctx);
     if (out.missing) return { missing: true };
-    for (const [id, v] of Object.entries(out.stores || {})) this.writeStore(p, id, v);
-    for (const [id, v] of Object.entries(out.manifestStores || {})) this.writeStore(p, id, v);
     for (const [path, b64] of Object.entries(out.sitePuts || {})) this.putSiteFile(p, path, b64);
     for (const path of out.siteRemoves || []) this.removeSiteFile(p, path);
-    const apply = async () => {
-      for (const { type, id } of out.entityDeletes || []) await this.deleteEntity(type, id);
-      for (const { type, record } of out.entitySaves || []) await this.saveEntity(type, record);
-    };
-    if (out.bulk) await this.transaction(apply, { bulk: true, origin: out.bulk.origin || "plugin" }); else await apply();
     for (const values of out.configSaves || []) await this.saveConfig(p.id, values);
     for (const [path, content] of Object.entries(out.managedWrites || {})) this.writeManaged(p, path, content);
 
@@ -814,17 +899,89 @@ export class MemoryBackend {
     return { value: out.result };
   }
 
+  // One PHP call. The bridge sends RPC lines for effects other plugins must see during the call (entity saves and
+  // deletes with their hooks and vetoes, store writes, hooks the plugin fires, contracts it calls, transactions);
+  // each runs here through the same ctx a Node plugin would use, and the reply goes back on stdin.
+  runPhp(input, p, ctx) {
+    return new Promise((resolve, reject) => {
+      const child = spawn("php", [join(here, "php/bridge.php")], { stdio: ["pipe", "pipe", "pipe"] });
+      let buf = "", final = "", err = "", queue = Promise.resolve();
+      const txEnds = [];
+      const handle = async (msg) => {
+        const [a, b, c] = msg.args || [];
+        switch (msg.rpc) {
+          case "entities.save": return ctx.entities.save(a, b);
+          case "entities.delete": return ctx.entities.delete(a, b);
+          case "storage.write": await ctx.storage.write(a, b); return true;
+          case "hooks.fire": return ctx.hooks.fire(a, b, c || {});
+          case "contracts.call": return ctx.contracts.call(a, b, c, msg.args[3] || {});
+          case "fetch": { const r = await ctx.fetch(a, b || {}); const text = await r.text(); return { status: r.status, headers: Object.fromEntries(r.headers || []), body: text }; }
+          case "tx.begin": {
+            // open (or join) a transaction and hold it until tx.end
+            let release; const held = new Promise((r) => { release = r; });
+            let started; const ready = new Promise((r) => { started = r; });
+            const done = this.transaction(async () => { started(); await held; }, { bulk: a && a.bulk !== false, origin: (a && a.origin) || "plugin" });
+            await Promise.race([ready, done]);
+            txEnds.push({ release, done });
+            return true;
+          }
+          case "tx.end": { const t = txEnds.pop(); if (t) { t.release(); await t.done; } return true; }
+          default: throw new Error(`unknown rpc ${msg.rpc}`);
+        }
+      };
+      child.stdout.on("data", (chunk) => {
+        buf += chunk;
+        let i;
+        while ((i = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, i); buf = buf.slice(i + 1);
+          let msg = null; try { msg = JSON.parse(line); } catch { msg = null; }
+          if (msg && typeof msg === "object" && msg.rpc) {
+            queue = queue.then(async () => {
+              let reply;
+              try { reply = { result: (await handle(msg)) ?? null }; } catch (e) { reply = { error: String(e && e.message) }; }
+              child.stdin.write(JSON.stringify(reply) + "\n");
+            });
+          } else final += line + "\n";
+        }
+      });
+      child.stderr.on("data", (d) => { err += d; });
+      child.stdin.on("error", () => {});
+      child.on("error", reject);
+      child.on("close", async (code) => {
+        await queue;
+        final += buf;
+        if (code !== 0) return reject(new Error(`php bridge failed: ${err || final}`));
+        try { resolve(JSON.parse(final.trim())); } catch (e) { reject(new Error(`php bridge output: ${e.message}: ${final.slice(0, 300)} ${err}`)); }
+      });
+      child.stdin.write(JSON.stringify(input) + "\n");
+    });
+  }
+
   // ---- contracts: core (or a plugin) calls every active implementer (spec/06, spec/13) ----
   async callContract(name, op, input, { only } = {}) {
     const results = [];
     const def = CORE_CONTRACTS[name] || {};
     if (def.dispatch === "chosen" && !only) throw new Error(`${name} calls one implementer the caller picks; choose one of: ${this.contractImplementers(name).map((x) => x.id).join(", ") || "none active"}`);
-    for (const p of this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes(name) && (!only || x.id === only))) {
+    if (def.dispatch === "accepts" && !only) {
+      const ext = (String((input && input.name) || "").toLowerCase().match(/\.[a-z0-9]+$/) || [""])[0];
+      const p = this.plugins.find((x) => x.status === "active" && ((implEntry(x.manifest, name) || {}).accepts || []).includes(ext));
+      if (!p) throw new Error(`no active ${name} implementer accepts ${ext || "files without an extension"}`);
+      only = p.id;
+    }
+    for (const p of this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name) && (!only || x.id === only))) {
       const ctx = this.makeCtx(p, { subject: input });
+      // deployment host aliases (HAXiam: iam. sites are served from oer.) are applied to input.url by core, so
+      // importers stay deployment-neutral; then egress { input: url } opens that host for this call only
+      // a URL without a scheme gets https:// before anything else, so the reachable host is the one meant
+      if (input && typeof input.url === "string" && input.url.trim() && !/^[a-z][a-z0-9+.-]*:\/\//i.test(input.url.trim())) input = { ...input, url: `https://${input.url.trim()}` };
+      if (input && input.url && (this.urlAliases || []).length) { let u = String(input.url); for (const a of this.urlAliases) u = u.replace(new RegExp(a.from), a.to); input = { ...input, url: u }; }
+      let inputHost = null; try { inputHost = input && input.url ? new URL(input.url).hostname : null; } catch { inputHost = null; }
+      p.inputHost = inputHost;
       try {
         const r = await this.invoke(p, "contract", `${name}#${op}`, ctx, [input]);
         if (!r.missing) results.push({ plugin: p.id, result: r.value ?? null });
       } catch (e) { this.log.push({ level: "error", plugin: p.id, message: `${name}.${op}: ${e.message}` }); }
+      finally { p.inputHost = null; }
     }
     return results;
   }
@@ -832,7 +989,7 @@ export class MemoryBackend {
   async flushLog() {
     const start = this.flushed || 0;
     this.flushed = this.log.length;
-    const sinks = this.plugins.filter((x) => x.status === "active" && (x.manifest.implements || []).includes("log.sink"));
+    const sinks = this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, "log.sink"));
     if (!sinks.length) return;
     for (const entry of this.log.slice(start, this.flushed)) for (const sink of sinks) {
       if (entry.plugin === sink.id) continue;

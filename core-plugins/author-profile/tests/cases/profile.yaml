@@ -31,3 +31,14 @@
     steps:
       - render: { page: { id: p1, content: "<p>x</p>" } }
         expect: { contains: ['"@type":"Person"', '"sameAs":["https://social.example/ada"]'] }
+- id: author-profile-004
+  title: "profile text cannot close the JSON-LD script"
+  hook: render.before.head
+  given: "a location containing </script><script>alert(1)"
+  when: "a page renders"
+  then: "the < is written as \\u003c in both runtimes, so the script element stays closed"
+  run:
+    settings: { location: "Pittsburgh</script><script>alert(1)" }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ["Pittsburgh\\u003c/script>\\u003cscript>alert(1)"], notContains: ["Pittsburgh</script>"] }

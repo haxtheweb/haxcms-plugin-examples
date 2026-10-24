@@ -3,6 +3,15 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 export default {
   hooks: {
+    /**
+     * Implements hook render.after.body.
+     *
+     * Adds the dark-mode-toggle element and its script to the end of the body, only when the active theme supports
+     * both light and dark schemes.
+     *
+     * @param {object} ctx  ctx.subject: the render state (theme, body).
+     * @returns {Promise<object|undefined>}  the render state with the toggle, or nothing when the theme has one scheme.
+     */
     "render.after.body": async (ctx) => {
       const theme = await ctx.registries.theme(ctx.subject.theme);
       const schemes = (theme && theme.colorSchemes) || ["light"];

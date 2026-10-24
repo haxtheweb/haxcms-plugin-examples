@@ -22,23 +22,52 @@ self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => 
   }
 
 
-  // hook: render.before.head
+  /**
+   * Implements hook render.before.head.
+   *
+   * When forceUpgrade is on, adds a nomodule redirect that sends very old browsers to the upgrade page.
+   *
+   * @param object $ctx  subject: the render context (site, page, head, body start/end, ...); settings: forceUpgrade.
+   * @return array|null  the context with the redirect in head, or null when forceUpgrade is off.
+   */
   public function renderBeforeHead($ctx) {
     if (!$this->truthy($ctx->settings['forceUpgrade'] ?? false)) { return null; }
     $ctx->subject['head'][] = '<script nomodule>window.location.href="assets/upgrade-browser.html";</script>';
     return $ctx->subject;
   }
 
-  // hook: render.after.body
+  /**
+   * Implements hook render.after.body.
+   *
+   * When offline support is on, registers service-worker.js at the end of the page.
+   *
+   * @param object $ctx  subject: the render context (site, page, head, body start/end, ...); settings: serviceWorker.
+   * @return array|null  the context with the registration script in body end, or null when offline support is off.
+   */
   public function renderAfterBody($ctx) {
     if (!$this->truthy($ctx->settings['serviceWorker'] ?? false)) { return null; }
     $ctx->subject['body']['end'][] = '<script>if("serviceWorker"in navigator){addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js"));}</script>';
     return $ctx->subject;
   }
 
-  // hook: rebuild.after
+  /**
+   * Implements hook rebuild.after.
+   *
+   * Writes service-worker.js and offline.html when offline support is on, or a self-removing worker when it is off,
+   * so visitors who installed the worker earlier lose it.
+   *
+   * @param object $ctx  subject: [scope, siteId, reason, files] of the rebuild that finished; settings: serviceWorker.
+   * @return null
+   */
   public function rebuildAfter($ctx) { $this->writeWorker($ctx, $this->truthy($ctx->settings['serviceWorker'] ?? false)); return null; }
 
-  // hook: plugin.after.disable
+  /**
+   * Implements hook plugin.after.disable.
+   *
+   * Leaves a self-removing service worker behind, so visitors' browsers drop the cached site once the plugin is off.
+   *
+   * @param object $ctx  subject: [id, version, scope, siteId] of this plugin.
+   * @return null
+   */
   public function pluginAfterDisable($ctx) { $this->writeWorker($ctx, false); return null; }
 }

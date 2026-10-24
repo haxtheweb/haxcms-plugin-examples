@@ -43,12 +43,22 @@ open(p, "w").write(s[:start] + block + tail)
 # node
 p = os.path.join(ex, "src/nodejs/index.js"); s = open(p).read()
 head = s[: s.index("  hooks: {\n") + len("  hooks: {\n")]
-body = "".join(f"    // {c['comment']}\n    \"{c['name']}\": async (ctx) => {{\n" + node_body.get(c["name"], f"      log(\"{c['name']}\", ctx);\n") + "    },\n" for c in C)
+def clean(t): return re.sub(r"\*\*([^*]+)\*\*", r"\1", str(t)).replace("`", "").replace("*/", "* /")
+def cap(t): t = clean(t).strip(); return (t[:1].upper() + t[1:]).rstrip(".") + "."
+def desc(c): return (cap(c.get("comment", "")) if c["name"] in node_body else f"Logs the call so tests can see it, and shows the signature. A real implementation would: {clean(c.get('comment', 'react to it')).strip().rstrip('.')}.")
+def doc(c, ind, php):
+  lines = [f"Implements hook {c['name']}.", "", desc(c), f"Runs when {clean(c.get('when', 'it fires'))}.", "",
+           (f"@param object $ctx" if php else "@param {object} ctx") + f"  subject: {clean(c.get('subject', 'see the hook definition'))}; previous: {clean(c.get('previous', 'none'))}.",
+           (f"@return mixed" if php else "@returns {Promise<*>}") + f"  {clean(c.get('returns', 'nothing'))}" + ("; may call ctx.veto()." if c.get("veto") else ".")]
+  return ind + "/**\n" + "".join(ind + " *" + (" " + l if l else "") + "\n" for l in lines) + ind + " */\n"
+body = "".join(doc(c, "    ", False) + f"    \"{c['name']}\": async (ctx) => {{\n" + node_body.get(c["name"], f"      log(\"{c['name']}\", ctx);\n") + "    },\n" for c in C)
 open(p, "w").write(head + body + "  },\n};\n")
 # php
 p = os.path.join(ex, "src/php/Plugin.php"); s = open(p).read()
 # keep everything before the first hook block (class header, helpers, scheduled job handlers)
-head = s[: s.rfind("\n\n", 0, s.index("  // hook: ")) + 1]
-body = "".join(f"\n  // {c['comment']}\n  // hook: {c['name']}\n  public function {camel(c['name'])}($ctx) {{\n" + php_body.get(c["name"], f"    $this->log(\"{c['name']}\", $ctx);\n") + "  }\n" for c in C)
+marker = s.find("  /**\n   * Implements hook ")
+if marker < 0: marker = s.index("  // hook: ")
+head = s[: s.rfind("\n\n", 0, marker) + 1]
+body = "".join("\n" + doc(c, "  ", True) + f"  public function {camel(c['name'])}($ctx) {{\n" + php_body.get(c["name"], f"    $this->log(\"{c['name']}\", $ctx);\n") + "  }\n" for c in C)
 open(p, "w").write(head + body + "}\n")
 print(f"{len(C)} hooks written")

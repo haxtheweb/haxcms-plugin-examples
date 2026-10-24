@@ -6,6 +6,15 @@ class ReadingTimePlugin {
     $t = trim(preg_replace('/<[^>]*>/', ' ', preg_replace('/<(script|style)[\s\S]*?<\/\1>/i', ' ', (string) $html)));
     return $t === '' ? 0 : count(preg_split('/\s+/', $t));
   }
+  /**
+   * Implements hook page.before.save.
+   *
+   * Counts the words of the page and stores the word count and reading time in metadata.plugins.reading-time, so
+   * themes and the render hook can show it without counting again. Uses the wordsPerMinute setting (200 by default).
+   *
+   * @param object $ctx  subject: the page as submitted; previous: the stored page.
+   * @return array  the page with the computed fields.
+   */
   public function pageBeforeSave($ctx) {
     $p = $ctx->subject;
     $words = $this->count($p['content'] ?? '');
@@ -16,6 +25,15 @@ class ReadingTimePlugin {
     $p['metadata']['plugins'][self::NS] = ['words' => $words, 'minutes' => $minutes];
     return $p;
   }
+  /**
+   * Implements hook render.before.content.
+   *
+   * Puts a short reading-time line above the page content, using the minutes stored at save time and the label
+   * setting.
+   *
+   * @param object $ctx  subject: the render state (page, content).
+   * @return array|null  the render state with the line added, or nothing when the page has no reading time.
+   */
   public function renderBeforeContent($ctx) {
     $m = $ctx->subject['page']['metadata']['plugins'][self::NS] ?? null;
     if (!$m || empty($m['minutes'])) { return null; }

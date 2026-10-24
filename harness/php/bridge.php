@@ -1,8 +1,19 @@
 <?php
-// PHP side of the reference harness (harness/memory-backend.mjs). Reads one call as JSON on stdin, runs the
+// PHP side of the reference harness (harness/memory-backend.mjs). Reads one call as a JSON line on stdin, runs the
 // plugin's PHP method with a ctx that follows spec/13, and prints the result plus any state the call changed.
-// Hooks a plugin fires itself (ctx->hooks->fire) have no other subscribers here; cases that need cross-plugin
-// hooks run in Node only.
+// Calls whose effects other plugins must see at once go back to the harness as RPC lines while the method runs
+// (entity saves and deletes, so vetoes come back; store writes; hooks the plugin fires; bulk transactions): the
+// bridge writes {"rpc": method, "args": [...]} and reads the reply line, so PHP plugins behave like Node ones.
+
+function harness_rpc($method, $args = []) {
+  fwrite(STDOUT, json_encode(['rpc' => $method, 'args' => $args], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n");
+  fflush(STDOUT);
+  $line = fgets(STDIN);
+  $r = json_decode((string) $line, true);
+  if (!is_array($r)) { throw new Exception("harness rpc $method: no reply"); }
+  if (array_key_exists('error', $r)) { throw new Exception($r['error']); }
+  return $r['result'] ?? null;
+}
 
 class HarnessStorage {
   public $state; public $written = []; private $pluginDir; private $packageStores; private $overrides;
@@ -15,6 +26,7 @@ class HarnessStorage {
   public function write($id, $value) {
     if (isset($this->packageStores[$id])) { throw new Exception("store \"$id\" is read-only (package scope)"); }
     $this->state[$id] = $value; $this->written[$id] = $value;
+    harness_rpc('storage.write', [$id, $value]);
   }
 }
 
@@ -68,14 +80,21 @@ class HarnessEntities {
     }));
   }
   public $deletes = [];
-  public function delete($type, $id) { $this->need($type, 'write'); unset($this->records[$type][$id]); $this->deletes[] = ['type' => $type, 'id' => $id]; return ['deleted' => true]; }
-  // Saves are applied by the harness after the call, running the entity hooks then.
+  // deletes and saves run in the harness right away (entity hooks, vetoes, stale checks) and report back
+  public function delete($type, $id) {
+    $this->need($type, 'write');
+    $r = harness_rpc('entities.delete', [$type, $id]);
+    if (!empty($r['deleted'])) { unset($this->records[$type][$id]); }
+    return $r;
+  }
   public function save($type, $record) {
     $this->need($type, 'write');
-    $id = $type === 'site' ? ($record['id'] ?? $this->site) : ($record['id'] ?? $record['uuid']);
-    $this->records[$type][$id] = $record;
-    $this->saves[] = ['type' => $type, 'record' => $record];
-    return ['record' => $record];
+    $r = harness_rpc('entities.save', [$type, $record]);
+    if (empty($r['veto']) && empty($r['conflict']) && isset($r['record'])) {
+      $id = $type === 'site' ? ($r['record']['id'] ?? $this->site) : ($r['record']['id'] ?? $r['record']['uuid'] ?? null);
+      if ($id !== null) { $this->records[$type][$id] = $r['record']; }
+    }
+    return $r;
   }
 }
 
@@ -113,13 +132,45 @@ class HarnessAssets {
   }
 }
 
+// ctx->archive->read: the same bounded zip reader in PHP (ZipArchive)
+class HarnessArchive {
+  public function read($b64, $opts = []) {
+    $bin = base64_decode((string) $b64, true);
+    if ($bin === false || substr($bin, 0, 4) !== "PK\x03\x04") { throw new Exception('not a zip archive'); }
+    $max = $opts['maxEntries'] ?? 5000; $maxBytes = $opts['maxBytes'] ?? 100 * 1024 * 1024; $match = '/' . str_replace('/', '\/', $opts['match'] ?? '.*') . '/';
+    $tmp = tempnam(sys_get_temp_dir(), 'hxz'); file_put_contents($tmp, $bin);
+    $z = new ZipArchive();
+    try {
+      if ($z->open($tmp) !== true) { throw new Exception('zip archive has no central directory'); }
+      if ($z->numFiles > $max) { throw new Exception("zip archive has {$z->numFiles} entries (limit $max)"); }
+      $out = []; $total = 0;
+      for ($i = 0; $i < $z->numFiles; $i++) {
+        $st = $z->statIndex($i); $name = $st['name'];
+        if (substr($name, -1) === '/' || !preg_match($match, $name)) { continue; }
+        $total += $st['size'];
+        if ($total > $maxBytes) { throw new Exception("zip archive expands beyond $maxBytes bytes"); }
+        $data = $z->getFromIndex($i);
+        $out[$name] = !empty($opts['binary']) ? base64_encode($data) : $data;
+      }
+      return $out;
+    } finally { $z->close(); @unlink($tmp); }
+  }
+}
+
+// ctx->contracts->call: runs another active plugin's PHP implementation of a core contract in this process
+class HarnessContracts {
+  // runs in the harness, so the callee gets its own ctx and capabilities (and may be a Node or PHP plugin)
+  public function call($name, $op, $input, $opts = []) { return harness_rpc('contracts.call', [$name, $op, $input, (object) $opts]); }
+}
+
 class HarnessHooks {
-  public function fire($name, $subject, $opts = []) { return ['subject' => $subject, 'warnings' => []]; }
+  // every subscriber runs (in the harness, in either runtime); returns ['subject', 'veto'?, 'warnings']
+  public function fire($name, $subject, $opts = []) { return harness_rpc('hooks.fire', [$name, $subject, (object) $opts]); }
 }
 
 class HarnessCtx {
   public $entityType = null; public $subject; public $previous; public $request; public $settings; public $haxcms; public $plugin; public $site; public $user;
-  public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $config; public $plugins; public $assets; public $files; public $warnings = []; private $enabled;
+  public $archive; public $contracts; public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $config; public $plugins; public $assets; public $files; public $warnings = []; private $enabled;
   public function __construct($in) {
     $c = $in['ctx'];
     $this->subject = $c['subject'] ?? null;
@@ -139,6 +190,8 @@ class HarnessCtx {
     $this->package = new HarnessPackage($in['pluginDir']);
     $this->log = new HarnessLog();
     $this->hooks = new HarnessHooks();
+    $this->archive = new HarnessArchive();
+    $this->contracts = new HarnessContracts();
     $this->config = new HarnessConfig($this);
     $this->plugins = new HarnessPlugins($in['activePlugins'] ?? [], $in['skillsByAudience'] ?? [], $in['operations'] ?? [], $in['prompts'] ?? []);
     $this->files = new HarnessFiles($in['managedFiles'] ?? []);
@@ -148,7 +201,11 @@ class HarnessCtx {
   }
   public $bulk = null;
   // PHP spelling of ctx.transaction.run(): the harness applies this call's saves inside one bulk transaction
-  public function runTransaction($fn, $opts = []) { $this->bulk = $opts + ['origin' => 'plugin']; return $fn($this->transaction); }
+  // PHP spelling of ctx.transaction.run(): opens (or joins) a transaction in the harness for the duration of $fn
+  public function runTransaction($fn, $opts = []) {
+    harness_rpc('tx.begin', [(object) ($opts + ['origin' => 'plugin', 'bulk' => true])]);
+    try { return $fn($this->transaction); } finally { harness_rpc('tx.end', []); }
+  }
   public function veto($message, $status = 409) { return ['__veto' => true, 'message' => $message, 'status' => $status]; }
   public function warn($message, $severity = 'warning') { $this->warnings[] = ['message' => $message, 'severity' => $severity]; }
   public function respond($html) { return ['__respond' => $html]; }
@@ -157,16 +214,13 @@ class HarnessCtx {
   public function pluginEnabled($id) { return in_array($id, $this->enabled, true); }
   // ctx->fetch: egress checked, call recorded, answered from the case's fakes by host (spec/13 PHP shape)
   public $fetchCalls = []; public $fetchSpec = ['egress' => [], 'fakes' => []];
+  // the harness does the fetch (egress, redirects and the SSRF guard checked on every hop), as for Node plugins
   public function fetch($url, $init = []) {
-    $host = parse_url($url, PHP_URL_HOST);
-    if (preg_match('/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/', $host) || preg_match('/\.(internal|local)$/', $host)) { throw new Exception("fetch to $host not allowed (private address)"); }
-    if (!in_array('*', $this->fetchSpec['egress'], true) && !in_array($host, $this->fetchSpec['egress'], true)) { throw new Exception("fetch to $host not allowed"); }
-    $this->fetchCalls[] = ['method' => strtoupper($init['method'] ?? 'GET'), 'url' => $url];
-    $fake = $this->fetchSpec['fakes'][$host] ?? null;
-    if (!$fake) { throw new Exception('network is disabled in the harness'); }
-    $body = is_string($fake['body'] ?? null) ? $fake['body'] : json_encode($fake['body'] ?? null);
-    return ['status' => $fake['status'] ?? 200, 'headers' => $fake['headers'] ?? [], 'body' => $body, 'json' => json_decode($body, true)];
+    $r = harness_rpc('fetch', [$url, (object) $init]);
+    $body = (string) ($r['body'] ?? '');
+    return ['status' => $r['status'], 'headers' => $r['headers'] ?? [], 'body' => $body, 'json' => json_decode($body, true)];
   }
+
   // PHP spelling of ctx.exec(): commands outside the exec list are refused; the harness answers from fakes
   public $execCalls = []; public $execSpec = ['allowed' => [], 'fakes' => []];
   public function exec($cmd, $args = [], $opts = []) {
@@ -179,7 +233,7 @@ class HarnessCtx {
   }
 }
 
-$in = json_decode(stream_get_contents(STDIN), true);
+$in = json_decode(fgets(STDIN), true);
 require_once $in['entry'];
 $class = $in['class'];
 $plugin = new $class();
@@ -194,17 +248,12 @@ $ctx->fetchSpec = $in['fetch'] ?? ['egress' => [], 'fakes' => []];
 $result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
 echo json_encode([
   'result' => $result,
-  'stores' => (object) $ctx->storage->written,
   'logs' => $ctx->log->entries,
   'warnings' => $ctx->warnings,
   'transaction' => ['marks' => (object) $ctx->transaction['marks']],
-  'entitySaves' => $ctx->entities->saves,
-  'entityDeletes' => $ctx->entities->deletes,
-  'bulk' => $ctx->bulk,
   'configSaves' => $ctx->config->saves,
   'managedWrites' => (object) $ctx->files->writes,
   'sitePuts' => (object) $ctx->files->puts,
   'siteRemoves' => $ctx->files->removes,
   'execCalls' => $ctx->execCalls,
-  'fetchCalls' => $ctx->fetchCalls,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

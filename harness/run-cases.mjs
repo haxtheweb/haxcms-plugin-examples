@@ -11,7 +11,9 @@ import { MemoryBackend } from "./memory-backend.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
-const dir = resolve(args.find((a) => !a.startsWith("--")) || ".");
+const backendArg = args.includes("--backend") ? args[args.indexOf("--backend") + 1] : null;
+const backendFactory = backendArg ? await import((await import("node:url")).pathToFileURL((await import("node:path")).resolve(backendArg)).href) : null;
+const dir = resolve(args.find((a, i) => !a.startsWith("--") && !["--backend", "--runtime"].includes(args[i - 1])) || ".");
 const runtimeArg = (args.find((a) => a.startsWith("--runtime=")) || "").split("=")[1] || (args.includes("--runtime") ? args[args.indexOf("--runtime") + 1] : "both");
 const asJson = args.includes("--json");
 const manifest = parse(readFileSync(join(dir, "plugin.yaml"), "utf8"));
@@ -25,10 +27,14 @@ import { step } from "./steps.mjs";
 
 async function runCase(c, runtime) {
   const r = c.run;
-  const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}) });
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}) };
+  // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
+  const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
   await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} }, records: r.records });
   backend.execFakes = r.exec || {};
+  backend.caseDir = dir;
   backend.fetchFakes = r.fetch || {};
+  backend.urlAliases = r.urlAliases || [];
   if (r.now) backend.now = Date.parse(r.now);
   // a single call/fire with expect, or a list of steps each with its own expect
   const steps = r.steps || [{ ...(r.call ? { call: r.call } : {}), ...(r.fire ? { fire: r.fire } : {}), expect: r.expect || {} }];

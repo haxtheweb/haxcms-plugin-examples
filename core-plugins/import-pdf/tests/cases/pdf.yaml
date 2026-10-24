@@ -1,0 +1,26 @@
+- id: import-pdf-001
+  title: "larger type becomes headings; lines close together join into paragraphs"
+  given: "tests/fixtures/sample.pdf: a 24pt title, 18pt section headings, 11pt body, Helvetica, compressed content"
+  when: "imported as a site"
+  then: "Field Notes with children Site A and Site B; the Info title is used"
+  run:
+    steps:
+      - importFile: { file: tests/fixtures/sample.pdf, method: site }
+        expect:
+          status: 200
+          body:
+            plugin: import-pdf
+            title: Field Notes
+            items:
+              - { title: Field Notes, content: "<p>Notes from the river survey (spring).</p>" }
+              - { title: Site A, parent: item-1, content: "<p>Water was clear. Two herons seen.</p>" }
+              - { title: Site B, parent: item-1, content: "<p>Muddy after rain.</p>" }
+- id: import-pdf-002
+  title: "not a PDF"
+  given: "plain text named .pdf"
+  when: "imported"
+  then: "422"
+  run:
+    steps:
+      - importFile: { name: notes.pdf, data: "aGVsbG8=", method: site }
+        expect: { status: 422, message: "not a PDF file" }

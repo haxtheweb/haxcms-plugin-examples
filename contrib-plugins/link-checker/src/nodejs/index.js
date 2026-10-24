@@ -1,8 +1,25 @@
 // Link checker (Node only). HEAD each distinct outside link once; 4xx/5xx or an unreachable host is broken.
 export default {
   operations: {
+    /**
+     * Implements operation linkCheckerReport.
+     *
+     * Returns the report from the last weekly check.
+     *
+     * @param {object} ctx
+     * @returns {Promise<object>}  { checkedAt, checked, broken }.
+     */
     async linkCheckerReport(ctx) { return (await ctx.storage.read("report")) || { checkedAt: null, broken: [] }; },
   },
+  /**
+   * Implements schedule check.
+   *
+   * Sends one HEAD request to each distinct outside link on listed pages, every Monday, and stores a report of those
+   * that answer 4xx/5xx, are unreachable or are refused as private addresses.
+   *
+   * @param {object} ctx
+   * @returns {Promise<object>}  { checked, broken } counts.
+   */
   async checkLinks(ctx) {
     const pages = await ctx.entities.list("page", { listed: true });
     const byUrl = new Map();

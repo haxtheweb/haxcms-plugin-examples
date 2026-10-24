@@ -32,3 +32,14 @@ Entry format:
 - Change: hook `stages` (render.after: transform, seal, store); `egress` / `privacy.recipients` entries `{ setting }` and `{ any, reason }` with derived tags `admin-chosen-hosts` and `reaches-any-host`; dashboard `action.kind: tour` with fixed anchors; locale keys for declarative UI; `ctx.plugins.contract()`; `ctx.entityType`; `ctx.registries.theme()` and theme `colorSchemes`; `entities.yaml` `metadata.<type>.fields` and `form` for plugin fields on core records; no hook re-entry; schedules run as one bulk transaction.
 - Upgrade recipe: a plugin that writes its own keys into a page's `metadata` moves them under `metadata.plugins.<id>` and declares them, or core drops them. A render.after subscriber that edits the document says `stage: transform`; one that stores it says `stage: store`. A plugin that sends data to admin-entered URLs replaces fixed hosts with `{ setting }`.
 - Fixture: `conformance/cases/platform.yaml` (plat-001 to plat-010) and their `fx-*` fixtures.
+
+### Additions during the 0.1.0 draft (round: importers and docblocks)
+- Change: every hook, operation, contract operation, schedule and upgrade implementation needs a docblock whose first line is `Implements hook <name>.` (or operation, contract, schedule, upgrade), directly above it. README "What it implements" tables are generated from them.
+- Upgrade recipe: run `node scripts/validate.mjs <plugin>`; for each "missing docblock" error add the block above the named function, then run `node scripts/plugin-docs.mjs <plugin>`.
+- Fixture: `examples/example` (every hook carries one).
+- Change: `open-media-apps` split into five contrib plugins; youtube, vimeo, giphy, unsplash and flickr are contrib (no `core: true`).
+- Upgrade recipe: a deployment that enabled `open-media-apps` enables `appstore-nasa`, `appstore-sketchfab`, `appstore-dailymotion`, `appstore-wikipedia` and `appstore-cc-mixter` instead.
+- Fixture: `contrib-plugins/appstore-nasa`.
+- Change: new contract `import.file` (`dispatch: accepts`); `implements` entries may be objects `{ name, accepts }`.
+- Upgrade recipe: a file importer that implemented `import.platform` with a file input switches to `import.file` and lists its extensions in `accepts`.
+- Fixture: `core-plugins/import-markdown`.

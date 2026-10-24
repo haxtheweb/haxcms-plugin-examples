@@ -10,6 +10,14 @@ const ref = (id) => String(id).replace(/-/g, "").replace(/^item/, "").slice(0, 2
 
 export default {
   hooks: {
+    /**
+     * Implements hook rebuild.after.
+     *
+     * Writes lunrSearchIndex.json from public pages in outline order, in the format the site-search element reads. Both runtimes write identical bytes.
+     *
+     * @param {object} ctx  ctx.subject: { scope, siteId?, reason, files }.
+     * @returns {Promise<void>}
+     */
     "rebuild.after": async (ctx) => {
       const pages = (await ctx.entities.list("page", { listed: true })).sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || String(a.id).localeCompare(String(b.id)));
       const index = pages.map((p) => ({ id: ref(p.id), title: p.title || "", created: Math.floor(ms((p.metadata || {}).created, ctx.now()) / 1000), location: p.slug || "", description: p.description || "", text: clean(p.content) }));

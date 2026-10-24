@@ -4,7 +4,7 @@
   when: "GET /system/api/v1/plugins/api-docs/openapi"
   then: "paths under each plugin's prefix, tagged by plugin; no upstream URL or key template"
   run:
-    with: [core-plugins/youtube, contrib-plugins/comments]
+    with: [contrib-plugins/youtube, contrib-plugins/comments]
     settings: {}
     steps:
       - config: { plugin: youtube, values: { apiKey: AIza-test-key } }

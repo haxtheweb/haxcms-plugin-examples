@@ -22,7 +22,15 @@ class ImporterHtmlPlugin {
     return ['title' => $title, 'items' => $items];
   }
 
-  // contract import.platform, operation convert
+  /**
+   * Implements contract import.platform, operation convert (dispatch: chosen).
+   *
+   * Splits an HTML document into pages at each h2, with the h1 (or title) as the site title and text before the first h2 as Introduction. Scripts, styles and event handlers are dropped; core sanitizes again on save.
+   *
+   * @param object $ctx    Platform context (spec/13); unused.
+   * @param array  $input  [html].
+   * @return array  [title, items] or [error].
+   */
   public function importPlatformConvert($ctx, $input) {
     if (!is_array($input) || !is_string($input['html'] ?? null)) { return ['error' => 'html is required']; }
     return $this->convert($input['html']);

@@ -6,11 +6,29 @@ export const safeName = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9._
 
 export default {
   operations: {
+    /**
+     * Implements operation filesList.
+     *
+     * Lists the site's files sorted by name, optionally filtered by part of the name, for the editor's Local files browser.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @param {object} req  req.query.name: optional filter (lower-case substring of the file name).
+     * @returns {Promise<object>}  { items, total }.
+     */
     async filesList(ctx, req) {
       const q = String(req.query.name || "").toLowerCase();
       const items = (await ctx.entities.list("file")).filter((f) => !q || f.name.includes(q)).sort((a, b) => a.name.localeCompare(b.name));
       return { items, total: items.length };
     },
+    /**
+     * Implements operation filesUpload.
+     *
+     * Stores an upload under files/ with the same rules as core today: allowed extensions only, a safe lower-case name and the maxUploadMb limit. The file record is saved through ctx.entities, so file.before.save and file.after.save fire; a veto removes the stored bytes and returns 409.
+     *
+     * @param {object} ctx  Platform context (spec/13); ctx.settings.maxUploadMb (default 50).
+     * @param {object} req  req.body: { name, data (base64), alt }.
+     * @returns {Promise<object>}  the saved file record, or { status, body: { error } }.
+     */
     async filesUpload(ctx, req) {
       const name = safeName(req.body.name);
       const ext = name.includes(".") ? name.split(".").pop() : "";
@@ -25,6 +43,15 @@ export default {
       if (r.veto) { await ctx.files.remove(record.path); return { status: 409, body: { error: r.veto.message } }; }
       return r.record;
     },
+    /**
+     * Implements operation filesDelete.
+     *
+     * Deletes a file record (file.before.delete can veto with 409) and then its bytes under files/.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @param {object} req  req.params.uuid: the file to delete.
+     * @returns {Promise<object>}  { deleted: uuid }, or { status, body: { error } } (404 when unknown).
+     */
     async filesDelete(ctx, req) {
       const f = await ctx.entities.get("file", req.params.uuid);
       if (!f) return { status: 404, body: { error: "not found" } };

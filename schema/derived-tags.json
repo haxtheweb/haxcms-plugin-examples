@@ -12,5 +12,6 @@
   "untested": "untested is true",
   "full-user-records": "users:full capability (email and profile fields)",
   "reaches-any-host": "egress lists { any: true } (destinations cannot be listed in advance)",
-  "admin-chosen-hosts": "egress or privacy.recipients name a setting (admins choose where data goes)"
+  "admin-chosen-hosts": "egress or privacy.recipients name a setting (admins choose where data goes)",
+  "reaches-given-url": "egress lists { input: url } (only the host of the URL a person gives, during that call)"
 }

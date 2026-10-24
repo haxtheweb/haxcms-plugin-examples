@@ -16,7 +16,15 @@ class CookieConsentPlugin {
     return $cats;
   }
 
-  // hook: render.after.body
+  /**
+   * Implements hook render.after.body.
+   *
+   * Adds the consent banner to the end of the page, listing the consent categories that active tracking plugins
+   * declare. When nothing tracks, nothing is loaded (spec/01, load only what is used).
+   *
+   * @param object $ctx  subject: the render context (site, page, body start/end, ...); settings: message and policyUrl.
+   * @return array|null  the context with the banner added to body end, or null when no plugin tracks.
+   */
   public function renderAfterBody($ctx) {
     $cats = $this->categoriesNeedingConsent($ctx);
     if (!$cats) { return null; }

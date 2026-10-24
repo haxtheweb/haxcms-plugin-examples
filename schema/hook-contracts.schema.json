@@ -93,6 +93,10 @@
         },
         "minItems": 2,
         "description": "Named stages subscribers pick with `stage`, run in this order. For hooks where unrelated plugins must run in a known order (change the document, then sign it, then store it)."
+      },
+      "common": {
+        "type": "boolean",
+        "description": "One of the hooks most plugins use. `hax plugin create` preselects these in its hook picker; the rest are listed for discovery."
       }
     }
   }

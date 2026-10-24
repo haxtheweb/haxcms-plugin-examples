@@ -23,19 +23,52 @@ async function writeWorker(ctx, on) {
 
 export default {
   hooks: {
+    /**
+     * Implements hook render.before.head.
+     *
+     * When forceUpgrade is on, adds a nomodule redirect that sends very old browsers to the upgrade page.
+     *
+     * @param {object} ctx  ctx.subject: the render context ({ site, page, head, body: { start, end }, ... }); ctx.settings.forceUpgrade.
+     * @returns {Promise<object|undefined>}  the context with the redirect in head, or nothing when forceUpgrade is off.
+     */
     "render.before.head": async (ctx) => {
       if (!truthy(ctx.settings.forceUpgrade)) return;
       ctx.subject.head.push(`<script nomodule>window.location.href="assets/upgrade-browser.html";</script>`);
       return ctx.subject;
     },
+    /**
+     * Implements hook render.after.body.
+     *
+     * When offline support is on, registers service-worker.js at the end of the page.
+     *
+     * @param {object} ctx  ctx.subject: the render context ({ site, page, head, body: { start, end }, ... }); ctx.settings.serviceWorker.
+     * @returns {Promise<object|undefined>}  the context with the registration script in body.end, or nothing when offline support is off.
+     */
     "render.after.body": async (ctx) => {
       if (!truthy(ctx.settings.serviceWorker)) return;
       ctx.subject.body.end.push(`<script>if("serviceWorker"in navigator){addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js"));}</script>`);
       return ctx.subject;
     },
+    /**
+     * Implements hook rebuild.after.
+     *
+     * Writes service-worker.js and offline.html when offline support is on, or a self-removing worker when it is off,
+     * so visitors who installed the worker earlier lose it.
+     *
+     * @param {object} ctx  ctx.subject: { scope, siteId, reason, files } of the rebuild that finished; ctx.settings.serviceWorker.
+     * @returns {Promise<void>}  nothing.
+     */
     "rebuild.after": async (ctx) => {
       await writeWorker(ctx, truthy(ctx.settings.serviceWorker));
     },
+    /**
+     * Implements hook plugin.after.disable.
+     *
+     * Leaves a self-removing service worker behind, so visitors' browsers drop the cached site once the plugin is off.
+     *
+     * @param {object} ctx  ctx.subject: { id, version, scope, siteId } of this plugin.
+     * @returns {Promise<void>}  nothing.
+     */
     "plugin.after.disable": async (ctx) => {
       await writeWorker(ctx, false);
     },

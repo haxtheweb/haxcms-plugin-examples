@@ -28,7 +28,7 @@ const php = readFileSync(join(ex, "src/php/Plugin.php"), "utf8");
 for (const h of hooks) {
   check(manifest.includes(`name: ${h}\n`) || manifest.includes(`name: ${h}`), `hook ${h} in plugin.yaml`);
   check(node.includes(`"${h}"`), `hook ${h} in src/nodejs`);
-  check(php.includes(`// hook: ${h}\n`), `hook ${h} in src/php`);
+  check(php.includes(`* Implements hook ${h}.\n`), `hook ${h} in src/php`);
 }
 
 // 3. the validator rejects broken copies of the example

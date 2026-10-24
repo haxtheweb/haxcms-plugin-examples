@@ -45,3 +45,21 @@
         expect: { status: 200, body: { deleted: file-1 } }
       - call: { operation: filesList }
         expect: { body: { total: 0 } }
+- id: files-veto
+  title: "a vetoed upload is not kept, and a vetoed delete keeps the file"
+  operation: filesUpload
+  given: "a plugin that vetoes files named forbidden"
+  when: "upload forbidden.png; then try to delete an existing forbidden.pdf"
+  then: "409 and no record or bytes for the upload; 409 and the record stays for the delete"
+  run:
+    with: [conformance/fixtures/fx-vetoer]
+    records: { file: [{ uuid: f9, id: f9, name: forbidden.pdf, path: files/forbidden.pdf }] }
+    steps:
+      - call: { operation: filesUpload, body: { name: forbidden.png, data: aGVsbG8= } }
+        expect: { status: 409, message: "fx-vetoer: forbidden" }
+      - call: { operation: filesList }
+        expect: { body: { total: 1, items: [{ name: forbidden.pdf }] } }
+      - call: { operation: filesDelete, params: { uuid: f9 } }
+        expect: { status: 409 }
+      - call: { operation: filesList }
+        expect: { body: { total: 1 } }

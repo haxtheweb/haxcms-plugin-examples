@@ -1,0 +1,27 @@
+- id: import-markdown-001
+  title: "a Markdown file becomes pages; front matter gives the title"
+  given: "front matter title, intro text, # Setup with ## Steps, # Wrap up; lists, quote, fenced code, rule, links, image"
+  when: "imported as a site"
+  then: "Lab Manual (intro), Setup with child Steps, Wrap up; code is escaped; inline formatting converted"
+  run:
+    steps:
+      - importFile: { name: manual.md, method: site, data: "LS0tCnRpdGxlOiAiTGFiIE1hbnVhbCIKLS0tClNhZmV0eSBmaXJzdDogcmVhZCAqKmFsbCoqIG9mIGl0LgoKIyBTZXR1cAoKSW5zdGFsbCB0aGUgKnRvb2xzKiBhbmQgYG5vZGVgLgoKIyMgU3RlcHMKCjEuIENsb25lIHRoZSBbcmVwb10oaHR0cHM6Ly9naXRodWIuY29tL2hheHRoZXdlYi9jcmVhdGUpCjIuIFJ1biBpdAoKLSBvbmUKLSB0d28KICBjb250aW51ZWQKCj4gTm90ZTogYmUgY2FyZWZ1bAo+IHdpdGggdGhlIF93aXJpbmdfLgoKYGBganMKaWYgKGEgPCBiKSBydW4oKTsKYGBgCgotLS0KCiMgV3JhcCB1cAoKU2VlIDxodHRwczovL2hheC5wc3UuZWR1PiBhbmQgIVtsb2dvXShmaWxlcy9sb2dvLnBuZyAiSEFYIikuCg==" }
+        expect:
+          status: 200
+          body:
+            plugin: import-markdown
+            title: Lab Manual
+            items:
+              - { title: Lab Manual, content: "<p>Safety first: read <strong>all</strong> of it.</p>" }
+              - { title: Setup, content: "<p>Install the <em>tools</em> and <code>node</code>.</p>" }
+              - { title: Steps, parent: item-2, content: '<ol><li>Clone the <a href="https://github.com/haxtheweb/create">repo</a></li><li>Run it</li></ol><ul><li>one</li><li>two continued</li></ul><blockquote><p>Note: be careful with the <em>wiring</em>.</p></blockquote><pre><code class="language-js">if (a &lt; b) run();</code></pre><hr>' }
+              - { title: Wrap up, content: '<p>See <a href="https://hax.psu.edu">https://hax.psu.edu</a> and <img src="files/logo.png" alt="logo" title="HAX">.</p>' }
+- id: import-markdown-002
+  title: "an empty file is an error"
+  given: "an empty .markdown file"
+  when: "imported"
+  then: "422"
+  run:
+    steps:
+      - importFile: { name: empty.markdown, data: "", method: site }
+        expect: { status: 422, message: "the file is empty" }

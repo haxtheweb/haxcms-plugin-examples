@@ -2,13 +2,28 @@
 # Node: contracts["<name>"].<operation>(ctx, input); PHP: a method named camel(<name>) + Studly(<operation>),
 # e.g. import.platform convert -> importPlatformConvert($ctx, $input).
 # dispatch: `all` calls every active implementer; `chosen` calls only the one the caller picked (the import screen lists
-# implementers by plugin title and description), so two importers never both convert the same upload.
+# implementers by plugin title and description), so two importers never both convert the same upload; `accepts` calls the
+# implementer whose `implements` entry lists the input file's extension ({ name: import.file, accepts: [.docx] }).
 contracts:
   import.platform:
     description: Turn content from another platform into pages for a new site
     dispatch: chosen
-    # input { html?, xml?, url?, files? } -> { title, items: [{ id, title, slug, parent, order, content, metadata? }], files?: [{ path, url }] }
-    # or { error }. `files` lists media for core to fetch into the new site's files/ folder (the importer never downloads).
+    # input { html?, xml?, url?, files?: [{ name, data (base64) }] } ->
+    #   { title, items: [{ id, title, slug, parent, order, content, metadata? }], files?: [{ path, url } | { path, data }],
+    #     site?: { license?, description?, theme? }, truncated?: true, stats?: { ... } }
+    # or { error }. `files` lists media for core to fetch (url) or write (data) into the new site's files/ folder. Core
+    # owns placement: where the new pages go (a new site, or under a parent page) is not the importer's concern.
+    # Before the call core gives input.url a scheme (https:// when missing) and applies deployment host aliases, so
+    # egress { input: url } opens the host that will really be fetched.
+    operations: [convert]
+  import.file:
+    description: Turn an uploaded file (docx, pdf, pptx, xlsx, markdown, html) into pages of the current or a new site
+    dispatch: accepts
+    # input { name, data (base64), method: site | branch | page, type, parentId } ->
+    #   { html, title? }  core splits the HTML into pages by headings (the method decides how deep), as importHtmlToItems does today
+    #   { items }         the file already has structure (a spreadsheet of title, slug, parent, content rows)
+    #   { error }
+    # An implementer converts; it never writes pages. Files it finds (images) may be returned as files: [{ path, data }].
     operations: [convert]
   log.sink:
     description: Receive every entry core and plugins write to the log

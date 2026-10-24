@@ -12,6 +12,16 @@ export async function categoriesNeedingConsent(ctx) {
 
 export default {
   hooks: {
+    /**
+     * Implements hook render.after.body.
+     *
+     * Adds the consent banner to the end of the page, listing the consent categories that active tracking plugins
+     * declare. When nothing tracks, nothing is loaded (spec/01, load only what is used).
+     *
+     * @param {object} ctx  ctx.subject: the render context ({ site, page, body: { start, end }, ... }); ctx.settings:
+     *                      message and policyUrl.
+     * @returns {Promise<object|undefined>}  the context with the banner pushed to body.end, or nothing when no plugin tracks.
+     */
     "render.after.body": async (ctx) => {
       const cats = await categoriesNeedingConsent(ctx);
       if (!cats.length) return; // nothing tracks: load nothing (spec/01, load only what is used)

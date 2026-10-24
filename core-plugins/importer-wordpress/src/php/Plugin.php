@@ -40,6 +40,15 @@ class ImporterWordpressPlugin {
     if ($files) { $out['files'] = $files; }
     return $out;
   }
+  /**
+   * Implements contract import.platform, operation convert (dispatch: chosen).
+   *
+   * Turns a WordPress export (WXR) into pages: pages first, then posts, with parents kept, drafts unpublished and trashed items skipped. Attachments are listed in files for core to fetch, never downloaded here.
+   *
+   * @param object $ctx    Platform context (spec/13); unused.
+   * @param array  $input  [xml] (or [html] holding the same WXR text).
+   * @return array  [title, items, files?] or [error].
+   */
   public function importPlatformConvert($ctx, $input) {
     $xml = is_string($input['xml'] ?? null) ? $input['xml'] : (is_string($input['html'] ?? null) ? $input['html'] : null);
     if (!$xml || !preg_match('/<rss[\s>][\s\S]*xmlns:wp=/', $xml)) { return ['error' => 'a WordPress export (WXR) file is required']; }

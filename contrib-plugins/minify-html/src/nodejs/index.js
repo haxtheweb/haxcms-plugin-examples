@@ -12,6 +12,15 @@ export function minify(html) {
 
 export default {
   hooks: {
+    /**
+     * Implements hook render.after.
+     *
+     * Removes comments and extra whitespace from the finished HTML, leaving script, style, pre and textarea contents
+     * untouched. Runs in the transform stage, before csp-headers hashes the scripts in the seal stage.
+     *
+     * @param {object} ctx  ctx.subject: the finished document (html).
+     * @returns {Promise<object>}  the document with minified html.
+     */
     "render.after": async (ctx) => { ctx.subject.html = minify(ctx.subject.html); return ctx.subject; },
   },
 };

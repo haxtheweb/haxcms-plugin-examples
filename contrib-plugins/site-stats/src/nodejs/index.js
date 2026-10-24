@@ -3,6 +3,15 @@ const words = (html) => { const t = String(html || "").replace(/<(script|style)[
 
 export default {
   operations: {
+    /**
+     * Implements operation siteStatsReport.
+     *
+     * Counts the site's pages, words and web component blocks, and lists the most used block tags.
+     *
+     * @param {object} ctx
+     * @param {object} req  req.query.public (listed pages only) and req.query.top (1 to 50, default 10).
+     * @returns {Promise<object>}  { pages, words, blockTypes, blocks }.
+     */
     async siteStatsReport(ctx, req) {
       const pages = await ctx.entities.list("page", req.query.public ? { listed: true } : {});
       const blocks = {};

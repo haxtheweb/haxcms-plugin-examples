@@ -5,6 +5,15 @@ const mine = (p) => (p && p.metadata && p.metadata.plugins && p.metadata.plugins
 
 export default {
   hooks: {
+    /**
+     * Implements hook page.before.save.
+     *
+     * Tidies the page's search description (collapsing whitespace, with a notice outside 50 to 160 characters) and
+     * refuses a share image that is not under files/ or an https URL.
+     *
+     * @param {object} ctx  ctx.subject: the page as submitted, with metadata.plugins.seo-meta; ctx.previous: the stored page.
+     * @returns {Promise<object>}  the page, or a veto.
+     */
     "page.before.save": async (ctx) => {
       const m = mine(ctx.subject);
       if (m.description !== undefined) {
@@ -15,6 +24,15 @@ export default {
       if (m.image && !/^(files\/[^\s"<>]+|https:\/\/[^\s"<>]+)$/.test(m.image)) return ctx.veto("share image must be a path under files/ or an https URL", 422);
       return ctx.subject;
     },
+    /**
+     * Implements hook render.before.head.
+     *
+     * Adds the canonical link, Open Graph tags, description and robots meta for the page to the document head, so
+     * shared links and search results show the right title, text and image.
+     *
+     * @param {object} ctx  ctx.subject: the render state (page, head).
+     * @returns {object}  the render state with the tags added.
+     */
     "render.before.head": async (ctx) => {
       const page = ctx.subject.page || {};
       const m = mine(page);

@@ -14,6 +14,15 @@ const allowed = (t, op) => (!t.plugins || !t.plugins.length || t.plugins.include
 
 export default {
   operations: {
+    /**
+     * Implements operation mcpTokenCreate.
+     *
+     * Issues a new MCP token, scoped to a site, a list of plugins and read-only or not, and stores only its hash; the raw token is returned once.
+     *
+     * @param {object} ctx  Platform context (spec/13); ctx.settings.readOnlyDefault.
+     * @param {object} req  req.body: { label, site, readOnly, plugins, expiresInDays }.
+     * @returns {Promise<object>}  { id, token, readOnly, plugins, site }.
+     */
     async mcpTokenCreate(ctx, req) {
       const b = req.body || {};
       const token = `hax_mcp_${randomBytes(24).toString("hex")}`;
@@ -21,9 +30,26 @@ export default {
       await ctx.storage.write("tokens", [...((await ctx.storage.read("tokens")) || []), record]);
       return { id: record.id, token, readOnly: record.readOnly, plugins: record.plugins, site: record.site };
     },
+    /**
+     * Implements operation mcpTokenList.
+     *
+     * Lists the tokens that are not revoked, without their hashes.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @returns {Promise<object>}  { items }.
+     */
     async mcpTokenList(ctx) {
       return { items: ((await ctx.storage.read("tokens")) || []).filter((t) => !t.revoked).map(({ hash: _h, ...rest }) => rest) };
     },
+    /**
+     * Implements operation mcpTokenRevoke.
+     *
+     * Marks a token revoked so later calls carrying it are refused.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @param {object} req  req.params.id: the token id.
+     * @returns {Promise<object>}  { revoked: id }, or { status: 404, body: { error } }.
+     */
     async mcpTokenRevoke(ctx, req) {
       const tokens = (await ctx.storage.read("tokens")) || [];
       const t = tokens.find((x) => x.id === req.params.id && !x.revoked);
@@ -32,6 +58,15 @@ export default {
       await ctx.storage.write("tokens", tokens);
       return { revoked: t.id };
     },
+    /**
+     * Implements operation mcpDiscovery.
+     *
+     * Tells an MCP client what its token may use: the MCP-enabled operations and prompts inside the token's plugin and read-only scope.
+     *
+     * @param {object} ctx  Platform context (spec/13).
+     * @param {object} req  req.headers["x-hax-mcp-token"]: the raw token.
+     * @returns {Promise<object>}  { site, readOnly, operations, prompts }, or { status: 401, body: { error } }.
+     */
     async mcpDiscovery(ctx, req) {
       const t = await findToken(ctx, req.headers[HEADER]);
       if (!t) return { status: 401, body: { error: "missing, unknown, revoked or expired MCP token" } };
@@ -41,7 +76,14 @@ export default {
     },
   },
   hooks: {
-    // every call carrying an MCP token: the token must be valid and the operation inside its scope
+    /**
+     * Implements hook rest.before.request.
+     *
+     * Every call carrying an MCP token must have a valid token and stay inside its scope; otherwise the call is vetoed with 401 or 403. Calls without the header, and mcpDiscovery itself, pass through.
+     *
+     * @param {object} ctx  ctx.subject: the incoming request ({ headers, operationId }).
+     * @returns {Promise<void>}  nothing, or a veto.
+     */
     "rest.before.request": async (ctx) => {
       const raw = (ctx.subject.headers || {})[HEADER];
       if (!raw || ctx.subject.operationId === "mcpDiscovery") return;

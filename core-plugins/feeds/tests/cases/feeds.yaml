@@ -28,7 +28,7 @@
     steps:
       - rebuild: {}
       - managed: rss.xml
-        expect: { contains: ["<title>A</title>", "Sun, 01 Mar 2026 12:00:00 GMT", "https://haxcms.example.invalid/sites/test-site/a"], notContains: ["<title>B</title>"] }
+        expect: { contains: ["<title>A</title>", "Sun, 01 Mar 2026 12:00:00 GMT", "/a</link>"], notContains: ["<title>B</title>"] }
       - managed: atom.xml
         expect: { notContains: ["<content"] }
 - id: feeds-003

@@ -17,6 +17,15 @@ class McpPlugin {
     return (empty($t['plugins']) || in_array($op['plugin'], $t['plugins'], true)) && (empty($t['readOnly']) || $op['method'] === 'GET') && !empty($op['mcp']);
   }
 
+  /**
+   * Implements operation mcpTokenCreate.
+   *
+   * Issues a new MCP token, scoped to a site, a list of plugins and read-only or not, and stores only its hash; the raw token is returned once.
+   *
+   * @param object $ctx  Platform context (spec/13); settings.readOnlyDefault.
+   * @param array  $req  body: [label, site, readOnly, plugins, expiresInDays].
+   * @return array  [id, token, readOnly, plugins, site].
+   */
   public function mcpTokenCreate($ctx, $req) {
     $b = $req['body'] ?? [];
     $token = 'hax_mcp_' . bin2hex(random_bytes(24));
@@ -27,12 +36,30 @@ class McpPlugin {
     return ['id' => $record['id'], 'token' => $token, 'readOnly' => $record['readOnly'], 'plugins' => $record['plugins'], 'site' => $record['site']];
   }
 
+  /**
+   * Implements operation mcpTokenList.
+   *
+   * Lists the tokens that are not revoked, without their hashes.
+   *
+   * @param object $ctx  Platform context (spec/13).
+   * @param array  $req  Unused.
+   * @return array  [items].
+   */
   public function mcpTokenList($ctx, $req) {
     $items = [];
     foreach ($ctx->storage->read('tokens') ?: [] as $t) { if (empty($t['revoked'])) { unset($t['hash']); $items[] = $t; } }
     return ['items' => $items];
   }
 
+  /**
+   * Implements operation mcpTokenRevoke.
+   *
+   * Marks a token revoked so later calls carrying it are refused.
+   *
+   * @param object $ctx  Platform context (spec/13).
+   * @param array  $req  params.id: the token id.
+   * @return array  [revoked => id], or [status => 404, body => [error]].
+   */
   public function mcpTokenRevoke($ctx, $req) {
     $tokens = $ctx->storage->read('tokens') ?: [];
     foreach ($tokens as $i => $t) {
@@ -41,6 +68,15 @@ class McpPlugin {
     return ['status' => 404, 'body' => ['error' => 'not found']];
   }
 
+  /**
+   * Implements operation mcpDiscovery.
+   *
+   * Tells an MCP client what its token may use: the MCP-enabled operations and prompts inside the token's plugin and read-only scope.
+   *
+   * @param object $ctx  Platform context (spec/13).
+   * @param array  $req  headers[x-hax-mcp-token]: the raw token.
+   * @return array  [site, readOnly, operations, prompts], or [status => 401, body => [error]].
+   */
   public function mcpDiscovery($ctx, $req) {
     $t = $this->findToken($ctx, $req['headers'][self::HEADER] ?? null);
     if (!$t) { return ['status' => 401, 'body' => ['error' => 'missing, unknown, revoked or expired MCP token']]; }
@@ -53,7 +89,14 @@ class McpPlugin {
     return ['site' => $t['site'], 'readOnly' => $t['readOnly'], 'operations' => $ops, 'prompts' => $prompts];
   }
 
-  // hook: rest.before.request
+  /**
+   * Implements hook rest.before.request.
+   *
+   * Every call carrying an MCP token must have a valid token and stay inside its scope; otherwise the call is vetoed with 401 or 403. Calls without the header, and mcpDiscovery itself, pass through.
+   *
+   * @param object $ctx  subject: the incoming request [headers, operationId].
+   * @return mixed  null, or a veto.
+   */
   public function restBeforeRequest($ctx) {
     $raw = $ctx->subject['headers'][self::HEADER] ?? null;
     if (!$raw || ($ctx->subject['operationId'] ?? '') === 'mcpDiscovery') { return null; }

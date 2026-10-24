@@ -27,6 +27,15 @@ export function convert(xml) {
 export default {
   contracts: {
     "import.platform": {
+      /**
+       * Implements contract import.platform, operation convert (dispatch: chosen).
+       *
+       * Turns a WordPress export (WXR) into pages: pages first, then posts, with parents kept, drafts unpublished and trashed items skipped. Attachments are listed in files for core to fetch, never downloaded here.
+       *
+       * @param {object} ctx    Platform context (spec/13); unused.
+       * @param {object} input  { xml } (or { html } holding the same WXR text).
+       * @returns {Promise<object>}  { title, items, files? } or { error }.
+       */
       async convert(ctx, input) {
         const xml = input && typeof input.xml === "string" ? input.xml : input && typeof input.html === "string" ? input.html : null;
         if (!xml || !/<rss[\s>][\s\S]*xmlns:wp=/.test(xml)) return { error: "a WordPress export (WXR) file is required" };
