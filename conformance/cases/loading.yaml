@@ -22,3 +22,15 @@
   given: "kind: pack at tier site with backend flag off"
   when: "load"
   then: "enabled; no backend entry executed"
+- id: load-099
+  title: "a failure while enabling turns the plugin off with a reason"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin whose install hook throws"
+  when: "enable"
+  then: "plugin disabled with the error recorded; other plugins unaffected"
+- id: load-100
+  title: "a parent plugin cannot be disabled while a dependent is enabled"
+  spec: spec/03-tiers-and-enablement.md
+  given: "A requires B, both enabled"
+  when: "disable B"
+  then: "409 listing A; disabling A first then B succeeds"
