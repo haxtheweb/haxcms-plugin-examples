@@ -1,0 +1,34 @@
+- id: author-profile-001
+  title: "first enable moves the extra author fields out of metadata.author"
+  hook: plugin.after.install
+  given: "metadata.author with name, email, phone and socialLink"
+  when: "enable author-profile"
+  then: "name and email stay; phone and socialLink move to the plugin and its published profile"
+  run:
+    records: { site: { metadata: { author: { name: Ada, email: ada@example.invalid, phone: "555-0100", socialLink: "https://social.example/ada" } } } }
+    steps:
+      - enable: author-profile
+        expect: { status: 200 }
+      - record: { type: site }
+        expect: { subject: { metadata: { author: { name: Ada, email: ada@example.invalid }, plugins: { author-profile: { profile: { phone: "555-0100", socialLink: "https://social.example/ada" } } } } }, notContains: ['"author":{"name":"Ada","email":"ada@example.invalid","phone"'] }
+- id: author-profile-002
+  title: "links must be web addresses"
+  hook: config.before.save
+  given: "socialLink javascript:alert(1)"
+  when: "save"
+  then: "vetoed"
+  run:
+    steps:
+      - config: { plugin: author-profile, values: { socialLink: "javascript:alert(1)" } }
+        expect: { status: 409, message: "must be a web address" }
+- id: author-profile-003
+  title: "pages describe the author with schema.org Person"
+  hook: render.before.head
+  given: "socialLink and location set"
+  when: "a page renders"
+  then: "JSON-LD Person with sameAs"
+  run:
+    settings: { location: Pittsburgh, socialLink: "https://social.example/ada" }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['"@type":"Person"', '"sameAs":["https://social.example/ada"]'] }

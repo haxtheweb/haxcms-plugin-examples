@@ -1,0 +1,37 @@
+# Author profile: extracted from core. Today site.json keeps metadata.author.phone, location, website2, socialLink and
+# socialLink2 (site settings form; saved by saveSeoSettings and saveManifest) and themes such as resume-theme read them
+# client-side. Name, email, image and license stay in core. As a plugin it owns the extra fields, validates links,
+# publishes them for themes (manifest store) and adds a schema.org Person block to pages.
+specVersion: "0.1.0"
+id: author-profile
+uuid: 2c8e4a6f-7b1d-4f3e-8a9c-5d6e7f8a9b0c
+title: Author profile
+description: Contact and social links for the site's author, shown by themes that support them and described for search engines.
+version: 0.1.0
+category: content
+icon: icons:account-circle
+tags: [author, social, seo]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+datastores: config/datastores.yaml
+staticCapable: true
+capabilities: ["site:read", "site:write", "output:inject"]
+legacy:
+  settings:
+    phone: metadata.author.phone
+    location: metadata.author.location
+    website2: metadata.author.website2
+    socialLink: metadata.author.socialLink
+    socialLink2: metadata.author.socialLink2
+hooks:
+  - name: plugin.after.install    # move the five fields out of metadata.author
+  - name: config.before.save      # links must be http(s); text is trimmed
+  - name: config.after.save       # publish the profile for themes
+  - name: render.before.head      # schema.org Person with the links

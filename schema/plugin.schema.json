@@ -558,7 +558,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "this plugin's setting -> the dot path in site.json where core used to keep it; read as a fallback until the install migration moves it."
+          "description": "this plugin's setting -> where core used to keep it: a dot path in site.json, or config:<dot path> in the core configuration (for example config:appStore.apiKeys.youtube). Read as a fallback until the install migration moves it."
         }
       }
     },

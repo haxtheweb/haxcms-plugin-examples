@@ -1,0 +1,39 @@
+# Version control: extracted from core and required. Today HAXcms calls site.gitCommit(message) after page, outline,
+# file, settings and theme saves (saveNode, createNode, saveManifest, saveSeoSettings, files.js, site.js, ...), with an
+# optional auto-push to a branch (metadata.site.git.autoPush / branch). As a plugin it reacts to those saves through
+# hooks, commits once per transaction, and defines git.before.commit / git.after.commit for others. Everything about
+# version control lives here, so another backend for history could replace it behind the same hooks.
+specVersion: "0.1.0"
+id: git
+uuid: 0b2d4f6a-8c1e-4a3b-9d5f-7e9a1c3b5d7f
+title: Version control (git)
+description: Records every change to a site in git, one commit per save or bulk edit, with optional push to a branch.
+version: 0.1.0
+category: administration
+icon: icons:history
+tags: [history, git]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+required: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+settingsScope: site
+staticCapable: false
+capabilities: ["exec:run", "site:read"]
+exec: [git]
+legacy:
+  settings:
+    autoPush: metadata.site.git.autoPush
+    branch: metadata.site.git.branch
+hooks:
+  - name: page.after.save
+  - name: page.after.delete
+  - name: manifest.after.save
+  - name: file.after.save
+  - name: file.after.delete
+  - name: transaction.before.end   # one commit for everything a bulk transaction changed

@@ -5,7 +5,8 @@
 // runs the render pipeline and transactions, and builds the ctx object. Plugin code runs in Node directly, or in
 // PHP through harness/php/bridge.php, so the same cases can run against both runtimes.
 // It is a test double for plugins and for the spec, not a server: no HTTP, no disk writes, no network.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, readdirSync, statSync, mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve, dirname, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -38,6 +39,8 @@ async function withTimeout(promise, ms, label) {
 export class MemoryBackend {
   constructor({ haxcmsVersion = "26.10.1", runtime = "nodejs", site = { id: "00000000-0000-4000-8000-000000000001", name: "test-site", path: "/sites/test-site" }, user = { id: "u1", name: "admin", displayName: "Admin", roles: ["admin"], avatar: null, email: "admin@example.invalid", passwordHash: "never-exposed" }, hookTimeout = 5000 } = {}) {
     this.haxcms = { version: haxcmsVersion, runtime };
+    // a real, empty folder stands in for the site directory, so plugins that run commands there (git) can be tested
+    if (!site.path || site.path === "/sites/test-site") site = { ...site, path: mkdtempSync(join(tmpdir(), "hax-site-")) };
     this.runtime = runtime;
     this.site = site;
     this.user = user;
@@ -49,7 +52,8 @@ export class MemoryBackend {
     this.log = [];
     // core records plugins reach through ctx.entities: the site's site.json, pages, files
     this.revs = new Map(); // "type:id" -> revision, bumped on every write (optimistic concurrency for ctx.entities.save)
-    this.records = { site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
+    this.managed = new Map(); // managed files written by plugins: path -> { plugin, content }
+    this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
   }
 
   seed(records = {}) {
@@ -240,6 +244,13 @@ export class MemoryBackend {
           if (!full.startsWith(join(p.dir, "data") + sep)) throw new Error("package.read is limited to the plugin's data/ folder");
           return binary ? readFileSync(full) : readFileSync(full, "utf8");
         },
+        // files under a folder of data/, recursively, as paths relative to that folder
+        list: async (path) => {
+          const base = normalize(join(p.dir, path));
+          if (base !== join(p.dir, "data") && !base.startsWith(join(p.dir, "data") + sep)) throw new Error("package.list is limited to the plugin's data/ folder");
+          const walk = (d, pre = "") => (existsSync(d) ? readdirSync(d).sort().flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f), `${pre}${f}/`) : [`${pre}${f}`])) : []);
+          return walk(base);
+        },
       },
       haxcms: { ...backend.haxcms },
       plugin: { id: p.id, version: p.manifest.version, scope: "system" },
@@ -252,7 +263,11 @@ export class MemoryBackend {
         throw new Error("network is disabled in the harness");
       },
       config: { save: async (values) => backend.saveConfig(p.id, values) },
-      plugins: { list: async () => backend.activeList() },
+      plugins: { list: async () => backend.activeList(), skills: async (audience) => backend.pluginSkills(audience) },
+      files: {
+        writeManaged: async (path, content) => backend.writeManaged(p, path, content),
+        readManaged: async (path) => (backend.managed.get(path) || {}).content ?? null,
+      },
       assets: { url: (path) => backend.assetUrl(p, path) },
       entities: {
         get: async (type, id) => {
@@ -281,7 +296,8 @@ export class MemoryBackend {
       transaction: Object.defineProperty(tx, "run", { value: (fn, opts = {}) => backend.transaction(fn, opts), enumerable: false, configurable: true }),
       hooks: {
         fire: async (name, subject, opts = {}) => {
-          if (!p.hookDefs[name]) throw new Error(`${p.id} can only fire hooks it defines (not "${name}")`);
+          const core = CORE_HOOKS.find((c) => c.name === name);
+          if (!p.hookDefs[name] && !(core && core.definedBy === p.id)) throw new Error(`${p.id} can only fire hooks it defines (not "${name}")`);
           return backend.fire(name, subject, { ...opts, transaction: tx });
         },
       },
@@ -290,8 +306,35 @@ export class MemoryBackend {
     return ctx;
   }
 
+  // skills of active plugins for one audience, with their files (SKILL.md first); .md/.json/.txt only
+  pluginSkills(audience) {
+    const out = [];
+    for (const x of this.plugins.filter((q) => q.status === "active")) for (const sk of x.manifest.skills || []) {
+      if (sk.audience !== audience) continue;
+      const dir = join(x.dir, "skills", sk.name);
+      if (!existsSync(join(dir, "SKILL.md"))) continue;
+      const md = readFileSync(join(dir, "SKILL.md"), "utf8");
+      const fm = /^---\n([\s\S]*?)\n---/.exec(md);
+      const meta = fm ? parse(fm[1]) : {};
+      const walk = (d, pre = "") => readdirSync(d).sort().flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f), `${pre}${f}/`) : [`${pre}${f}`]));
+      const files = walk(dir).filter((f) => /\.(md|json|txt)$/.test(f)).sort((a, b) => (a === "SKILL.md" ? -1 : b === "SKILL.md" ? 1 : a.localeCompare(b))).map((f) => ({ path: f, content: readFileSync(join(dir, f), "utf8") }));
+      out.push({ plugin: x.id, name: sk.name, description: meta.description || "", files });
+    }
+    return out;
+  }
+  // managed files: only with output:managedFiles and only paths matching the manifest's managedFiles patterns
+  writeManaged(p, path, content) {
+    const caps = p.manifest.capabilities || [];
+    if (!caps.includes("output:managedFiles")) throw new Error(`${p.id} needs output:managedFiles to write ${path}`);
+    const ok = (p.manifest.managedFiles || []).some((pat) => new RegExp("^" + pat.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\u0000/g, ".*") + "$").test(path));
+    if (!ok || path.includes("..")) throw new Error(`${p.id} may not write ${path}: not in its managedFiles`);
+    const owner = this.managed.get(path);
+    if (owner && owner.plugin !== p.id) throw new Error(`${path} is managed by ${owner.plugin}`);
+    this.managed.set(path, { plugin: p.id, content: String(content) });
+    return { path };
+  }
   activeList() {
-    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: x.manifest.privacy || null, capabilities: x.manifest.capabilities || [] }));
+    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: x.manifest.privacy || null, capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [] }));
   }
   assetUrl(p, path) {
     if (!/^frontend\/dist\/[A-Za-z0-9._\/-]+$/.test(path) || path.includes("..")) throw new Error(`${p.id}: assets.url only serves files under frontend/dist`);
@@ -312,11 +355,18 @@ export class MemoryBackend {
 
   // ---- core entities (spec/13 ctx.entities) ----
   requireCap(p, type, action) {
-    const area = { site: "site", page: "items", file: "files" }[type];
+    const area = { site: "site", page: "items", file: "files", config: "settings" }[type];
     if (!area) return;
     const caps = p.manifest.capabilities || [];
     const ok = caps.includes(`${area}:${action}`) || (action === "read" && caps.includes(`${area}:write`));
     if (!ok) throw new Error(`${p.id} needs the ${area}:${action} capability to ${action} ${type} records`);
+  }
+  // pages and site.json are files in a HAXcms site; writing them lets plugins that work with files (git) see real changes
+  writeToDisk(type, record) {
+    try {
+      if (type === "page") { const d = join(this.site.path, "pages", String(record.id)); mkdirSync(d, { recursive: true }); writeFileSync(join(d, "index.html"), String(record.content ?? record.title ?? "")); }
+      if (type === "site") writeFileSync(join(this.site.path, "site.json"), JSON.stringify(record, null, 2));
+    } catch { /* the folder is a stand-in; ignore */ }
   }
   bump(type, id) { const k = `${type}:${id}`; this.revs.set(k, (this.revs.get(k) || 0) + 1); }
   rev(type, id) { return this.revs.get(`${type}:${id}`) || 0; }
@@ -329,6 +379,7 @@ export class MemoryBackend {
     if (before.veto) return { record: previous || null, veto: before.veto };
     store[id] = structuredClone(before.subject);
     this.bump(type, id);
+    this.writeToDisk(type, store[id]);
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
     return { record: after.subject };
   }
@@ -417,7 +468,7 @@ export class MemoryBackend {
     for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package") storeState[id] = this.readStore(p, id);
     const input = {
       entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : name, args,
-      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(),
+      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
       ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
@@ -430,6 +481,7 @@ export class MemoryBackend {
     for (const [id, v] of Object.entries(out.manifestStores || {})) this.writeStore(p, id, v);
     for (const { type, record } of out.entitySaves || []) await this.saveEntity(type, record);
     for (const values of out.configSaves || []) await this.saveConfig(p.id, values);
+    for (const [path, content] of Object.entries(out.managedWrites || {})) this.writeManaged(p, path, content);
     for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
     ctx.__warnings.push(...(out.warnings || []));
     Object.assign(ctx.transaction.marks, out.transaction && out.transaction.marks ? out.transaction.marks : {});

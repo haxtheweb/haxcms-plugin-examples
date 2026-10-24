@@ -168,13 +168,15 @@ function validatePlugin(manifestPath) {
     if (!prefix) warn(where, `tag "${tag}" declared without a tagPrefix in plugin.yaml`);
   };
   // static scan: child processes must be declared (exec:run capability and the exec list)
-  const execPattern = /\b(child_process|execSync|execFile|spawnSync|spawn\s*\(|shell_exec|proc_open|passthru|popen|exec\s*\(|system\s*\()/;
+  // JS: any use of child_process; PHP: the process functions (a method call such as regex.exec() is not one)
+  const execPatternJs = /\bchild_process\b|\b(execSync|execFileSync|spawnSync)\s*\(/;
+  const execPatternPhp = /(?<![>\w:$])(shell_exec|proc_open|passthru|popen|exec|system|pcntl_exec)\s*\(|`[^`]*\$/;
   for (const rt of ["nodejs", "php"]) {
     const srcDir = join(dir, "src", rt);
     const walk = (d) => (existsSync(d) ? readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)])) : []);
     for (const f of walk(srcDir).filter((x) => /\.(m?js|cjs|php)$/.test(x))) {
       const code = readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
-      if (execPattern.test(code) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
+      if ((f.endsWith(".php") ? execPatternPhp : execPatternJs).test(code) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
     }
   }
   // registries
@@ -294,7 +296,8 @@ function validatePlugin(manifestPath) {
   for (const f of caseFiles) {
     const doc = readAny(f);
     if (!validators.testCases(doc)) { fmt(validators.testCases.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
-    for (const [i, c] of doc.entries()) if (c.hook && !(m.hooks || []).some((h) => h.name === c.hook)) err(`${rel(f)}/${i}/hook`, `case tests "${c.hook}" but the plugin does not subscribe to it`);
+    const fires = new Set([...Object.keys(ownHooks), ...[...knownHooks].filter((n) => hookContracts[n] && hookContracts[n].definedBy === m.id)]);
+    for (const [i, c] of doc.entries()) if (c.hook && !(m.hooks || []).some((h) => h.name === c.hook) && !fires.has(c.hook)) err(`${rel(f)}/${i}/hook`, `case tests "${c.hook}" but the plugin neither subscribes to it nor defines it`);
   }
   for (const [i, sc] of (m.screenshots || []).entries()) if (!existsSync(join(dir, sc.src))) err(`/screenshots/${i}/src`, `file not found: ${sc.src}`);
   for (const [i, tg] of (m.tags || []).entries()) if (derivedTagNames.includes(tg)) err(`/tags/${i}`, `"${tg}" is a derived tag; it is computed from the manifest and cannot be set by hand`);
@@ -313,7 +316,8 @@ function validatePlugin(manifestPath) {
     if (fm.name !== sk.name) err(where, `SKILL.md name "${fm.name}" must equal the folder "${sk.name}"`);
     if (!fm.description) err(where, `SKILL.md needs a description`);
     if (/\/(home|Users)\/|[A-Z]:\\/.test(readFileSync(md, "utf8"))) err(where, "skill contains a machine-specific path; published skills must stay generic");
-    if (sk.audience !== "developer") for (const f of readdirSync(sdir)) if (!/\.(md|json|txt)$/.test(f)) err(where, `published skills may only contain .md, .json or .txt files (found ${f})`);
+    const walk = (d, pre = "") => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f), `${pre}${f}/`) : [`${pre}${f}`]));
+    if (sk.audience !== "developer") for (const f of walk(sdir)) if (!/\.(md|json|txt)$/.test(f)) err(where, `published skills may only contain .md, .json or .txt files (found ${f})`);
   }
   for (const f of existsSync(join(dir, "skills")) ? readdirSync(join(dir, "skills")) : []) if (!skillSeen.has(f)) warn(`skills/${f}`, "skill folder not declared in the manifest; it will not be published");
   if (m.settings && existsSync(join(dir, m.settings))) {

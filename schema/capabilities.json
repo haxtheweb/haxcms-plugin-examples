@@ -12,6 +12,8 @@
   "userData:read",
   "userData:write",
   "network:egress",
+  "settings:read",
+  "settings:write",
   "settings:secret",
   "output:inject",
   "output:managedFiles",

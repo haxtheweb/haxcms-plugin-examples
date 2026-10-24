@@ -54,7 +54,8 @@ for (const f of files) {
       results.push({ id: c.id, runtime: rt, ok: !per[rt].errors.length, errors: per[rt].errors });
     }
     if (rts.length === 2 && per.nodejs.out && per.php.out) {
-      const a = canon(per.nodejs.out), b = canon(per.php.out);
+      const strip = (v) => JSON.parse(JSON.stringify(v, (k, x) => ((c.parityIgnore || []).includes(k) ? undefined : x)));
+      const a = canon(strip(per.nodejs.out)), b = canon(strip(per.php.out));
       results.push({ id: c.id, runtime: "parity", ok: a === b, errors: a === b ? [] : [`nodejs ${a.slice(0, 300)}\n      php    ${b.slice(0, 300)}`] });
     }
   }

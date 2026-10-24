@@ -1,0 +1,6 @@
+{
+  "configure": [
+    { "property": "autoPush", "title": "Push after each commit", "description": "Push to the branch below after every commit", "inputMethod": "boolean" },
+    { "property": "branch", "title": "Branch", "description": "Branch to push to", "inputMethod": "textfield" }
+  ]
+}

@@ -2,6 +2,8 @@
 
 Part of the HAXcms plugin specification (decision source: https://github.com/haxtheweb/issues/issues/3176).
 
+**Drafted so far** in `core-plugins/` to test the spec against real extractions (each with Node and PHP code, tests and a parity run): announcements, cookie-consent, google-analytics, regions, author-profile, pwa, youtube, git, agent-skills. What each one forced the spec to add is in GAPS.md (items 1k and 1l).
+
 A working list for scoping the refactor, built from the hook examples in spec/06. Nothing here is committed: it shows which extension points real plugins would lean on, which current core features could move out, and in what order. Announcements (https://github.com/haxtheweb/issues/issues/3172) is always the first vehicle.
 
 **Where it comes from:** "extract" means the behavior exists in HAXcms core today and would move into a plugin (its settings migrate through `plugin.after.install`); "new" means it does not exist yet.

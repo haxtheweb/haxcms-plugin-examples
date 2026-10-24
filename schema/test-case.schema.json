@@ -227,6 +227,13 @@
             ]
           }
         ]
+      },
+      "parityIgnore": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Keys whose values may legitimately differ between runtimes (commit hashes, timestamps); left out of the Node/PHP comparison."
       }
     }
   }

@@ -1,0 +1,34 @@
+- id: youtube-001
+  title: "no key, no app"
+  hook: plugin.before.requirements
+  given: "no API key"
+  when: "load"
+  then: "inactive; the search route 404s"
+  run:
+    steps:
+      - call: { operation: youtubeSearch, query: { q: cats } }
+        expect: { status: 404, status_of: { youtube: inactive } }
+- id: youtube-002
+  title: "first enable moves the key out of the core config"
+  hook: plugin.after.install
+  given: "appStore.apiKeys.youtube in the core config"
+  when: "enable youtube"
+  then: "the plugin is active; the core config no longer holds the key"
+  run:
+    records: { config: [{ id: core, appStore: { apiKeys: { youtube: AIza-test-key, vimeo: keep-me } } }] }
+    steps:
+      - enable: youtube
+        expect: { status: 200, status_of: { youtube: active } }
+      - record: { type: config, id: core }
+        expect: { subject: { appStore: { apiKeys: { vimeo: keep-me } } }, notContains: [AIza-test-key] }
+- id: youtube-003
+  title: "search goes to Google from the server, never with the key in the response"
+  operation: youtubeSearch
+  given: "a key; the harness has no network"
+  when: "GET /search?q=cats"
+  then: "502 (the call to www.googleapis.com was allowed and attempted); the key is not in the body"
+  run:
+    settings: { apiKey: AIza-test-key }
+    steps:
+      - call: { operation: youtubeSearch, query: { q: cats } }
+        expect: { status: 502, notContains: [AIza-test-key], log: { contains: ["network is disabled in the harness"], notContains: ["not allowed"] } }

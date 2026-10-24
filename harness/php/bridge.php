@@ -21,6 +21,15 @@ class HarnessStorage {
 class HarnessPackage {
   private $dir;
   public function __construct($dir) { $this->dir = realpath($dir . '/data'); }
+  public function list($path) {
+    $base = realpath(dirname($this->dir) . '/' . $path);
+    if ($base === false || ($base !== $this->dir && strpos($base, $this->dir . DIRECTORY_SEPARATOR) !== 0)) { throw new Exception("package->list is limited to the plugin's data/ folder"); }
+    $out = [];
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $f) { if ($f->isFile()) { $out[] = str_replace(DIRECTORY_SEPARATOR, '/', substr($f->getPathname(), strlen($base) + 1)); } }
+    sort($out);
+    return $out;
+  }
   public function read($path, $opts = []) {
     $full = realpath(dirname($this->dir) . '/' . $path);
     if ($full === false || strpos($full, $this->dir . DIRECTORY_SEPARATOR) !== 0) { throw new Exception("package->read is limited to the plugin's data/ folder"); }
@@ -39,7 +48,7 @@ class HarnessEntities {
   public $saves = []; private $records; private $caps; private $site; private $pluginId;
   public function __construct($records, $caps, $site, $pluginId) { $this->records = $records; $this->caps = $caps; $this->site = $site; $this->pluginId = $pluginId; }
   private function need($type, $action) {
-    $area = ['site' => 'site', 'page' => 'items', 'file' => 'files'][$type] ?? null;
+    $area = ['site' => 'site', 'page' => 'items', 'file' => 'files', 'config' => 'settings'][$type] ?? null;
     if (!$area) { return; }
     if (!in_array("$area:$action", $this->caps, true) && !($action === 'read' && in_array("$area:write", $this->caps, true))) {
       throw new Exception("{$this->pluginId} needs the $area:$action capability to $action $type records");
@@ -67,9 +76,17 @@ class HarnessConfig {
   public function save($values, $opts = []) { $this->saves[] = $values; $this->ctx->settings = array_merge($this->ctx->settings, $values); return ['status' => 200]; }
 }
 class HarnessPlugins {
-  private $list;
-  public function __construct($list) { $this->list = $list; }
+  private $list; private $skills;
+  public function __construct($list, $skills) { $this->list = $list; $this->skills = $skills; }
   public function list() { return $this->list; }
+  public function skills($audience) { return $this->skills[$audience] ?? []; }
+}
+// Managed-file writes are checked and applied by the harness after the call.
+class HarnessFiles {
+  public $writes = []; private $existing;
+  public function __construct($existing) { $this->existing = $existing; }
+  public function writeManaged($path, $content) { $this->writes[$path] = (string) $content; $this->existing[$path] = (string) $content; return ['path' => $path]; }
+  public function readManaged($path) { return $this->existing[$path] ?? null; }
 }
 class HarnessAssets {
   private $id;
@@ -86,7 +103,7 @@ class HarnessHooks {
 
 class HarnessCtx {
   public $subject; public $previous; public $request; public $settings; public $haxcms; public $plugin; public $site; public $user;
-  public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $config; public $plugins; public $assets; public $warnings = []; private $enabled;
+  public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $config; public $plugins; public $assets; public $files; public $warnings = []; private $enabled;
   public function __construct($in) {
     $c = $in['ctx'];
     $this->subject = $c['subject'] ?? null;
@@ -105,7 +122,8 @@ class HarnessCtx {
     $this->log = new HarnessLog();
     $this->hooks = new HarnessHooks();
     $this->config = new HarnessConfig($this);
-    $this->plugins = new HarnessPlugins($in['activePlugins'] ?? []);
+    $this->plugins = new HarnessPlugins($in['activePlugins'] ?? [], $in['skillsByAudience'] ?? []);
+    $this->files = new HarnessFiles($in['managedFiles'] ?? []);
     $this->assets = new HarnessAssets($in['pluginId'] ?? '');
     $this->entities = new HarnessEntities($in['records'] ?? [], $in['capabilities'] ?? [], $in['currentSite'] ?? null, $in['pluginId'] ?? '');
   }
@@ -135,4 +153,5 @@ echo json_encode([
   'transaction' => ['marks' => (object) $ctx->transaction['marks']],
   'entitySaves' => $ctx->entities->saves,
   'configSaves' => $ctx->config->saves,
+  'managedWrites' => (object) $ctx->files->writes,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

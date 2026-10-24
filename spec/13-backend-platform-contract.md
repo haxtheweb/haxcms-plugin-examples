@@ -70,18 +70,19 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `respond(html)` | `render.before` | short-circuit the render with a finished document |
 | `settings` | everywhere | the plugin's settings for the current scope, read-only; secret values are present server-side and never serialized to clients |
 | `config.save(values, { scope })` | everywhere | write the plugin's own settings (an install migration moving a value out of `site.json`, for example); validated against its settings schema and run through `config.before.save` / `config.after.save` like any other save; `scope` follows `settingsScope` |
-| `plugins.list()` | everywhere | read-only list of active plugins: `{ id, version, privacy, capabilities, derivedTags }`. How cookie consent knows whether any tracker is enabled |
+| `plugins.list()` / `plugins.skills(audience)` | everywhere | read-only list of active plugins (`{ id, version, privacy, capabilities, skills }`; how cookie consent knows whether any tracker is enabled), and the skills of active plugins for one audience with their files, read by core (how agent-skills publishes them) |
 | `assets.url(path)` | everywhere | the URL of one of the plugin's own files under `frontend/dist`, valid on the live site and in a static publish (spec/07, assets) |
 | `storage.read(storeId)` / `storage.write(storeId, value)` | everywhere | the plugin's own stores (spec/04); `package` stores are read-only; `siteData` stores resolve to the current site |
-| `package.read(path, { binary })` | everywhere | a file under the plugin's `data/` folder; refuses paths outside it |
+| `package.read(path, { binary })` / `package.list(folder)` | everywhere | read a file, or list files recursively, under the plugin's `data/` folder; refuses paths outside it |
+| `files.writeManaged(path, content)` / `files.readManaged(path)` | everywhere | write a generated file into the site (service worker, discovery index); needs `output:managedFiles` and a path matching the manifest's `managedFiles` patterns (`*` within a folder, `**` across folders); one plugin owns each path |
 | `haxcms` | everywhere | `{ version, runtime }` (`runtime` is `nodejs` or `php`) |
 | `plugin` | everywhere | `{ id, version, scope }` of the running plugin |
 | `site` | site-scope calls | `{ id, name, path }`, otherwise `null` |
 | `user` | when a user is involved | the limited record (`id, name, displayName, roles, avatar`), the full record only with `users:full`, otherwise `null` |
 | `log.info / .warn / .error(message, data?)` | everywhere | the unified log, tagged with plugin, hook or operation, and scope |
 | `fetch(url, init)` | everywhere | outbound HTTP, only with `network:egress` to a host in `egress`. Node returns a standard `Response`; PHP returns `['status', 'headers', 'body', 'json']` (`json` is the decoded body or `null`) |
-| `hooks.fire(name, subject, { previous })` | everywhere | fire a hook **this plugin defines** (`hookDefinitions`); returns `{ subject, veto?, warnings }` after every subscriber ran. Core hooks are fired by the platform only |
-| `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, and entity types other plugins define. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto?, conflict? }`. A record that changed after this plugin read it is refused with `conflict: true` instead of overwriting the other change: re-read and save again |
+| `hooks.fire(name, subject, { previous })` | everywhere | fire a hook **this plugin defines** (`hookDefinitions`, or a core contract whose `definedBy` is this plugin, such as `git.*` for `git`); returns `{ subject, veto?, warnings }` after every subscriber ran. Core hooks are fired by the platform only |
+| `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, `config` (`core` is the core configuration, for moving settings such as API keys out of it), and entity types other plugins define. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`, `settings:read` for config), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto?, conflict? }`. A record that changed after this plugin read it is refused with `conflict: true` instead of overwriting the other change: re-read and save again |
 | `pluginEnabled(id)` | everywhere | whether another plugin is enabled and active in this scope |
 | `transaction` | everywhere | `{ id, origin, bulk, operations, marks, run(fn, { bulk, origin }) }` (spec/06, Transactions) |
 
@@ -121,6 +122,10 @@ A plugin that changes its data shape between versions ships one step per version
 - The site's appstore payload and `wc-registry.json` include plugin fragments at rebuild time (spec/07).
 - `.well-known/agent-skills` includes active plugins' `site` (per site) and `system` (system front end) skills at rebuild.
 - The CLI, which embeds the Node backend in-process, reads `registries/cli/` of active plugins.
+
+## 8a. Byte-identical output
+
+Files a plugin generates (managed files, JSON it serves) must be byte-identical between backends, so digests and caches agree: JSON with two-space indentation (PHP's `JSON_PRETTY_PRINT` uses four, so re-indent), slashes and Unicode unescaped, LF line endings, a trailing newline for files. The agent-skills plugin's parity test caught this.
 
 ## 9. Proving conformance
 

@@ -87,7 +87,7 @@ HAX already has a format for what a plugin wants to add to the editor: the appst
 
 Plugins ship agent skills in the agentskills.io `SKILL.md` format the site boilerplate already uses (`.well-known/agent-skills/index.json`, discovery schema 0.2.0), one folder per skill under `skills/<name>/`, declared in the manifest with an audience:
 
-- `audience: site`: helps an agent working on a site that has the plugin enabled (authoring with the plugin's elements, using its content types). When the plugin is enabled for a site, the site rebuild adds the skill to that site's `.well-known/agent-skills/` with a sha256 digest, next to the boilerplate skills, and removes it on disable. Only `.md`, `.json` and `.txt` files, matching the existing copy rules.
+- `audience: site`: helps an agent working on a site that has the plugin enabled (authoring with the plugin's elements, using its content types). When the plugin is enabled for a site, the site rebuild adds the skill to that site's `.well-known/agent-skills/` with a sha256 digest, next to the boilerplate skills, and removes it on disable. Only `.md`, `.json` and `.txt` files, matching the existing copy rules; subfolders such as `references/` are allowed, as in today's core skills.
 - `audience: system`: published in the system's front-end `.well-known/agent-skills` so agents can discover what the deployment offers (for example an MCP plugin describing how to connect). Same file rules as site skills.
 - `audience: developer`: helps someone working on the plugin or the system (structure, `hax plugin add`, validation, upgrading). Read straight from the installed plugin package by `create` and coding agents; not copied into the system layer and never published.
 

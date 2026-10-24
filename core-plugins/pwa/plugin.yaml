@@ -1,0 +1,36 @@
+# Offline support (PWA): extracted from core. Today site.json keeps metadata.site.settings.sw and forceUpgrade (site
+# settings form; saved by saveManifest); core renders service-worker.js and offline.html as managed files and adds the
+# registration script to pages when sw is on (getServiceWorkerScript, getServiceWorkerStatus), and forceUpgrade sends
+# old browsers to assets/upgrade-browser.html. As a plugin it owns both settings, writes its own managed files, and
+# replaces the worker with one that removes itself when offline support is turned off, so visitors are not stuck.
+specVersion: "0.1.0"
+id: pwa
+uuid: 7e1a3c5b-9d2f-4b6e-8c0a-1f3e5d7b9a2c
+title: Offline support
+description: Caches pages for offline reading with a service worker, and can ask visitors on very old browsers to upgrade.
+version: 0.1.0
+category: performance
+icon: icons:cloud-download
+tags: [offline, pwa]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+staticCapable: true
+capabilities: ["site:read", "site:write", "output:inject", "output:managedFiles"]
+managedFiles: [service-worker.js, offline.html]
+legacy:
+  settings:
+    serviceWorker: metadata.site.settings.sw
+    forceUpgrade: metadata.site.settings.forceUpgrade
+hooks:
+  - name: plugin.after.install    # move sw and forceUpgrade out of site.json
+  - name: render.before.head      # forceUpgrade: send very old browsers to the upgrade page
+  - name: render.after.body       # register the service worker when offline support is on
+  - name: rebuild.after           # write service-worker.js (or a self-removing one) and offline.html
+  - name: plugin.after.disable    # leave a self-removing worker behind
