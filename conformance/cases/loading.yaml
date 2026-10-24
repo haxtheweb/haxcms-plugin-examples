@@ -94,3 +94,21 @@
   given: "schedule run in progress holding the lock"
   when: "second hax plugin schedule run"
   then: "second run exits without running jobs and logs that it skipped"
+- id: load-111
+  title: "a hand-placed plugin needs confirmation to enable"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin copied into the plugins folder without the CLI"
+  when: "enable from the dashboard"
+  then: "flagged not tested, not signed; enable proceeds only after the admin confirms; hax plugin verify clears the flag when checks pass"
+- id: load-112
+  title: "a blocked plugin cannot be enabled"
+  spec: spec/03-tiers-and-enablement.md
+  given: "deployment config mcp: {blocked: true}"
+  when: "enable mcp for a site"
+  then: "refused with the configured reason"
+- id: load-113
+  title: "install runs the plugin's tests"
+  spec: spec/09-packaging-tooling.md
+  given: "plugin with a failing test case"
+  when: "hax plugin install"
+  then: "install stops and reports the failing case; --allow-failing-tests installs and records it"

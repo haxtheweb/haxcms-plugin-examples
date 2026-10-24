@@ -49,6 +49,7 @@ const broken = [
   ["missing README", (d) => rmSync(join(d, "README.md"))],
   ["missing AGENTS.md", (d) => rmSync(join(d, "AGENTS.md"))],
   ["no tests and no untested flag", (d) => rmSync(join(d, "tests"), { recursive: true })],
+  ["only commented-out test stubs", (d) => { rmSync(join(d, "tests/cases/hooks.yaml")); }],
   ["test case for a hook the plugin does not use", (d) => writeFileSync(join(d, "tests/cases/extra.yaml"), "- { id: x, title: x, hook: user.after.nope, given: a, when: b, then: c }\n")],
   ["four author tags", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("tags: [example, reference]", "tags: [a, b, c, d]"))],
   ["prompt naming an unknown skill", (d) => writeFileSync(join(d, "docs/prompts.yaml"), readFileSync(join(d, "docs/prompts.yaml"), "utf8").replace("skill: example-plugin-dev\n    prompt: |\n      I run", "skill: example-nope\n    prompt: |\n      I run"))],

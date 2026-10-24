@@ -224,7 +224,8 @@ function validatePlugin(manifestPath) {
   // tests: required unless explicitly untested; code-free packs are exempt
   const testsDir = join(dir, m.tests || "tests");
   const hasCode = Object.keys(m.entry || {}).length || listFiles(join(dir, "frontend/dist"), [".js", ".mjs"]).length;
-  const caseFiles = listFiles(join(testsDir, "cases"), [".yaml", ".yml"]);
+  // a file holding only commented-out stubs parses to null and does not count as tests
+  const caseFiles = listFiles(join(testsDir, "cases"), [".yaml", ".yml"]).filter((f) => readAny(f) != null);
   if (m.untested === true) { if (caseFiles.length) warn("/untested", "untested is true but test cases exist; remove the flag"); }
   else if (hasCode && !caseFiles.length) err("/tests", `no test cases in ${m.tests || "tests"}/cases; add tests or set untested: true (shown as untested)`);
   for (const f of caseFiles) {
