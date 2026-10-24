@@ -190,3 +190,9 @@
   given: "plugin B suggests google-analytics and subscribes to one of its hooks; google-analytics not installed"
   when: "load and render"
   then: "B is active; the subscription does nothing; no warning"
+- id: hook-099
+  title: "a nested transaction joins the outer one"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an import opens a bulk transaction and calls outline operations that open their own"
+  when: "the import finishes"
+  then: "one transaction id throughout; transaction.*.start and .end fire once; one git commit"

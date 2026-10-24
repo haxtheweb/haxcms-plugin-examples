@@ -3,6 +3,7 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+1c. **Transactions join, packs are authoring-only.** Nested transactions join the outer one; any plugin can open or add to a bulk transaction. The abstraction is named the HAX backend platform contract. Packs shape the authoring appstore and block list at rebuild time; `wc-registry.json` and CDN hydration are unchanged. Disabling a pack in use is allowed with a notice listing affected pages.
 1b. **Soft hook subscriptions, no core filters, transactions, packs.** Subscribers choose dependencies or suggests for another plugin's hooks; core offers no criteria filters. Transactions with mark-and-defer (`transaction.*` hooks). Required core plugins declare dependencies (`outline` → `git`). Core plugins mirrored into each backend's core plugins folder; Node first, then PHP. Element packs enabled per site, chosen by skeletons; `siteTypes` reserved for recommendations.
 1a. **Aliases, plugin-defined hooks, required core plugins.** Hook definitions share `hook-contracts.schema.json`; `aliasOf` with `entities` and `changed` filters; new aliases `page.*.delete`, `file.*.save` / `.delete`, `theme.*.change`. Plugins define namespaced hooks via `hookDefinitions`. `outline`, `git` and `files` proposed as required core plugins (structure, not optionality). Health chips live on the plugin dashboard and work without the optional log plugin.
 0z. **Full hook contracts (was item 6).** Every operation has a before and an after hook. `schema/hook-contracts.json` lists each hook's trigger, subject, previous, return, veto and detach rules; spec/06's table is generated from it and checked by `npm test`. Renamed to fit the pattern: `rest.request`/`rest.response` → `rest.before.request`/`rest.after.request`; `plugin.requirements` → `plugin.before.requirements` + new `plugin.after.requirements`; `register.*` → `register.before.*` + `register.after.*`; `render.head`/`render.content` → before/after pairs; `render.body.start`/`.end` → `render.before.body`/`render.after.body`; `schedule.run` → `schedule.before.run`/`schedule.after.run` around jobs declared in `schedules`. Limited user record by default; `users:full` opt-in (derived tag) requires `privacy.export`/`privacy.delete`. One API version.
@@ -36,8 +37,8 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
-16. **Name and shape of the platform abstraction** each backend implements (core config, file templates, the plugin loader contract).
-17. **Per-site registry assembly**: merge per-plugin registries vs build on demand; the skeleton schema change for `site.plugins` needs a PR to https://github.com/haxtheweb/json-outline-schema.
+16. **HAX backend platform contract (named).** Backend-only: core config, file templates, plugin loader, hooks, stores, routes; separate from front-end asset production. Shape still to specify.
+17. **Skeleton `site.plugins`** needs a PR to https://github.com/haxtheweb/json-outline-schema.
 15. **Plugin test harness.** Case format is set; the runner that executes a plugin's cases in both runtimes (shared with the spec conformance runner, item 0k) is not written.
 14. **`defaultEnabled` meaning** for contrib plugins (core required plugins are simply on).
 12. **Roles and permissions** for who sees health, the log, and who may install, enable and configure plugins at each scope.
