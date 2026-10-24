@@ -22,7 +22,8 @@
     "scripts/validate.mjs",
     "spec/",
     "conformance/",
-    "examples/"
+    "examples/",
+    "skills/"
   ],
   "exports": {
     "./schema/*": "./schema/*",
