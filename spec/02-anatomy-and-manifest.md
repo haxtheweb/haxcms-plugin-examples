@@ -69,6 +69,6 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `capabilities` | permissions requested, shown at enable time (see 9.1) |
 | `privacy` | `tracking`, categories, cookies set, hosts that receive data, `requiresConsent` categories |
 | `managedFiles` | managed output paths the plugin owns |
-| `schedules` | recurring jobs run through `schedule.run` (spec/06) |
+| `schedules` | recurring jobs: `id`, `cron`, `handler` (exported by the backend entry), `scope` (system or once per site), optional `timeout`; run by `hax plugin schedule run` (spec/06) |
 | `legacy` | reserved: aliases for extracted core routes, tags and registry paths |
 | `packaged`, `integrity` | reserved: written by `hax plugin pack` (date, hash, signature reference) |

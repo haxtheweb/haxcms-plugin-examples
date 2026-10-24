@@ -8,6 +8,7 @@
   "site:write",
   "site:delete",
   "users:read",
+  "users:full",
   "userData:read",
   "userData:write",
   "network:egress",

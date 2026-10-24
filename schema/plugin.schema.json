@@ -475,9 +475,43 @@
     },
     "schedules": {
       "type": "array",
-      "description": "Reserved.",
+      "description": "Recurring jobs. Each runs the named handler exported by the plugin's backend entry, wrapped by schedule.before.run / schedule.after.run.",
       "items": {
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "cron",
+          "handler"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "cron": {
+            "type": "string",
+            "description": "Five-field cron expression, evaluated in the system time zone."
+          },
+          "handler": {
+            "type": "string",
+            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+            "description": "Exported function (Node) / public method (PHP) name."
+          },
+          "scope": {
+            "enum": [
+              "system",
+              "site"
+            ],
+            "default": "system",
+            "description": "site runs once per site where the plugin is enabled."
+          },
+          "timeout": {
+            "type": "integer",
+            "minimum": 1000,
+            "maximum": 600000
+          }
+        }
       }
     },
     "legacy": {

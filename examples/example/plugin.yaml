@@ -42,6 +42,11 @@ capabilities: ["items:read", "files:read", "output:inject", "settings:secret", "
 exec: [rsync]
 privacy:
   tracking: false
+schedules:
+  - id: tidy
+    cron: "17 3 * * *"
+    handler: tidy
+    scope: site
 hooks:
   - name: entity.before.create
     entities: [awesomeFile]
@@ -59,9 +64,24 @@ hooks:
     entities: [awesomeFile]
   - name: entity.after.delete
     entities: [awesomeFile]
-  - name: rest.request
-  - name: rest.response
-  - name: plugin.requirements
+  - name: page.before.save
+  - name: page.after.save
+  - name: manifest.before.save
+  - name: manifest.after.save
+  - name: config.before.read
+    config: ["*"]
+  - name: config.after.read
+    config: ["*"]
+  - name: config.before.save
+  - name: config.after.save
+    config: ["*"]
+  - name: git.before.commit
+  - name: git.after.commit
+    detached: true
+  - name: rest.before.request
+  - name: rest.after.request
+  - name: plugin.before.requirements
+  - name: plugin.after.requirements
   - name: plugin.before.install
   - name: plugin.after.install
   - name: plugin.before.enable
@@ -86,30 +106,23 @@ hooks:
   - name: user.after.login
   - name: user.before.logout
   - name: user.after.logout
-  - name: register.routes
-  - name: register.entities
-  - name: register.contracts
-  - name: register.prompts
+  - name: register.before.routes
+  - name: register.after.routes
+  - name: register.before.entities
+  - name: register.after.entities
+  - name: register.before.contracts
+  - name: register.after.contracts
+  - name: register.before.prompts
+  - name: register.after.prompts
   - name: render.before
-  - name: render.head
-  - name: render.content
-  - name: render.body.start
-  - name: render.body.end
+  - name: render.before.head
+  - name: render.after.head
+  - name: render.before.content
+  - name: render.after.content
+  - name: render.before.body
+  - name: render.after.body
   - name: render.after
   - name: rebuild.before
   - name: rebuild.after
-  - name: schedule.run
-  - name: page.before.save
-  - name: page.after.save
-  - name: manifest.before.save
-  - name: manifest.after.save
-  - name: config.before.read
-    config: ["*"]
-  - name: config.after.read
-    config: ["*"]
-  - name: config.before.save
-  - name: config.after.save
-    config: ["*"]
-  - name: git.before.commit
-  - name: git.after.commit
-    detached: true
+  - name: schedule.before.run
+  - name: schedule.after.run

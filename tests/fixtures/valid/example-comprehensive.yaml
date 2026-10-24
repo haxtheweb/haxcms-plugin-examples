@@ -14,4 +14,4 @@ hooks:
   - { name: entity.after.create, entities: [awesomeFile] }
   - { name: plugin.before.enable }
   - { name: plugin.after.enable }
-  - { name: render.body.end }
+  - { name: render.after.body }

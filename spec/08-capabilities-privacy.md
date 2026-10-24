@@ -10,8 +10,8 @@ Declared in `plugin.yaml` and shown when an admin enables a plugin, like OAuth s
 ### 9.2 Privacy and consent (worked example)
 A plugin that tracks users declares `privacy.tracking: true`, its categories (`analytics`), cookies it sets, hosts that receive data, and `requiresConsent`. The `cookie-consent` plugin (optional core) defines the contract `consent.subject`. Trackers implement it. Flow:
 - Enabling `google-analytics` auto-enables `cookie-consent` (after confirmation), because the first depends on the second.
-- Consent UI (toast or modal element, injected via `render.body.end`) loads only when at least one enabled plugin has a declared tracking subject active for that site. With no trackers, nothing loads even if the plugin is enabled ("enabled, not in use").
-- The analytics script is injected through `render.head` as a loader that waits for the client-side consent state before running.
+- Consent UI (toast or modal element, injected via `render.after.body`) loads only when at least one enabled plugin has a declared tracking subject active for that site. With no trackers, nothing loads even if the plugin is enabled ("enabled, not in use").
+- The analytics script is injected through `render.before.head` as a loader that waits for the client-side consent state before running.
 - `google-analytics` has its own settings panel (7.1) for the tracking id. Legacy support reads or migrates today's `metadata.site.settings.gaID`.
 - Honoring a visitor's choice (opt-out means the tracker does not inject itself) is each tracking plugin's responsibility; the consent contract details are deferred.
 - Fully client-side, so static-capable and portable.

@@ -37,7 +37,7 @@
 - id: load-101
   title: "a plugin with unmet requirements is enabled but inactive"
   spec: spec/06-hooks-and-contracts.md
-  given: "plugin.requirements returns [{key: settings.greeting}]"
+  given: "plugin.before.requirements returns [{key: settings.greeting}]"
   when: "enable"
   then: "status enabled/inactive with the message; no hooks, routes or registries run; setting the value makes it active"
 - id: load-102

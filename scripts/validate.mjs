@@ -58,6 +58,7 @@ function derivedTags(m) {
   if (m.privacy && m.privacy.tracking === true) t.push("tracks-users");
   if (["experimental", "deprecated", "obsolete"].includes(m.lifecycle)) t.push("not-stable");
   if (m.untested === true) t.push("untested");
+  if (has("users:full")) t.push("full-user-records");
   return t;
 }
 function frontmatter(text) {
@@ -220,6 +221,13 @@ function validatePlugin(manifestPath) {
       if (!validators.prompts(pd)) fmt(validators.prompts.errors).forEach((e) => err(`${m.docs.prompts}${e.path === "/" ? "" : e.path}`, e.message));
       else for (const [i, pr] of pd.prompts.entries()) if (pr.skill && !(m.skills || []).some((k) => k.name === pr.skill)) err(`${m.docs.prompts}/prompts/${i}/skill`, `unknown skill "${pr.skill}"`);
     }
+  }
+  // full user records need export and delete for whatever the plugin keeps outside personalData stores
+  if ((m.capabilities || []).includes("users:full")) for (const c of ["privacy.export", "privacy.delete"]) if (!(m.implements || []).includes(c)) err("/implements", `users:full requires implementing ${c}`);
+  // schedules: handlers must exist in each runtime entry
+  for (const [i, j] of (m.schedules || []).entries()) for (const [rt, entry] of Object.entries(m.entry || {})) {
+    const f = join(dir, entry);
+    if (existsSync(f) && !readFileSync(f, "utf8").includes(j.handler)) err(`/schedules/${i}/handler`, `handler "${j.handler}" not found in ${entry}`);
   }
   // tests: required unless explicitly untested; code-free packs are exempt
   const testsDir = join(dir, m.tests || "tests");

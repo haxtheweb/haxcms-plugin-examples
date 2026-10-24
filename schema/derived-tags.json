@@ -9,5 +9,6 @@
   "single-runtime": "only one of nodejs/php (non-pack)",
   "tracks-users": "privacy.tracking is true",
   "not-stable": "lifecycle is experimental, deprecated or obsolete",
-  "untested": "untested is true"
+  "untested": "untested is true",
+  "full-user-records": "users:full capability (email and profile fields)"
 }

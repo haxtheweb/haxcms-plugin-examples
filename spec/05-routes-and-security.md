@@ -15,6 +15,6 @@ MCP support is an optional core plugin (`mcp`): installed at system level, enabl
 
 - **Separation.** haxcms-mcp stays a stand-alone server. The plugin provides discovery, tokens and policy; it does not serve MCP itself.
 - **Core tools.** The existing hand-written core tools stay in haxcms-mcp for now; marking core's own operations `x-hax-mcp: true` so core and plugin tools come from one place is a later migration.
-- **Tools.** Only plugin operations with `x-hax-mcp: true` are offered. The plugin serves a discovery operation listing, per site, the opted-in operations (with their OpenAPI schemas) and the prompts from `register.prompts`, so the MCP server can add plugin tools without a release.
+- **Tools.** Only plugin operations with `x-hax-mcp: true` are offered. The plugin serves a discovery operation listing, per site, the opted-in operations (with their OpenAPI schemas) and the prompts from `register.before.prompts`, so the MCP server can add plugin tools without a release.
 - **Tokens.** Clients use scoped tokens issued by the plugin, not a user's dashboard login: each token is bound to one site (or the system), to read-only or read-write, optionally to a list of plugins, has an expiry, and is revocable from the plugin's screen. The caller's permissions are the intersection of the token's scope and the issuing user's.
 - **Logging.** Every MCP call is written to the unified log with the token id.

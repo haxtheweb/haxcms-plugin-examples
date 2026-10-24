@@ -111,7 +111,7 @@
   spec: spec/06-hooks-and-contracts.md
   given: "a caching plugin"
   when: "request the same page twice"
-  then: "second request is served from the cache without running render.content"
+  then: "second request is served from the cache without running render.before.content"
 - id: render-002
   title: "a cached document is invalidated by a page save"
   spec: spec/06-hooks-and-contracts.md
@@ -119,7 +119,7 @@
   when: "save the page"
   then: "next request re-renders"
 - id: render-003
-  title: "render.content can transform the assembled content before it enters the shell"
+  title: "render.before.content can transform the assembled content before it enters the shell"
   spec: spec/06-hooks-and-contracts.md
   given: "an SSR plugin"
   when: "render a page with a custom element"
@@ -142,3 +142,21 @@
   given: "A subscribes config.after.save with no config list; B's setting changes"
   when: "config set B key value"
   then: "A's hook does not run; with config: [B] or [\"*\"] it does"
+- id: hook-091
+  title: "user hooks get the limited record without users:full"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin subscribed to user.after.login without users:full"
+  when: "a user logs in"
+  then: "subject has id, name, displayName, roles, avatar only; never email, password hash or tokens"
+- id: hook-092
+  title: "detached is refused where the caller waits"
+  spec: spec/06-hooks-and-contracts.md
+  given: "subscription to rest.after.request with detached: true"
+  when: "load"
+  then: "subscription refused with a reason; other hooks load"
+- id: hook-093
+  title: "every operation fires its before and after pair"
+  spec: spec/06-hooks-and-contracts.md
+  given: "the comprehensive example enabled"
+  when: "each operation in schema/hook-contracts.json runs once"
+  then: "the before hook logs before the operation and the after hook after it, with subject and previous as listed"

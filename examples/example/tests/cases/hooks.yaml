@@ -6,7 +6,7 @@
   then: "operation fails with 'Too boring'"
 - id: example-002
   title: "missing greeting keeps the plugin inactive"
-  hook: plugin.requirements
+  hook: plugin.before.requirements
   given: "settings.greeting empty"
   when: "enable"
   then: "status enabled/inactive with requirement settings.greeting"

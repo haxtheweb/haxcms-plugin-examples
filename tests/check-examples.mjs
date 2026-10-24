@@ -56,6 +56,8 @@ const broken = [
   ["author sets a derived tag", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("tags: [example, reference]", "tags: [example, needs-server]"))],
   ["skill name differs from its folder", (d) => writeFileSync(join(d, "skills/example-authoring/SKILL.md"), readFileSync(join(d, "skills/example-authoring/SKILL.md"), "utf8").replace("name: example-authoring", "name: other"))],
   ["site skill with a script file", (d) => writeFileSync(join(d, "skills/example-authoring/run.sh"), "echo hi\n")],
+  ["users:full without privacy contracts", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace('"items:read",', '"items:read", "users:full",'))],
+  ["schedule handler missing from an entry", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace("handler: tidy", "handler: sweep"))],
   ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
 ];
 for (const [label, mutate] of broken) {
