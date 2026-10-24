@@ -21,7 +21,8 @@ settings: config/settings.schema.json
 admin: config/admin.yaml
 tagPrefix: awesome-
 staticCapable: true
-capabilities: ["items:read", "files:read", "output:inject", "settings:secret"]
+capabilities: ["items:read", "files:read", "output:inject", "settings:secret", "exec:run"]
+exec: [rsync]
 privacy:
   tracking: false
 hooks:
@@ -70,8 +71,12 @@ hooks:
   - name: register.routes
   - name: register.entities
   - name: register.contracts
-  - name: output.alterHead
-  - name: output.alterPage
+  - name: render.before
+  - name: render.head
+  - name: render.content
+  - name: render.body.start
+  - name: render.body.end
+  - name: render.after
   - name: rebuild.before
   - name: rebuild.after
   - name: schedule.run
@@ -81,3 +86,4 @@ hooks:
   - name: manifest.after.save
   - name: git.before.commit
   - name: git.after.commit
+    detached: true

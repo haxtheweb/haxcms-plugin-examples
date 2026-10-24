@@ -43,6 +43,8 @@ const broken = [
   ["entity pointing at an unknown store", (d) => writeFileSync(join(d, "config/entities.yaml"), "entities:\n  thing:\n    store: nope\n")],
   ["annotation outside the ext namespace", (d) => writeFileSync(join(d, "config/entities.yaml"), "entities:\n  awesomeFile: { extends: file }\nannotations:\n  item:\n    explosions: { type: integer }\n")],
   ["locale overlay with a non-string value", (d) => writeFileSync(join(d, "registries/locales/en.yaml"), "awesome.explode: { nested: true }\n")],
+  ["spawns a process without declaring exec:run", (d) => { writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(', "exec:run"', "").replace("exec: [rsync]\n", "")); writeFileSync(join(d, "src/nodejs/extra.js"), "import { spawn } from 'node:child_process';\nspawn('ls');\n"); }],
+  ["exec list without the capability", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(', "exec:run"', ""))],
   ["bad theme entry", (d) => writeFileSync(join(d, "registries/themes/awesome-explosions-theme.json"), "{\"element\":\"awesome-explosions-theme\"}\n")],
 ];
 for (const [label, mutate] of broken) {

@@ -81,6 +81,8 @@ function validatePlugin(manifestPath) {
   const warnings = [];
   const err = (path, message) => errors.push({ path, message });
   const warn = (path, message) => warnings.push({ path, message });
+  const rel = (f) => f.slice(dir.length + 1);
+  const rel2 = rel;
   let m;
   try { m = readAny(manifestPath); } catch (e) { err("/", `cannot parse: ${e.message}`); return { file: manifestPath, errors, warnings }; }
   if (!validators.manifest(m)) fmt(validators.manifest.errors).forEach((e) => err(e.path, e.message));
@@ -104,7 +106,16 @@ function validatePlugin(manifestPath) {
     if (prefix && !tag.startsWith(prefix)) err(where, `tag "${tag}" must start with tagPrefix "${prefix}"`);
     if (!prefix) warn(where, `tag "${tag}" declared without a tagPrefix in plugin.yaml`);
   };
-  const rel = (f) => f.slice(dir.length + 1);
+  // static scan: child processes must be declared (exec:run capability and the exec list)
+  const execPattern = /\b(child_process|execSync|execFile|spawnSync|spawn\s*\(|shell_exec|proc_open|passthru|popen|exec\s*\(|system\s*\()/;
+  for (const rt of ["nodejs", "php"]) {
+    const srcDir = join(dir, "src", rt);
+    const walk = (d) => (existsSync(d) ? readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : [join(d, n)])) : []);
+    for (const f of walk(srcDir).filter((x) => /\.(m?js|cjs|php)$/.test(x))) {
+      const code = readFileSync(f, "utf8").replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
+      if (execPattern.test(code) && !(m.capabilities || []).includes("exec:run")) err(rel2(f), "spawns a process but the manifest lacks the exec:run capability (and an exec list)");
+    }
+  }
   // registries
   for (const f of listFiles(join(dir, "registries/themes"), [".json", ".yaml", ".yml"])) {
     const t = readAny(f);

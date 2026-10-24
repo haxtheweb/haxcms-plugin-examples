@@ -82,3 +82,57 @@
   given: "hooks on page.before.save and entity.before.update"
   when: "save a page"
   then: "both fire"
+- id: hooks-015
+  title: "a hook's returned subject replaces the subject; returning nothing leaves it unchanged"
+  spec: spec/06-hooks-and-contracts.md
+  given: "two before-update hooks, the first returns a changed item, the second returns nothing"
+  when: "update an entity"
+  then: "stored item has the first hook's change"
+- id: hooks-016
+  title: "a later hook overwriting an earlier hook's field logs a warning naming both plugins"
+  spec: spec/06-hooks-and-contracts.md
+  given: "two plugins set the same field in one chain"
+  when: "invoke the hook"
+  then: "last value stands; warning names both"
+- id: hooks-017
+  title: "before hooks time out at 5 seconds; a manifest timeout raises the limit up to 30 seconds"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a before hook that never resolves"
+  when: "invoke the hook"
+  then: "stopped at 5 s; operation continues"
+- id: hooks-018
+  title: "a detached after hook runs after the response is sent and does not delay it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "git.after.commit declared detached with a 2 second job"
+  when: "save a page"
+  then: "response returned before the job finishes; the job completes within its 60 second limit"
+- id: render-001
+  title: "render.before can short-circuit with a cached document; render.after stores it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a caching plugin"
+  when: "request the same page twice"
+  then: "second request is served from the cache without running render.content"
+- id: render-002
+  title: "a cached document is invalidated by a page save"
+  spec: spec/06-hooks-and-contracts.md
+  given: "cached page"
+  when: "save the page"
+  then: "next request re-renders"
+- id: render-003
+  title: "render.content can transform the assembled content before it enters the shell"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an SSR plugin"
+  when: "render a page with a custom element"
+  then: "output contains the element's rendered markup"
+- id: render-004
+  title: "an injected singleton carries values from the plugin's settings and never a secret"
+  spec: spec/08-capabilities-privacy.md
+  given: "google-analytics with a tracking id and an API secret"
+  when: "render a page"
+  then: "tracking id is in the output; the secret is not"
+- id: exec-001
+  title: "a plugin that spawns a process without exec:run is rejected"
+  spec: spec/08-capabilities-privacy.md
+  given: "backend code calling spawn without the capability"
+  when: "validate or load"
+  then: "rejected"

@@ -229,16 +229,40 @@ class ExamplePlugin {
     $this->log("register.contracts", $ctx);
   }
 
-  // contribute head tags or page elements (needs output:inject)
-  // hook: output.alterHead
-  public function outputAlterHead($ctx) {
-    $this->log("output.alterHead", $ctx);
+  // serve a cached document by returning ctx.respond(html), or prepare the render context (site, page, theme)
+  // hook: render.before
+  public function renderBefore($ctx) {
+    $this->log("render.before", $ctx);
   }
 
-  // contribute head tags or page elements (needs output:inject)
-  // hook: output.alterPage
-  public function outputAlterPage($ctx) {
-    $this->log("output.alterPage", $ctx);
+  // add or alter head tags and slim CSS variables
+  // hook: render.head
+  public function renderHead($ctx) {
+    $this->log("render.head", $ctx);
+  }
+
+  // transform the assembled page content before it is placed in the shell (for example server-side render custom elements)
+  // hook: render.content
+  public function renderContent($ctx) {
+    $this->log("render.content", $ctx);
+  }
+
+  // inject markup right after the opening body tag
+  // hook: render.body.start
+  public function renderBodyStart($ctx) {
+    $this->log("render.body.start", $ctx);
+  }
+
+  // inject singletons and scripts at the bottom of the body, with settings baked in from the plugin's config
+  // hook: render.body.end
+  public function renderBodyEnd($ctx) {
+    $this->log("render.body.end", $ctx);
+  }
+
+  // last chance to alter the final document; store it in a cache for the next request or for publishing
+  // hook: render.after
+  public function renderAfter($ctx) {
+    $this->log("render.after", $ctx);
   }
 
   // write or clean managed files (needs output:managedFiles)

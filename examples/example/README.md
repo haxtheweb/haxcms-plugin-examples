@@ -6,7 +6,7 @@ The comprehensive example: implements **every** hook in `schema/hooks.json` (a l
 - an `awesome-explosion` block element, with `haxProperties`
 - an `awesome-explosions` theme built on the theme base, and an `awesome-awesomer-theme` child theme (the tag keeps the `awesome-` prefix) that extends it
 - an `awesome` skeleton that fills a page with explosions
-- an injected singleton (`awesome-counter`) arriving through `output.alterPage`
+- an injected singleton (`awesome-counter`) arriving through `render.body.end`
 - Merlin options: a module program (explode the page) and a static option
 - a settings form with a secret field, a public operation, an entity annotation, and a veto (`entity.before.create` rejects files named `boring.awesome`)
 - a message overlay (`registries/locales/en.yaml`)

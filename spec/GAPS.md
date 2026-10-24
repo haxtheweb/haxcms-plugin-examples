@@ -3,6 +3,9 @@
 Found while writing the examples, validator and conformance cases. Each is a decision or a hole, not a bug report. Resolved items are kept so the reasoning is visible.
 
 ## Resolved in this PR
+0l. **Hook return contract**: return the updated subject (PHP parity); `ctx` is the context object with `veto`, `warn`, `settings`, `storage`, `log`, `fetch`, `respond`. Timeouts: 5 s before hooks, detached after hooks 60 s, no emergency switch. Overwrites by a later hook log a warning.
+0m. **Render pipeline and injected singletons.** `output.alter*` replaced by `render.before/head/content/body.start/body.end/after`; singletons are written by `render.body.end` with settings baked in; SSR runs in `render.content`; caching via `render.before` short-circuit plus `render.after` store.
+0n. **Process execution.** No general exec; `exec:run` capability plus an `exec` command list, statically scanned.
 0f. **Hook subject, mutation and previous.** Subject by reference; before and after hooks may both change it; `ctx.previous` on update; page and manifest saves and git commits have their own hooks (added `page.*`, `manifest.*`, `git.*`). Return shapes are still open (item 6).
 0g. **Formats formalized.** `config/datastores.yaml`, `config/entities.yaml` and `registries/locales/*.yaml` have schemas (`schema/`) checked by the validator. Locale overlays are flat per plugin, merged per key.
 0h. **Themes.** `terrible` is deprecated and folds into `hidden`. Regions become their own plugin and storage type; themes still render them via `site-region`. A child theme falls back to the parent's registry entry. Disabling a plugin whose theme is in use is refused.
@@ -19,7 +22,5 @@ Found while writing the examples, validator and conformance cases. Each is a dec
 2. **`hax validate`.** `hax audit schema` already exists in https://github.com/haxtheweb/create and shells out to each schema repo's validator. The spec now extends that command instead of adding a new one.
 
 ## Need a decision
-6. **Hook payloads.** The hook list is fixed but each hook's context and return shape (veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.
-7. **Hook defaults.** Per-hook timeout value, max chain length, and what `HAXCMS_DISABLE_HOOKS=1` disables exactly.
+6. **Per-hook subject fields.** The hook list is fixed but each hook's context and return shape (veto, warnings, annotations) is not specified yet. The example uses `ctx.entity` and `{ veto, message }` as placeholders.
 10. **Merlin `api` kind rows.** The `row` template and `map` fields are a first guess; the final shape should be confirmed with how real programs build rows.
-14. **Injected singletons.** `role: injected` elements load through `output.alterPage`. How the host guarantees the module is imported (import map or registry) before the element is used is not specified.

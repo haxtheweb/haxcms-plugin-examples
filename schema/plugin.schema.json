@@ -194,6 +194,17 @@
             "items": {
               "type": "string"
             }
+          },
+          "detached": {
+            "type": "boolean",
+            "default": false,
+            "description": "After hooks only: run after the operation's response is sent (Node: not awaited; PHP: after flush or queue). Gets the longer detached timeout."
+          },
+          "timeout": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 30000,
+            "description": "Milliseconds. Overrides the default for this hook (before hooks default to 5000)."
           }
         }
       }
@@ -365,6 +376,15 @@
     "integrity": {
       "type": "object",
       "description": "Reserved: written by `hax plugin pack`."
+    },
+    "exec": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+$"
+      },
+      "description": "Command names the plugin may run as child processes. Requires the exec:run capability; audited by static scan."
     }
   },
   "$defs": {
@@ -525,6 +545,25 @@
               "categories",
               "requiresConsent"
             ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "exec"
+        ]
+      },
+      "then": {
+        "required": [
+          "capabilities"
+        ],
+        "properties": {
+          "capabilities": {
+            "contains": {
+              "const": "exec:run"
+            }
           }
         }
       }

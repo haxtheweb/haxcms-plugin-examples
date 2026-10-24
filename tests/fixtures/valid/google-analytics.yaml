@@ -10,7 +10,7 @@ dependencies: [cookie-consent@>=0.1.0]
 implements: [consent.subject]
 settings: config/settings.schema.json
 hooks:
-  - { name: output.alterHead, priority: 10 }
+  - { name: render.head, priority: 10 }
 privacy:
   tracking: true
   categories: [analytics]

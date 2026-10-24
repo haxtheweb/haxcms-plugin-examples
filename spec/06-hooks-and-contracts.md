@@ -17,17 +17,45 @@ Every lifecycle has a before hook and an after hook. **Before** hooks run before
 | Site lifecycle | `site.before.create`, `.duplicate`, `.archive`, `.delete`, `.export` and the matching `site.after.*` |
 | User | `user.before.login`, `.logout` and `user.after.login`, `.logout` |
 | Registration (boot) | `register.routes`, `register.entities`, `register.contracts` |
-| Output | `output.alterHead`, `output.alterPage` (head and body injection), `rebuild.before`, `rebuild.after` (managed files) |
+| Render | `render.before`, `render.head`, `render.content`, `render.body.start`, `render.body.end`, `render.after` (the page render pipeline; static publish runs the same stages) |
+| Managed files | `rebuild.before`, `rebuild.after` |
 | Schedule | `schedule.run` (hook defined; runner reserved) |
 
 Semantics:
 - Chains run in order: required plugins first, then tier low to high, then `priority` (default 0), then alphabetical.
 - A modifying hook's output is validated against the concrete entity's schema, including a parent's required fields. An invalid result is discarded and logged, and the chain continues with the previous data. A veto returns an explicit status and message. Warnings carry a severity and messages the UI can show.
-- A hook error is logged and does not crash the operation, except an explicit veto. A per-hook timeout stops a hung hook. `HAXCMS_DISABLE_HOOKS=1` disables optional plugins' hooks as an emergency escape.
+- A hook error is logged and does not crash the operation, except an explicit veto.
+- Timeouts: a **before** hook runs in the save path and defaults to 5 seconds (a manifest `timeout`, up to 30 seconds, can raise it for one hook). An **after** hook is an event that follows the operation. It runs inline by default with the same limit so later hooks and the caller see its changes; a hook that does slow work (for example an rsync after `git.after.commit`) declares `detached: true` in the manifest, runs after the response is sent, and gets 60 seconds. There is no emergency disable-all switch: a disabled plugin already removes its hooks.
+- When a later hook in a chain changes a field an earlier hook set, the change stands and the loader logs a warning naming both plugins.
 - Hooks stay opt-in; core routes cannot be broken, only extended through these points.
 
 ### 6.2 Provider contracts
 A plugin defines a contract in `config/contracts.yaml` (name, required operations or functions per runtime, data shapes). Other plugins `implement` it and `depend` on the defining plugin, and the loader validates that the implementer follows the contract. The defining plugin lists and calls the enabled implementers. Contracts are namespaced by their owner (`authproviders.provider`, `views.source`, `consent.subject`). The first-party mechanism ships now; specific contracts such as import, export, search, spam and mail are added later. The auth provider contract is usable only from the highest-order context (section 3).
+
+### The context object (`ctx`)
+`ctx` is short for **context**: the one argument every hook receives. It carries the `subject` (below), `previous` on update, and helpers from the host:
+
+- `ctx.veto(message)`: stop the chain and fail the operation with the message (before hooks only)
+- `ctx.warn(message)`: collect a warning that the UI can show; the operation continues
+- `ctx.settings`, `ctx.storage`, `ctx.log`: the plugin's own settings (CMI), data stores and log
+- `ctx.fetch`: guarded outbound request (needs `network:egress` and a declared host)
+- `ctx.respond(html)`: `render.before` only; short-circuit the render with a ready document (cache hit)
+
+### Return contract
+A hook **returns the updated subject**. Returning nothing leaves the subject unchanged, and an in-place change is tolerated where the language allows it, but returning is the contract because PHP arrays are copied on assignment and would otherwise lose the change. The loader validates a returned subject against the concrete schema; an invalid one is discarded and logged. Side-effect-only hooks return nothing.
+
+```js
+"entity.before.update": async (ctx) => {
+  const item = ctx.subject;
+  item.fields.fireworks = true;
+  if (item.name === "boring.awesome") return ctx.veto("Too boring");
+  if (item.name.length > 60) ctx.warn("Long file name");
+  return item;
+}
+```
+
+### Render pipeline
+Stages run in order for a dynamic page and again at static publish: `render.before` (render context; may return `ctx.respond(html)` for a cached document), `render.head` (head tags, slim CSS variables), `render.content` (the assembled content before it is placed in the shell: where a server-side rendering plugin renders custom elements to HTML), `render.body.start`, `render.body.end` (scripts and injected singletons at the bottom of the body; the hook writes the singleton with values from its own settings baked into the output, so the client never reads server settings), `render.after` (the final document: a caching plugin stores it here to serve on the next request or for publishing; it invalidates on the `page.*` and `manifest.*` save hooks or by expiry). Secrets must never be baked into output; audit warns when a plugin has both `settings:secret` and `output:inject`.
 
 ### Hook subject (context)
 A hook receives a context whose `subject` is the thing the hook is about, at that moment, **by reference**:

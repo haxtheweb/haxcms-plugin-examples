@@ -13,5 +13,6 @@
   "network:egress",
   "settings:secret",
   "output:inject",
-  "output:managedFiles"
+  "output:managedFiles",
+  "exec:run"
 ]

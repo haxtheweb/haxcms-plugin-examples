@@ -155,13 +155,29 @@ export default {
     "register.contracts": async (ctx) => {
       log("register.contracts", ctx);
     },
-    // contribute head tags or page elements (needs output:inject)
-    "output.alterHead": async (ctx) => {
-      log("output.alterHead", ctx);
+    // serve a cached document by returning ctx.respond(html), or prepare the render context (site, page, theme)
+    "render.before": async (ctx) => {
+      log("render.before", ctx);
     },
-    // contribute head tags or page elements (needs output:inject)
-    "output.alterPage": async (ctx) => {
-      log("output.alterPage", ctx);
+    // add or alter head tags and slim CSS variables
+    "render.head": async (ctx) => {
+      log("render.head", ctx);
+    },
+    // transform the assembled page content before it is placed in the shell (for example server-side render custom elements)
+    "render.content": async (ctx) => {
+      log("render.content", ctx);
+    },
+    // inject markup right after the opening body tag
+    "render.body.start": async (ctx) => {
+      log("render.body.start", ctx);
+    },
+    // inject singletons and scripts at the bottom of the body, with settings baked in from the plugin's config
+    "render.body.end": async (ctx) => {
+      log("render.body.end", ctx);
+    },
+    // last chance to alter the final document; store it in a cache for the next request or for publishing
+    "render.after": async (ctx) => {
+      log("render.after", ctx);
     },
     // write or clean managed files (needs output:managedFiles)
     "rebuild.before": async (ctx) => {
@@ -197,6 +213,7 @@ export default {
     },
     // runs after every git commit HAXcms makes (after an item or manifest save); for example rsync the site to a remote server
     "git.after.commit": async (ctx) => {
+      // detached: runs after the response is sent. A real plugin would spawn the declared command (exec: [rsync]) here.
       log("git.after.commit", ctx);
     },
   },
