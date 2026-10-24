@@ -39,3 +39,11 @@
   given: "notes store with personalData"
   when: "erase user u1"
   then: "u1's records gone, others kept"
+  run:
+    plugins: [examples/data-store]
+    load: { stores: { data-store: { notes: [{ uuid: n1, userId: u1, body: a }, { uuid: n2, userId: u2, body: b }] } } }
+    steps:
+      - exportUser: u1
+        expect: { body: { data-store.notes: [{ uuid: n1 }] }, notContains: ['"n2"'] }
+      - eraseUser: u1
+        expect: { body: { removed: 1 } }

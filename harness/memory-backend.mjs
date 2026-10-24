@@ -47,11 +47,19 @@ export class MemoryBackend {
     this.installed = new Set(); // "<plugin>:<scope>" that ran install
     this.entityParents = {}; // entity type -> parent type
     this.log = [];
+    // core records plugins reach through ctx.entities: the site's site.json, pages, files
+    this.records = { site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
+  }
+
+  seed(records = {}) {
+    if (records.site) this.records.site[this.site.id] = { id: this.site.id, metadata: { plugins: {} }, items: [], ...structuredClone(records.site) };
+    for (const type of Object.keys(records)) if (type !== "site") for (const r of records[type]) { this.records[type] = this.records[type] || {}; this.records[type][r.id || r.uuid] = structuredClone(r); }
   }
 
   // ---- loading (spec/13 section 2) ----
   // dirs: paths, or { path, tier } objects. options: settings, stores (by plugin id), disabled, blocked, required.
-  async load(dirs, { settings = {}, stores = {}, disabled = [], blocked = [], required = [] } = {}) {
+  async load(dirs, { settings = {}, stores = {}, disabled = [], blocked = [], required = [], records } = {}) {
+    if (records) this.seed(records);
     const found = [];
     for (const d of dirs) {
       const spec = typeof d === "string" ? { path: d, tier: "system-core" } : d;
@@ -190,12 +198,14 @@ export class MemoryBackend {
     if (!s) throw new Error(`${p.id}: unknown store "${id}"`);
     if (p.storeOverrides && id in p.storeOverrides) return structuredClone(p.storeOverrides[id]);
     if (s.scope === "package") return readAny(join(p.dir, "data", s.file));
+    if (s.scope === "manifest") { const v = getPath(this.records.site[this.site.id], `metadata.plugins.${p.id}.${id}`); return v === undefined ? null : structuredClone(v); }
     const v = this.memory.get(this.storeKey(p, id));
     return v === undefined ? null : structuredClone(v);
   }
   writeStore(p, id, value) {
     if (p.stores[id] && p.stores[id].scope === "package") throw new Error(`${p.id}: store "${id}" is read-only (package scope)`);
     if (p.storeOverrides) delete p.storeOverrides[id];
+    if (p.stores[id] && p.stores[id].scope === "manifest") { const site = this.records.site[this.site.id]; site.metadata = site.metadata || {}; site.metadata.plugins = site.metadata.plugins || {}; site.metadata.plugins[p.id] = { ...(site.metadata.plugins[p.id] || {}), [id]: structuredClone(value) }; return; }
     this.memory.set(this.storeKey(p, id), structuredClone(value));
   }
 
@@ -238,6 +248,11 @@ export class MemoryBackend {
         if (!(p.manifest.capabilities || []).includes("network:egress") || !(p.manifest.egress || []).includes(host)) throw new Error(`fetch to ${host} not allowed`);
         throw new Error("network is disabled in the harness");
       },
+      entities: {
+        get: async (type, id) => { backend.requireCap(p, type, "read"); const r = (backend.records[type] || {})[type === "site" ? id || backend.site.id : id]; return r ? structuredClone(r) : null; },
+        list: async (type, query = {}) => { backend.requireCap(p, type, "read"); return Object.values(backend.records[type] || {}).filter((r) => Object.entries(query).every(([k, v]) => r[k] === v)).map((r) => structuredClone(r)); },
+        save: async (type, record) => { backend.requireCap(p, type, "write"); return backend.saveEntity(type, record); },
+      },
       pluginEnabled: (id) => backend.active(id),
       transaction: Object.defineProperty(tx, "run", { value: (fn, opts = {}) => backend.transaction(fn, opts), enumerable: false, configurable: true }),
       hooks: {
@@ -249,6 +264,80 @@ export class MemoryBackend {
       __warnings: warnings,
     };
     return ctx;
+  }
+
+  // ---- core entities (spec/13 ctx.entities) ----
+  requireCap(p, type, action) {
+    const area = { site: "site", page: "items", file: "files" }[type];
+    if (!area) return;
+    const caps = p.manifest.capabilities || [];
+    const ok = caps.includes(`${area}:${action}`) || (action === "read" && caps.includes(`${area}:write`));
+    if (!ok) throw new Error(`${p.id} needs the ${area}:${action} capability to ${action} ${type} records`);
+  }
+  async saveEntity(type, record) {
+    const id = type === "site" ? record.id || this.site.id : record.id || record.uuid;
+    const store = (this.records[type] = this.records[type] || {});
+    const previous = store[id] ? structuredClone(store[id]) : undefined;
+    const op = previous ? "update" : "create";
+    const before = await this.fire(`entity.before.${op}`, { ...record, id }, { entity: type, previous });
+    if (before.veto) return { record: previous || null, veto: before.veto };
+    store[id] = structuredClone(before.subject);
+    const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
+    return { record: after.subject };
+  }
+
+  // ---- personal data (spec/04): core exports and erases personalData stores by user id ----
+  personalStores() {
+    const out = [];
+    for (const p of this.plugins) for (const s of Object.values(p.stores)) if (s.personalData && s.scope !== "package") out.push({ p, s, key: s.userKey || "userId" });
+    return out;
+  }
+  exportUser(userId) {
+    const out = {};
+    for (const { p, s, key } of this.personalStores()) {
+      const v = this.readStore(p, s.id);
+      const rows = Array.isArray(v) ? v : v && typeof v === "object" ? Object.values(v) : [];
+      const mine = rows.filter((r) => r && r[key] === userId);
+      if (mine.length) out[`${p.id}.${s.id}`] = mine;
+    }
+    return out;
+  }
+  eraseUser(userId) {
+    let removed = 0;
+    for (const { p, s, key } of this.personalStores()) {
+      const v = this.readStore(p, s.id);
+      if (Array.isArray(v)) { const keep = v.filter((r) => !(r && r[key] === userId)); removed += v.length - keep.length; this.writeStore(p, s.id, keep); }
+      else if (v && typeof v === "object") { const keep = Object.fromEntries(Object.entries(v).filter(([, r]) => !(r && r[key] === userId))); removed += Object.keys(v).length - Object.keys(keep).length; this.writeStore(p, s.id, keep); }
+    }
+    return { removed };
+  }
+
+  // ---- upgrade steps (spec/13): every step newer than the installed version, in order ----
+  async upgrade(id, fromVersion) {
+    const p = this.get(id);
+    let versions;
+    if (this.runtime === "nodejs") versions = Object.keys((p.entry && p.entry.upgrades) || {});
+    else versions = ((await this.invoke(p, "list", "__list_upgrades", this.makeCtx(p))).value || []).map((m) => m.replace(/^upgrade_/, "").replace(/_/g, "."));
+    versions = versions.filter((v) => cmpVersion(v, fromVersion) > 0 && cmpVersion(v, p.manifest.version) <= 0).sort(cmpVersion);
+    const subject = { id, version: p.manifest.version, scope: "system" };
+    try {
+      await this.transaction(async (tx) => {
+        const b = await this.fire("plugin.before.upgrade", subject, { previous: fromVersion, strict: true, transaction: tx });
+        if (b.veto) throw new Error(b.veto.message);
+        for (const v of versions) {
+          const ctx = this.makeCtx(p, { transaction: tx, previous: fromVersion });
+          const r = this.runtime === "nodejs" ? { value: await p.entry.upgrades[v](ctx) } : await this.invoke(p, "upgrade", `upgrade_${v.replace(/\./g, "_")}`, ctx);
+          this.log.push({ level: "info", plugin: id, message: `upgrade step ${v} ran` });
+          if (r && r.missing) throw new Error(`upgrade step ${v} missing`);
+        }
+        await this.fire("plugin.after.upgrade", subject, { previous: fromVersion, transaction: tx });
+      }, { bulk: true, origin: "upgrade" });
+      return { status: 200, body: { id, ran: versions } };
+    } catch (e) {
+      p.status = "failed"; p.reason = `upgrade failed: ${e.message}`;
+      this.log.push({ level: "error", plugin: id, message: p.reason });
+      return { status: 409, body: { error: e.message, status: "failed" } };
+    }
   }
 
   // ---- transactions (spec/06): nested ones join the outer one ----
@@ -281,6 +370,7 @@ export class MemoryBackend {
     for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package") storeState[id] = this.readStore(p, id);
     const input = {
       entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : name, args,
+      capabilities: p.manifest.capabilities || [], records: this.records, currentSite: this.site.id, pluginId: p.id,
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
       ctx: { subject: ctx.subject, previous: ctx.previous, settings: ctx.settings, haxcms: ctx.haxcms, plugin: ctx.plugin, site: ctx.site, user: ctx.user, transaction: { id: ctx.transaction.id, origin: ctx.transaction.origin, bulk: ctx.transaction.bulk, marks: ctx.transaction.marks }, stores: storeState, enabled: this.plugins.filter((x) => x.status === "active").map((x) => x.id) },
@@ -290,6 +380,8 @@ export class MemoryBackend {
     const out = JSON.parse(r.stdout);
     if (out.missing) return { missing: true };
     for (const [id, v] of Object.entries(out.stores || {})) this.writeStore(p, id, v);
+    for (const [id, v] of Object.entries(out.manifestStores || {})) this.writeStore(p, id, v);
+    for (const { type, record } of out.entitySaves || []) await this.saveEntity(type, record);
     for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
     ctx.__warnings.push(...(out.warnings || []));
     Object.assign(ctx.transaction.marks, out.transaction && out.transaction.marks ? out.transaction.marks : {});

@@ -78,10 +78,15 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `log.info / .warn / .error(message, data?)` | everywhere | the unified log, tagged with plugin, hook or operation, and scope |
 | `fetch(url, init)` | everywhere | outbound HTTP, only with `network:egress` to a host in `egress`. Node returns a standard `Response`; PHP returns `['status', 'headers', 'body', 'json']` (`json` is the decoded body or `null`) |
 | `hooks.fire(name, subject, { previous })` | everywhere | fire a hook **this plugin defines** (`hookDefinitions`); returns `{ subject, veto?, warnings }` after every subscriber ran. Core hooks are fired by the platform only |
+| `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, and entity types other plugins define. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto? }` |
 | `pluginEnabled(id)` | everywhere | whether another plugin is enabled and active in this scope |
 | `transaction` | everywhere | `{ id, origin, bulk, operations, marks, run(fn, { bulk, origin }) }` (spec/06, Transactions) |
 
 There is no general process helper: a plugin with `exec:run` spawns only the commands in its `exec` list with the runtime's own API, and the validator checks the code for anything else.
+
+### Upgrade steps
+
+A plugin that changes its data shape between versions ships one step per version: a recipe in `migrations/<NNNN>-<name>.md` (for people and agents) and the code, as `upgrades: { "<version>": async (ctx) => {} }` in the Node entry and `upgrade_<major>_<minor>_<patch>($ctx)` methods in PHP. On a version change the loader runs, in version order, every step newer than the installed version and not newer than the new one, between `plugin.before.upgrade` and `plugin.after.upgrade`, inside one transaction; a throwing step turns the plugin off with the reason. Steps use the same `ctx` (stores, `entities` for data that used to live in `site.json`), and keep a read fallback to the old location so a site whose upgrade has not run still works.
 
 ## 5. Operations and the unified contract
 

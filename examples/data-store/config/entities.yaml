@@ -1,10 +1,12 @@
+# A per-user note. Stored in the siteData store `notes`, so it never travels with the site folder.
 entities:
   note:
     primaryKey: uuid
     scope: site
     store: notes
-    requiredFields: [uuid, body]
+    requiredFields: [uuid, userId, body]
     fields:
       uuid: { type: string }
+      userId: { type: string, note: "owner; only the owner can read it" }
       body: { type: string }
     personalData: true

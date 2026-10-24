@@ -2,7 +2,7 @@ specVersion: "0.1.0"
 id: data-store
 uuid: 0e31e293-606d-4b86-9cb1-472fbf349b29
 title: Data store example
-description: Uses all four store kinds, an upgrade step and personal-data flags.
+description: Uses the four writable store scopes, an upgrade step that moves data out of site.json, and personal data core can export and erase.
 category: developer
 icon: icons:storage
 tags: [example, data]
@@ -13,4 +13,6 @@ entry:
   php: src/php/Plugin.php
 datastores: config/datastores.yaml
 entities: config/entities.yaml
-capabilities: ["userData:read", "userData:write", "site:read"]
+openapi: config/openapi.yaml
+capabilities: ["userData:read", "userData:write", "site:read", "site:write"]   # site:* for the upgrade that edits site.json
+staticCapable: false

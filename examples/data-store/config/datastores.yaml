@@ -1,3 +1,4 @@
+# All the writable store scopes (package scope is shown by examples/announcements):
 stores:
   - id: votes            # popular content by votes; travels with the site
     scope: site          # <site>/_config/data/data-store/votes.json
@@ -5,9 +6,10 @@ stores:
   - id: notes            # per-site, per-user records; stays on the server, keyed by the site UUID (site.json id)
     scope: siteData      # <HAXCMS_ROOT>/_config/siteData/<siteUuid>/data-store/notes.json
     file: notes.json
-    personalData: true   # supports export and erase by user id
+    personalData: true   # core exports and erases these by user id ...
+    userKey: userId      # ... found in this field; the plugin writes no code for it
   - id: feed-cache       # an aggregate across sites (for example an RSS feed of 10 sites)
     scope: system        # <HAXCMS_ROOT>/_config/systemData/data-store/feed-cache.json
     file: feed-cache.json
-  - id: badge            # travels inside site.json at metadata.plugins.data-store
+  - id: badge            # travels inside site.json at metadata.plugins.data-store.badge
     scope: manifest

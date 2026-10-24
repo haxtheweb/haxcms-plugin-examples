@@ -177,11 +177,24 @@
                 "description": "Plugin status after loading, e.g. { example: inactive }."
               }
             }
+          },
+          "user": {
+            "type": "object",
+            "description": "The user making the calls (default an admin)."
+          },
+          "records": {
+            "type": "object",
+            "description": "Core records to start with: { site: {...site.json}, page: [...], file: [...] }."
+          },
+          "steps": {
+            "type": "array",
+            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, record, exportUser, eraseUser, asUser, transaction).",
+            "items": {
+              "type": "object"
+            }
           }
         },
-        "required": [
-          "expect"
-        ],
+        "required": [],
         "not": {
           "required": [
             "call",
@@ -207,6 +220,11 @@
                 ]
               }
             }
+          },
+          {
+            "required": [
+              "steps"
+            ]
           }
         ]
       }

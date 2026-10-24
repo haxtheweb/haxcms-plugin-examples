@@ -35,13 +35,38 @@ class HarnessLog {
   public function error($m, $d = null) { $this->entries[] = ['level' => 'error', 'message' => $m]; }
 }
 
+class HarnessEntities {
+  public $saves = []; private $records; private $caps; private $site; private $pluginId;
+  public function __construct($records, $caps, $site, $pluginId) { $this->records = $records; $this->caps = $caps; $this->site = $site; $this->pluginId = $pluginId; }
+  private function need($type, $action) {
+    $area = ['site' => 'site', 'page' => 'items', 'file' => 'files'][$type] ?? null;
+    if (!$area) { return; }
+    if (!in_array("$area:$action", $this->caps, true) && !($action === 'read' && in_array("$area:write", $this->caps, true))) {
+      throw new Exception("{$this->pluginId} needs the $area:$action capability to $action $type records");
+    }
+  }
+  public function get($type, $id = null) { $this->need($type, 'read'); $id = $type === 'site' ? ($id ?: $this->site) : $id; return $this->records[$type][$id] ?? null; }
+  public function list($type, $query = []) {
+    $this->need($type, 'read');
+    return array_values(array_filter($this->records[$type] ?? [], function ($r) use ($query) { foreach ($query as $k => $v) { if (($r[$k] ?? null) !== $v) { return false; } } return true; }));
+  }
+  // Saves are applied by the harness after the call, running the entity hooks then.
+  public function save($type, $record) {
+    $this->need($type, 'write');
+    $id = $type === 'site' ? ($record['id'] ?? $this->site) : ($record['id'] ?? $record['uuid']);
+    $this->records[$type][$id] = $record;
+    $this->saves[] = ['type' => $type, 'record' => $record];
+    return ['record' => $record];
+  }
+}
+
 class HarnessHooks {
   public function fire($name, $subject, $opts = []) { return ['subject' => $subject, 'warnings' => []]; }
 }
 
 class HarnessCtx {
   public $subject; public $previous; public $request; public $settings; public $haxcms; public $plugin; public $site; public $user;
-  public $transaction; public $storage; public $package; public $log; public $hooks; public $warnings = []; private $enabled;
+  public $transaction; public $storage; public $package; public $log; public $hooks; public $entities; public $warnings = []; private $enabled;
   public function __construct($in) {
     $c = $in['ctx'];
     $this->subject = $c['subject'] ?? null;
@@ -59,6 +84,7 @@ class HarnessCtx {
     $this->package = new HarnessPackage($in['pluginDir']);
     $this->log = new HarnessLog();
     $this->hooks = new HarnessHooks();
+    $this->entities = new HarnessEntities($in['records'] ?? [], $in['capabilities'] ?? [], $in['currentSite'] ?? null, $in['pluginId'] ?? '');
   }
   public function veto($message, $status = 409) { return ['__veto' => true, 'message' => $message, 'status' => $status]; }
   public function warn($message, $severity = 'warning') { $this->warnings[] = ['message' => $message, 'severity' => $severity]; }
@@ -71,6 +97,10 @@ $in = json_decode(stream_get_contents(STDIN), true);
 require_once $in['entry'];
 $class = $in['class'];
 $plugin = new $class();
+if ($in['method'] === '__list_upgrades') {
+  echo json_encode(['result' => array_values(array_filter(get_class_methods($plugin), function ($m) { return strpos($m, 'upgrade_') === 0; }))]);
+  exit(0);
+}
 if (!method_exists($plugin, $in['method'])) { echo json_encode(['missing' => true]); exit(0); }
 $ctx = new HarnessCtx($in);
 $result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
@@ -80,4 +110,5 @@ echo json_encode([
   'logs' => $ctx->log->entries,
   'warnings' => $ctx->warnings,
   'transaction' => ['marks' => (object) $ctx->transaction['marks']],
+  'entitySaves' => $ctx->entities->saves,
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

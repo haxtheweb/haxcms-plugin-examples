@@ -46,6 +46,11 @@
           "storeSchema": {
             "type": "string",
             "description": "Optional schema name recorded in the store file."
+          },
+          "userKey": {
+            "type": "string",
+            "default": "userId",
+            "description": "personalData stores: the record field holding the user id, used by core to export and erase a user's records."
           }
         },
         "allOf": [

@@ -20,44 +20,24 @@ let runtimes = runtimeArg === "both" ? (manifest.runtimes || ["nodejs"]) : [runt
 const skipped = [];
 if (runtimes.includes("php") && !hasPhp) { runtimes = runtimes.filter((r) => r !== "php"); skipped.push("php (not installed)"); }
 
-// deep subset: every key/element in `want` must match `got`
-function subset(got, want, path = "") {
-  if (want === null || typeof want !== "object") return Object.is(got, want) || got === want ? null : `${path || "value"}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`;
-  if (got === null || typeof got !== "object") return `${path || "value"}: expected an object, got ${JSON.stringify(got)}`;
-  for (const k of Object.keys(want)) { const e = subset(got[k], want[k], path ? `${path}.${k}` : k); if (e) return e; }
-  return null;
-}
-const hasKey = (v, key) => v && typeof v === "object" && (key in v || Object.values(v).some((x) => hasKey(x, key)));
-// PHP cannot tell [] from {}; compare with empty objects and arrays treated alike
-const canon = (v) => JSON.stringify(v, (k, x) => (x && typeof x === "object" && !Array.isArray(x) && !Object.keys(x).length ? [] : x));
+import { canon } from "./expect.mjs";
+import { step } from "./steps.mjs";
 
 async function runCase(c, runtime) {
   const r = c.run;
-  const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime });
-  await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} } });
-  const out = { statusOf: Object.fromEntries(backend.status().map((s) => [s.id, s.status])) };
-  if (r.call) {
-    const res = await backend.call(r.call.operation, { params: r.call.params || {}, query: r.call.query || {}, body: r.call.body || {} }, { credentials: r.call.credentials || "both" });
-    Object.assign(out, { status: res.status, body: res.body });
-  } else if (r.fire) {
-    const tx = r.fire.transaction ? { id: "t1", origin: r.fire.transaction.origin || "harness", bulk: !!r.fire.transaction.bulk, operations: [], marks: {} } : undefined;
-    const res = await backend.fire(r.fire.hook, r.fire.subject ?? null, { previous: r.fire.previous, entity: r.fire.entity, transaction: tx });
-    Object.assign(out, { subject: res.subject, veto: res.veto || null, marks: tx ? tx.marks : undefined });
-  }
-  const e = r.expect || {};
+  const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}) });
+  await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} }, records: r.records });
+  // a single call/fire with expect, or a list of steps each with its own expect
+  const steps = r.steps || [{ ...(r.call ? { call: r.call } : {}), ...(r.fire ? { fire: r.fire } : {}), expect: r.expect || {} }];
   const errors = [];
-  const subjectOrBody = out.body !== undefined ? out.body : out.subject;
-  if (e.status !== undefined && out.status !== e.status) errors.push(`status ${out.status}, expected ${e.status}`);
-  if (e.body !== undefined) { const m = subset(out.body, e.body, "body"); if (m) errors.push(m); }
-  if (e.subject !== undefined) { const m = subset(out.subject, e.subject, "subject"); if (m) errors.push(m); }
-  for (const k of e.absent || []) if (hasKey(subjectOrBody, k)) errors.push(`"${k}" should be absent`);
-  for (const s of e.contains || []) if (!JSON.stringify(subjectOrBody).includes(s)) errors.push(`should contain ${JSON.stringify(s)}`);
-  for (const s of e.notContains || []) if (JSON.stringify(subjectOrBody).includes(s)) errors.push(`should not contain ${JSON.stringify(s)}`);
-  if (e.veto !== undefined && !!out.veto !== e.veto) errors.push(e.veto ? "expected a veto" : `unexpected veto: ${out.veto && out.veto.message}`);
-  if (e.message !== undefined) { const msg = (out.veto && out.veto.message) || (out.body && out.body.error) || ""; if (!msg.includes(e.message)) errors.push(`message ${JSON.stringify(msg)} does not include ${JSON.stringify(e.message)}`); }
-  if (e.marks !== undefined) { const m = subset(out.marks || {}, e.marks, "marks"); if (m) errors.push(m); }
-  if (e.status_of !== undefined) { const m = subset(out.statusOf, e.status_of, "status"); if (m) errors.push(m); }
-  return { out, errors };
+  const outs = [];
+  for (const [i, s] of steps.entries()) {
+    const res = await step(backend, s);
+    errors.push(...res.errors.map((e) => (steps.length > 1 ? `step ${i + 1}: ${e}` : e)));
+    const { log, statusOf, ...rest } = res.out;
+    outs.push(rest);
+  }
+  return { out: outs, errors };
 }
 
 const results = [];

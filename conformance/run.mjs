@@ -9,32 +9,12 @@ import { spawnSync } from "node:child_process";
 import { parse } from "yaml";
 import { MemoryBackend } from "../harness/memory-backend.mjs";
 import { check } from "../harness/expect.mjs";
+import { step } from "../harness/steps.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const only = args.includes("--case") ? args[args.indexOf("--case") + 1] : null;
 const fx = (p) => (typeof p === "string" ? join(root, p.includes("/") ? p : `conformance/fixtures/${p}`) : { ...p, path: join(root, p.path.includes("/") ? p.path : `conformance/fixtures/${p.path}`) });
-
-async function step(backend, s) {
-  const out = {};
-  if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {} }, { credentials: s.call.credentials || "both" }));
-  else if (s.fire) {
-    const tx = s.fire.transaction ? { id: "t-fire", origin: s.fire.transaction.origin || "case", bulk: !!s.fire.transaction.bulk, operations: [], marks: {} } : undefined;
-    const r = await backend.fire(s.fire.hook, s.fire.subject ?? null, { previous: s.fire.previous, entity: s.fire.entity, transaction: tx });
-    Object.assign(out, { subject: r.subject, veto: r.veto || null, marks: tx ? tx.marks : backend.currentTx ? backend.currentTx.marks : undefined });
-  } else if (s.render) Object.assign(out, await backend.render(s.render.page, s.render));
-  else if (s.enable) Object.assign(out, await backend.enable(s.enable));
-  else if (s.disable) Object.assign(out, await backend.disable(s.disable));
-  else if (s.config) Object.assign(out, await backend.saveConfig(s.config.plugin, s.config.values));
-  else if (s.transaction) {
-    let marks;
-    await backend.transaction(async (tx) => { for (const inner of s.transaction.steps || []) { const r = await step(backend, inner); if (r.errors.length) throw new Error(r.errors.join("; ")); } marks = tx.marks; }, { bulk: s.transaction.bulk !== false, origin: s.transaction.origin || "case" });
-    out.marks = marks;
-  }
-  out.statusOf = Object.fromEntries(backend.status().map((x) => [x.id, x.status]));
-  out.log = backend.log;
-  return { out, errors: check(out, s.expect || {}) };
-}
 
 async function runCase(c) {
   const r = c.run;
@@ -46,7 +26,7 @@ async function runCase(c) {
     if (r.expect && r.expect.valid === false && !out.errors.length) errs.push("expected the validator to reject it");
     return errs;
   }
-  const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000 });
+  const backend = new MemoryBackend({ haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, ...(r.user ? { user: r.user } : {}) });
   await backend.load((r.plugins || []).map(fx), r.load || {});
   const errors = [];
   if (r.expect) errors.push(...check({ statusOf: Object.fromEntries(backend.status().map((x) => [x.id, x.status])), log: backend.log }, r.expect));
