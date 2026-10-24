@@ -178,3 +178,15 @@
   given: "plugin B depends on example and subscribes to example.after.explode"
   when: "example fires the explosion"
   then: "B's hook runs with { fileId, size, at }"
+- id: hook-097
+  title: "bulk transactions defer marked work to the end"
+  spec: spec/06-hooks-and-contracts.md
+  given: "outline editor opens a bulk transaction and saves 20 pages; git marks git.commit"
+  when: "the transaction ends"
+  then: "one commit containing all 20 pages; page.after.save ran 20 times; transaction.after.end ran once"
+- id: hook-098
+  title: "a suggested plugin's hook is inactive when that plugin is absent"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin B suggests google-analytics and subscribes to one of its hooks; google-analytics not installed"
+  when: "load and render"
+  then: "B is active; the subscription does nothing; no warning"

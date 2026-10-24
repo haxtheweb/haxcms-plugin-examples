@@ -15,7 +15,7 @@ A working list for scoping the refactor, built from the hook examples in spec/06
 | `announcements` | What's New and HAX Tips for users and site owners | new | system store, `user.after.login`, `site.after.create`, `render.after.body`, `plugin.after.upgrade`, Merlin `api` program, routes |
 | `agent-skills` | publishes `site` and `system` skills from enabled plugins into `.well-known/agent-skills` | extract (`rebuildAgentSkills`) | `rebuild.after`, `plugin.after.enable` / `.disable` |
 | default theme pack | the default theme (today `clean-two`) and its siblings as a `pack` | extract | theme registry only |
-| `outline` | the outline editor: page tree operations and the editor UI | extract | see below |
+| `outline` | the outline editor: page tree operations and the editor UI; depends on `git` | extract | see below |
 | `git` | commits after saves, history and revert; defines `git.*` | extract | defines `git.before.commit` / `git.after.commit`; `page.after.save`, `manifest.after.save` |
 | `files` | file manager, uploads, upload targets for the editor; defines the `file.*` aliases | extract | `file` entity, upload routes, appstore upload app, `file.*` |
 
@@ -25,7 +25,7 @@ Required core plugins load automatically and cannot be disabled; making them plu
 
 - **Data stays core.** Pages remain `page` entities and the tree remains `site.json` (`items` with `parent` and `order`). The `outline` plugin owns the operations on them, not the storage.
 - **Routes.** Its contract defines the outline operations (add, move, indent, outdent, rename, delete, reorder, bulk apply), mounted at `/v1/plugins/outline/`, with `legacy` aliases for today's outline endpoints so existing callers and https://github.com/haxtheweb/haxcms-mcp keep working.
-- **Hooks it causes.** Each operation runs through the entity service, so `page.before.save` / `page.after.save`, `page.before.delete` / `page.after.delete` and `manifest.before.save` / `manifest.after.save` fire as usual, then `git` commits. Other plugins extend the outline through those hooks (for example `regions` keeping region pages out of the menu) without touching the editor.
+- **Hooks it causes.** It opens a bulk transaction for a multi-step edit. Each operation runs through the entity service, so `page.before.save` / `page.after.save`, `page.before.delete` / `page.after.delete` and `manifest.before.save` / `manifest.after.save` fire as usual, then `git` commits once at the end of the transaction. Other plugins extend the outline through those hooks (for example `regions` keeping region pages out of the menu) without touching the editor.
 - **UI.** The editor element is registered in the element registry with the `outline-` prefix and opened from an admin panel and from Merlin options (`kind: module` programs for "add page", "move page").
 - **Skills and prompts.** A `site` skill teaches agents the outline operations; a `developer` skill covers the editor code.
 - **Tests.** Its cases cover every operation in both runtimes, which today is spread across the backends.
@@ -61,6 +61,10 @@ Required core plugins load automatically and cannot be disabled; making them plu
 ## HAXiam
 
 `sso` (`user.before.login`), `institution-skeleton` (`site.before.create`), `multi-tenant` (`config.after.read`), institution packs such as the PSU pack (themes, skeletons, elements, locale overlay, restricted assets; locked).
+
+## Packs
+
+Element packs enabled per site and chosen by skeletons (spec/07): instructional blocks, quizzing and assessment, comments UI, media, plus theme packs. Blogs and courses get different defaults, which keeps the author's block list short.
 
 ## Fixtures
 

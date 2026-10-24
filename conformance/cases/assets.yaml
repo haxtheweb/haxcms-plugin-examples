@@ -34,3 +34,9 @@
   given: "plugin with a site skill and a developer skill"
   when: "enable for the site, rebuild; then disable, rebuild"
   then: "index lists the site skill with a sha256 digest, never the developer skill; after disable it is gone"
+- id: asset-091
+  title: "a site only sees blocks from packs enabled for it"
+  spec: spec/07-registries-settings-assets.md
+  given: "quizzing pack enabled for site A, not site B"
+  when: "the editor loads in each site"
+  then: "A's block list and wc-registry include the quiz blocks; B's do not"

@@ -143,7 +143,13 @@ function validatePlugin(manifestPath) {
     for (const [i, d] of Object.entries(Object.values(ownHooks))) for (const a of d.aliasOf || []) if (!knownHooks.has(a.hook) && !ownHooks[a.hook]) err(`${m.hookDefinitions}/${i}/aliasOf`, `alias target "${a.hook}" is not a core hook or one this plugin defines`);
   }
   for (const [i, h] of (m.hooks || []).entries()) if (h.detached && hookContracts[h.name] && !hookContracts[h.name].detachable) err(`/hooks/${i}/detached`, `${h.name} cannot be detached (${hookContracts[h.name].phase === "before" ? "before hooks run in the save path" : "the caller waits for its result"})`);
-  for (const [i, h] of (m.hooks || []).entries()) if (!knownHooks.has(h.name) && !ownHooks[h.name]) warn(`/hooks/${i}/name`, `unknown hook "${h.name}" (open vocabulary; the loader will warn)`);
+  const related = new Set([...(m.dependencies || []), ...(m.suggests || [])].map((d) => d.split("@")[0]));
+  for (const [i, h] of (m.hooks || []).entries()) {
+    if (knownHooks.has(h.name) || ownHooks[h.name]) continue;
+    const owner = h.name.split(".")[0];
+    if (related.has(owner)) continue; // another plugin's hook: hard (dependencies) or soft (suggests, inactive when absent)
+    warn(`/hooks/${i}/name`, `"${h.name}" is not a core hook; if plugin "${owner}" defines it, list it in dependencies or suggests`);
+  }
   for (const [i, c] of (m.capabilities || []).entries()) if (!knownCaps.has(c)) warn(`/capabilities/${i}`, `unknown capability "${c}" (open vocabulary; the loader will warn)`);
   if (m.dependencies && m.id && m.dependencies.some((d) => d.split("@")[0] === m.id)) err("/dependencies", "a plugin cannot depend on itself");
   const prefix = m.tagPrefix;

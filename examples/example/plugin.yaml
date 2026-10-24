@@ -6,6 +6,7 @@ description: Exercises every hook and extension point. Disabled by default.
 category: developer
 icon: frontend/dist/icon.svg
 tags: [example, reference]
+siteTypes: [documentation]
 screenshots:
   - src: frontend/dist/screenshot-dashboard.svg
     alt: The example plugin's settings panel in the dashboard
@@ -87,6 +88,10 @@ hooks:
   - name: git.before.commit
   - name: git.after.commit
     detached: true
+  - name: transaction.before.start
+  - name: transaction.after.start
+  - name: transaction.before.end
+  - name: transaction.after.end
   - name: rest.before.request
   - name: rest.after.request
   - name: plugin.before.requirements

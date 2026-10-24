@@ -52,6 +52,15 @@
       "description": "Up to three free-form author tags for search and filtering (the one category is separate). Derived tags (derived-tags.json) are computed from the manifest, always shown, do not count toward the three, and cannot be set or removed here.",
       "maxItems": 3
     },
+    "siteTypes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "description": "Kinds of site this plugin suits (course, blog, portfolio, documentation, \u2026; open vocabulary). Reserved for recommendations: telling owners of a matching site that the plugin exists, locally and later from remote registries."
+    },
     "icon": {
       "type": "string",
       "description": "An icon name from a HAX iconset (e.g. \"icons:lightbulb-outline\") or a path to an SVG/PNG in the plugin. See https://github.com/haxtheweb/issues/issues/3173. Required by the audit."

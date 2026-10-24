@@ -69,6 +69,8 @@ class ExamplePlugin {
   // react to the saved page: re-index for search, invalidate a cache, notify
   // hook: page.after.save
   public function pageAfterSave($ctx) {
+    // inside a bulk transaction, defer: mark it and do the work once in transaction.after.end
+    if (!empty($ctx->transaction["bulk"])) { $ctx->transaction["marks"]["example.reindex"] = true; return; }
     $this->log("page.after.save", $ctx);
   }
 
@@ -168,6 +170,30 @@ class ExamplePlugin {
   public function gitAfterCommit($ctx) {
     // detached: runs after the response is sent. A real plugin would spawn the declared command (exec: [rsync]) here.
     $this->log("git.after.commit", $ctx);
+  }
+
+  // note what is about to happen, or refuse to start
+  // hook: transaction.before.start
+  public function transactionBeforeStart($ctx) {
+    $this->log("transaction.before.start", $ctx);
+  }
+
+  // prepare for the work
+  // hook: transaction.after.start
+  public function transactionAfterStart($ctx) {
+    $this->log("transaction.after.start", $ctx);
+  }
+
+  // finish deferred work that must succeed for the transaction to count, or veto to fail it
+  // hook: transaction.before.end
+  public function transactionBeforeEnd($ctx) {
+    $this->log("transaction.before.end", $ctx);
+  }
+
+  // react once to the whole unit of work
+  // hook: transaction.after.end
+  public function transactionAfterEnd($ctx) {
+    if (!empty($ctx->subject["marks"]["example.reindex"])) { $this->log("transaction.after.end: one reindex for the whole bulk edit", $ctx); }
   }
 
   // check or adjust the request before the handler runs, or refuse it

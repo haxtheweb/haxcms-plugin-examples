@@ -47,6 +47,8 @@ export default {
     },
     // react to the saved page: re-index for search, invalidate a cache, notify
     "page.after.save": async (ctx) => {
+      // inside a bulk transaction, defer: mark it and do the work once in transaction.after.end
+      if (ctx.transaction && ctx.transaction.bulk) { ctx.transaction.marks["example.reindex"] = true; return; }
       log("page.after.save", ctx);
     },
     // refuse to delete a page others link to, or veto
@@ -114,6 +116,22 @@ export default {
     "git.after.commit": async (ctx) => {
       // detached: runs after the response is sent. A real plugin would spawn the declared command (exec: [rsync]) here.
       log("git.after.commit", ctx);
+    },
+    // note what is about to happen, or refuse to start
+    "transaction.before.start": async (ctx) => {
+      log("transaction.before.start", ctx);
+    },
+    // prepare for the work
+    "transaction.after.start": async (ctx) => {
+      log("transaction.after.start", ctx);
+    },
+    // finish deferred work that must succeed for the transaction to count, or veto to fail it
+    "transaction.before.end": async (ctx) => {
+      log("transaction.before.end", ctx);
+    },
+    // react once to the whole unit of work
+    "transaction.after.end": async (ctx) => {
+      if (ctx.subject.marks["example.reindex"]) log("transaction.after.end: one reindex for the whole bulk edit", ctx);
     },
     // check or adjust the request before the handler runs, or refuse it
     "rest.before.request": async (ctx) => {

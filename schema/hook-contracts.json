@@ -464,6 +464,58 @@
     "example": "**rsync-deploy** pushes the site to a remote server (`detached: true`)"
   },
   {
+    "name": "transaction.before.start",
+    "phase": "before",
+    "definedBy": "core",
+    "when": "a unit of work is about to start; every operation runs in one (a single save gets an implicit one, the outline editor or an import opens an explicit bulk one)",
+    "subject": "the transaction: `{ id, origin, bulk, operations: [{ hook, entity?, id? }], marks: {} }` (origin is what started it: outline editor, import, CLI, a single save); operations is empty",
+    "previous": "none",
+    "returns": "the transaction",
+    "veto": true,
+    "detachable": false,
+    "comment": "note what is about to happen, or refuse to start",
+    "example": "**git** notes that a bulk outline edit is starting so it will commit once at the end"
+  },
+  {
+    "name": "transaction.after.start",
+    "phase": "after",
+    "definedBy": "core",
+    "when": "the transaction is open",
+    "subject": "the transaction: `{ id, origin, bulk, operations: [{ hook, entity?, id? }], marks: {} }` (origin is what started it: outline editor, import, CLI, a single save)",
+    "previous": "none",
+    "returns": "nothing",
+    "veto": false,
+    "detachable": false,
+    "comment": "prepare for the work",
+    "example": "**search** pauses per-page indexing for a bulk import"
+  },
+  {
+    "name": "transaction.before.end",
+    "phase": "before",
+    "definedBy": "core",
+    "when": "the work is done and the transaction is about to close",
+    "subject": "the transaction: `{ id, origin, bulk, operations: [{ hook, entity?, id? }], marks: {} }` (origin is what started it: outline editor, import, CLI, a single save); operations lists everything that ran",
+    "previous": "none",
+    "returns": "the transaction",
+    "veto": true,
+    "detachable": false,
+    "comment": "finish deferred work that must succeed for the transaction to count, or veto to fail it",
+    "example": "**git** makes the single commit for everything marked during the transaction"
+  },
+  {
+    "name": "transaction.after.end",
+    "phase": "after",
+    "definedBy": "core",
+    "when": "the transaction closed",
+    "subject": "the transaction: `{ id, origin, bulk, operations: [{ hook, entity?, id? }], marks: {} }` (origin is what started it: outline editor, import, CLI, a single save) plus `ok`",
+    "previous": "none",
+    "returns": "nothing",
+    "veto": false,
+    "detachable": true,
+    "comment": "react once to the whole unit of work",
+    "example": "**search** re-indexes every page the import touched; **page-cache** clears once instead of per page"
+  },
+  {
     "name": "rest.before.request",
     "phase": "before",
     "definedBy": "core",

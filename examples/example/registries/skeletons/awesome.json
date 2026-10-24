@@ -26,7 +26,10 @@
       "lang": "en-US",
       "publishPagesOn": true,
       "pathauto": true
-    }
+    },
+    "plugins": [
+      "example"
+    ]
   },
   "build": {
     "type": "skeleton",

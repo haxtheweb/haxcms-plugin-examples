@@ -17,6 +17,8 @@ node_body = {
   "plugin.before.requirements": '      log("plugin.before.requirements", ctx);\n      const unmet = [...ctx.subject];\n      if (!ctx.settings.greeting) unmet.push({ key: "settings.greeting", message: "Set a greeting before this plugin activates" });\n      return unmet;\n',
   "config.before.save": '      log("config.before.save", ctx);\n      return ctx.subject;\n',
   "register.before.prompts": '      log("register.before.prompts", ctx);\n      return ctx.subject;\n',
+  "page.after.save": '      // inside a bulk transaction, defer: mark it and do the work once in transaction.after.end\n      if (ctx.transaction && ctx.transaction.bulk) { ctx.transaction.marks["example.reindex"] = true; return; }\n      log("page.after.save", ctx);\n',
+  "transaction.after.end": '      if (ctx.subject.marks["example.reindex"]) log("transaction.after.end: one reindex for the whole bulk edit", ctx);\n',
   "git.after.commit": '      // detached: runs after the response is sent. A real plugin would spawn the declared command (exec: [rsync]) here.\n      log("git.after.commit", ctx);\n',
 }
 php_body = {
@@ -24,6 +26,8 @@ php_body = {
   "plugin.before.requirements": '    $this->log("plugin.before.requirements", $ctx);\n    $unmet = $ctx->subject;\n    if (empty($ctx->settings["greeting"])) {\n      $unmet[] = ["key" => "settings.greeting", "message" => "Set a greeting before this plugin activates"];\n    }\n    return $unmet;\n',
   "config.before.save": '    $this->log("config.before.save", $ctx);\n    return $ctx->subject;\n',
   "register.before.prompts": '    $this->log("register.before.prompts", $ctx);\n    return $ctx->subject;\n',
+  "page.after.save": '    // inside a bulk transaction, defer: mark it and do the work once in transaction.after.end\n    if (!empty($ctx->transaction["bulk"])) { $ctx->transaction["marks"]["example.reindex"] = true; return; }\n    $this->log("page.after.save", $ctx);\n',
+  "transaction.after.end": '    if (!empty($ctx->subject["marks"]["example.reindex"])) { $this->log("transaction.after.end: one reindex for the whole bulk edit", $ctx); }\n',
   "git.after.commit": '    // detached: runs after the response is sent. A real plugin would spawn the declared command (exec: [rsync]) here.\n    $this->log("git.after.commit", $ctx);\n',
 }
 def camel(n):
