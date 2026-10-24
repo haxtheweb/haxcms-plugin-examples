@@ -8,7 +8,8 @@
     "returns": "the record (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "validate or normalize the new record, or veto with a message"
+    "comment": "validate or normalize the new record, or veto with a message",
+    "example": "**comments** rejects a comment over the length limit or from a blocked user; **spam** vetoes obvious spam"
   },
   {
     "name": "entity.after.create",
@@ -19,7 +20,8 @@
     "returns": "the record as the caller receives it (annotations); the store is not rewritten",
     "veto": false,
     "detachable": true,
-    "comment": "react to the new record: notify, index, update a derived store"
+    "comment": "react to the new record: notify, index, update a derived store",
+    "example": "**search** indexes the new record; **notifications** emails moderators about a new comment"
   },
   {
     "name": "entity.before.read",
@@ -30,7 +32,8 @@
     "returns": "the request (narrow a query, add filters)",
     "veto": true,
     "detachable": false,
-    "comment": "narrow what is read (for example hide drafts from anonymous callers), or veto"
+    "comment": "narrow what is read (for example hide drafts from anonymous callers), or veto",
+    "example": "**comments** hides unapproved comments from anonymous readers by narrowing the query"
   },
   {
     "name": "entity.after.read",
@@ -41,7 +44,8 @@
     "returns": "the record or list as the caller receives it (annotate, redact)",
     "veto": false,
     "detachable": false,
-    "comment": "annotate or redact what the caller receives; not detachable because the caller waits for it"
+    "comment": "annotate or redact what the caller receives; not detachable because the caller waits for it",
+    "example": "**example** adds an `ext.awesome.explosions` count to each file it lists; **privacy** redacts emails for non-admins"
   },
   {
     "name": "entity.before.update",
@@ -52,7 +56,8 @@
     "returns": "the record (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "compare with ctx.previous, normalize, or veto"
+    "comment": "compare with ctx.previous, normalize, or veto",
+    "example": "**announcements** refuses to edit an announcement that is already published to all users"
   },
   {
     "name": "entity.after.update",
@@ -63,7 +68,8 @@
     "returns": "the record as the caller receives it",
     "veto": false,
     "detachable": true,
-    "comment": "react to what changed between ctx.previous and the subject"
+    "comment": "react to what changed between ctx.previous and the subject",
+    "example": "**search** re-indexes; **page-cache** invalidates cached pages that showed the record"
   },
   {
     "name": "entity.before.delete",
@@ -74,7 +80,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "refuse deletion (for example while something depends on it), or veto"
+    "comment": "refuse deletion (for example while something depends on it), or veto",
+    "example": "**media-library** refuses to delete a file that pages still embed"
   },
   {
     "name": "entity.after.delete",
@@ -85,7 +92,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "clean up anything that pointed at the deleted record"
+    "comment": "clean up anything that pointed at the deleted record",
+    "example": "**comments** deletes the thread when its page is deleted (cascade)"
   },
   {
     "name": "page.before.save",
@@ -96,7 +104,9 @@
     "returns": "the page (may change content or metadata)",
     "veto": true,
     "detachable": false,
-    "comment": "inspect or adjust the page before it is written (for example clean up markup), or veto"
+    "comment": "inspect or adjust the page before it is written (for example clean up markup), or veto",
+    "example": "**a11y-check** warns about images without alt text; **content-sanitize** strips pasted Word markup",
+    "alias": "entity.before.create and entity.before.update for entity type page, with the page content loaded"
   },
   {
     "name": "page.after.save",
@@ -107,7 +117,9 @@
     "returns": "nothing (the file is already written)",
     "veto": false,
     "detachable": true,
-    "comment": "react to the saved page: re-index for search, invalidate a cache, notify"
+    "comment": "react to the saved page: re-index for search, invalidate a cache, notify",
+    "example": "**search** re-indexes the page; **page-cache** drops that page's cached HTML; **xapi** records an authoring event",
+    "alias": "entity.after.create and entity.after.update for entity type page"
   },
   {
     "name": "manifest.before.save",
@@ -118,7 +130,9 @@
     "returns": "the manifest (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "inspect or adjust site.json before it is written, or veto"
+    "comment": "inspect or adjust site.json before it is written, or veto",
+    "example": "**regions** moves region data out of `site.json` into its own store before the write",
+    "alias": "entity.before.update for entity type site (its site.json record)"
   },
   {
     "name": "manifest.after.save",
@@ -129,7 +143,9 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react to outline or settings changes: rebuild a derived file, notify"
+    "comment": "react to outline or settings changes: rebuild a derived file, notify",
+    "example": "**sitemap / llms.txt** regenerate; **page-cache** clears the menu-dependent cache",
+    "alias": "entity.after.update for entity type site"
   },
   {
     "name": "config.before.read",
@@ -140,7 +156,8 @@
     "returns": "the request",
     "veto": true,
     "detachable": false,
-    "comment": "uncommon: audit or restrict access to configuration"
+    "comment": "uncommon: audit or restrict access to configuration",
+    "example": "**config-audit** records which plugin or user read secrets-adjacent config (uncommon)"
   },
   {
     "name": "config.after.read",
@@ -151,7 +168,8 @@
     "returns": "the values as the caller receives them",
     "veto": false,
     "detachable": false,
-    "comment": "uncommon: redact or annotate values for the caller"
+    "comment": "uncommon: redact or annotate values for the caller",
+    "example": "**multi-tenant** (HAXiam) overlays institution defaults onto a site's values (uncommon)"
   },
   {
     "name": "config.before.save",
@@ -162,7 +180,8 @@
     "returns": "the values (may normalize them)",
     "veto": true,
     "detachable": false,
-    "comment": "validate or normalize a settings change, or veto"
+    "comment": "validate or normalize a settings change, or veto",
+    "example": "**google-analytics** rejects a malformed measurement ID"
   },
   {
     "name": "config.after.save",
@@ -173,7 +192,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react to a settings change: clear a cache, copy to a backup location"
+    "comment": "react to a settings change: clear a cache, copy to a backup location",
+    "example": "**config-backup** copies every change to a backup location; **page-cache** clears after a theme setting change"
   },
   {
     "name": "git.before.commit",
@@ -184,7 +204,8 @@
     "returns": "the commit (adjust the message or add files)",
     "veto": true,
     "detachable": false,
-    "comment": "last chance to add files or adjust the commit message, or veto the commit"
+    "comment": "last chance to add files or adjust the commit message, or veto the commit",
+    "example": "**changelog** adds a CHANGELOG entry to the commit and rewrites the message"
   },
   {
     "name": "git.after.commit",
@@ -195,7 +216,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "push or rsync the site elsewhere; usually `detached: true`"
+    "comment": "push or rsync the site elsewhere; usually `detached: true`",
+    "example": "**rsync-deploy** pushes the site to a remote server (`detached: true`)"
   },
   {
     "name": "rest.before.request",
@@ -206,7 +228,8 @@
     "returns": "the request (may change headers, query or body)",
     "veto": true,
     "detachable": false,
-    "comment": "check or adjust the request before the handler runs, or refuse it"
+    "comment": "check or adjust the request before the handler runs, or refuse it",
+    "example": "**rate-limit-plus** applies a stricter limit per token; **mcp** checks the scoped token's site and read-only flag"
   },
   {
     "name": "rest.after.request",
@@ -217,7 +240,8 @@
     "returns": "the response (add headers, trim fields)",
     "veto": false,
     "detachable": false,
-    "comment": "adjust the response before it is sent; not detachable"
+    "comment": "adjust the response before it is sent; not detachable",
+    "example": "**cors** adds headers for an allowed origin; **privacy** trims fields for anonymous callers"
   },
   {
     "name": "plugin.before.requirements",
@@ -228,7 +252,8 @@
     "returns": "the list with this plugin's own unmet requirements added",
     "veto": false,
     "detachable": false,
-    "comment": "report unmet requirements; the plugin stays enabled but inactive until the list is empty"
+    "comment": "report unmet requirements; the plugin stays enabled but inactive until the list is empty",
+    "example": "**google-analytics** stays inactive until a measurement ID is set; a plugin that needs **cookie-consent** waits for it"
   },
   {
     "name": "plugin.after.requirements",
@@ -239,7 +264,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react to becoming active or inactive"
+    "comment": "react to becoming active or inactive",
+    "example": "**onboarding** shows the admin a setup checklist when a plugin turns inactive"
   },
   {
     "name": "plugin.before.install",
@@ -250,7 +276,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "check preconditions for install; veto to refuse"
+    "comment": "check preconditions for install; veto to refuse",
+    "example": "**announcements** checks the system can write its system store before installing"
   },
   {
     "name": "plugin.after.install",
@@ -261,7 +288,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "migrate settings that used to live in site.json or core config into this plugin's settings"
+    "comment": "migrate settings that used to live in site.json or core config into this plugin's settings",
+    "example": "**google-analytics** moves `gaID` out of `site.json` into its own settings (first enable)"
   },
   {
     "name": "plugin.before.enable",
@@ -272,7 +300,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "check preconditions for enable; veto to refuse"
+    "comment": "check preconditions for enable; veto to refuse",
+    "example": "**mcp** refuses to enable on a site whose deployment blocks it"
   },
   {
     "name": "plugin.after.enable",
@@ -283,7 +312,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "set up what the plugin needs at runtime"
+    "comment": "set up what the plugin needs at runtime",
+    "example": "**log** starts collecting; any plugin observes another being enabled (for example **views** registering a source)"
   },
   {
     "name": "plugin.before.disable",
@@ -294,7 +324,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "check preconditions for disable; veto to refuse"
+    "comment": "check preconditions for disable; veto to refuse",
+    "example": "**theme pack** refuses while a site still uses its theme (core also enforces this)"
   },
   {
     "name": "plugin.after.disable",
@@ -305,7 +336,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "tear down what enable set up; core clears caches and rebuilds managed outputs"
+    "comment": "tear down what enable set up; core clears caches and rebuilds managed outputs",
+    "example": "**page-cache** removes its cache folder; **ssr** removes its compiled renderers"
   },
   {
     "name": "plugin.before.uninstall",
@@ -316,7 +348,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "check preconditions for uninstall; veto to refuse"
+    "comment": "check preconditions for uninstall; veto to refuse",
+    "example": "**comments** warns that all threads will be purged and requires confirmation"
   },
   {
     "name": "plugin.after.uninstall",
@@ -327,7 +360,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "remove anything outside the plugin's own stores"
+    "comment": "remove anything outside the plugin's own stores",
+    "example": "**media-library** removes thumbnails it wrote outside its own stores"
   },
   {
     "name": "plugin.before.upgrade",
@@ -338,7 +372,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "check preconditions for upgrade; veto to refuse"
+    "comment": "check preconditions for upgrade; veto to refuse",
+    "example": "**views** snapshots view definitions before an upgrade step changes their shape"
   },
   {
     "name": "plugin.after.upgrade",
@@ -349,7 +384,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "prepare for or follow up on data upgrades"
+    "comment": "prepare for or follow up on data upgrades",
+    "example": "**announcements** marks new tips as unread after an upgrade"
   },
   {
     "name": "site.before.create",
@@ -360,7 +396,8 @@
     "returns": "the site summary (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "check or adjust before the site is created, or veto"
+    "comment": "check or adjust before the site is created, or veto",
+    "example": "**institution-skeleton** (HAXiam) forces the institution theme and license onto new sites"
   },
   {
     "name": "site.after.create",
@@ -371,7 +408,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react after the site is created"
+    "comment": "react after the site is created",
+    "example": "**announcements** queues the welcome tip for the new site owner"
   },
   {
     "name": "site.before.duplicate",
@@ -382,7 +420,8 @@
     "returns": "the site summary (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "check or adjust before the site is duplicated, or veto"
+    "comment": "check or adjust before the site is duplicated, or veto",
+    "example": "**retention** blocks duplicating a site under legal hold"
   },
   {
     "name": "site.after.duplicate",
@@ -393,7 +432,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react after the site is duplicated"
+    "comment": "react after the site is duplicated",
+    "example": "**comments** starts the copy with no comments (siteData is not copied)"
   },
   {
     "name": "site.before.archive",
@@ -404,7 +444,8 @@
     "returns": "the site summary (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "check or adjust before the site is archived, or veto"
+    "comment": "check or adjust before the site is archived, or veto",
+    "example": "**lms-sync** refuses to archive a site still linked to an active course"
   },
   {
     "name": "site.after.archive",
@@ -415,7 +456,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react after the site is archived"
+    "comment": "react after the site is archived",
+    "example": "**search** removes the site from the system index"
   },
   {
     "name": "site.before.delete",
@@ -426,7 +468,8 @@
     "returns": "the site summary (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "check or adjust before the site is deleted, or veto"
+    "comment": "check or adjust before the site is deleted, or veto",
+    "example": "**retention** blocks deletion while a retention policy is active"
   },
   {
     "name": "site.after.delete",
@@ -437,7 +480,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react after the site is deleted"
+    "comment": "react after the site is deleted",
+    "example": "**analytics** removes stored reports for the site"
   },
   {
     "name": "site.before.export",
@@ -448,7 +492,8 @@
     "returns": "the site summary (may change it)",
     "veto": true,
     "detachable": false,
-    "comment": "check or adjust before the site is exported, or veto"
+    "comment": "check or adjust before the site is exported, or veto",
+    "example": "**restricted-assets** removes files whose redistribution is restricted from the export"
   },
   {
     "name": "site.after.export",
@@ -459,7 +504,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react after the site is exported"
+    "comment": "react after the site is exported",
+    "example": "**epub / pdf / docx exporters** attach their output alongside the zip"
   },
   {
     "name": "user.before.login",
@@ -470,7 +516,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "refuse the login (for example outside allowed hours), or veto"
+    "comment": "refuse the login (for example outside allowed hours), or veto",
+    "example": "**sso** (HAXiam) refuses local logins when SSO is required"
   },
   {
     "name": "user.after.login",
@@ -481,7 +528,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react to the login: record it, warm a cache"
+    "comment": "react to the login: record it, warm a cache",
+    "example": "**announcements** shows unread What's New items; **log** records the login"
   },
   {
     "name": "user.before.logout",
@@ -492,7 +540,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "refuse the logout (for example outside allowed hours), or veto"
+    "comment": "refuse the logout (for example outside allowed hours), or veto",
+    "example": "**autosave** flushes an unsaved draft first"
   },
   {
     "name": "user.after.logout",
@@ -503,7 +552,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "react to the logout: record it, warm a cache"
+    "comment": "react to the logout: record it, warm a cache",
+    "example": "**session-cleanup** clears that user's cached tokens"
   },
   {
     "name": "register.before.routes",
@@ -514,7 +564,8 @@
     "returns": "the list with this plugin's additions",
     "veto": false,
     "detachable": false,
-    "comment": "add to the routes list"
+    "comment": "add to the routes list",
+    "example": "**views** adds a route per saved view; **mcp** adds its discovery operation"
   },
   {
     "name": "register.after.routes",
@@ -525,7 +576,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": false,
-    "comment": "inspect the final routes list (audit, conflicts)"
+    "comment": "inspect the final routes list (audit, conflicts)",
+    "example": "**api-docs** builds a combined OpenAPI document for the dashboard"
   },
   {
     "name": "register.before.entities",
@@ -536,7 +588,8 @@
     "returns": "the list with this plugin's additions",
     "veto": false,
     "detachable": false,
-    "comment": "add to the entities list"
+    "comment": "add to the entities list",
+    "example": "**example** adds `awesomeFile` extending `file`"
   },
   {
     "name": "register.after.entities",
@@ -547,7 +600,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": false,
-    "comment": "inspect the final entities list (audit, conflicts)"
+    "comment": "inspect the final entities list (audit, conflicts)",
+    "example": "**schema-report** warns about two plugins annotating the same field"
   },
   {
     "name": "register.before.contracts",
@@ -558,7 +612,8 @@
     "returns": "the list with this plugin's additions",
     "veto": false,
     "detachable": false,
-    "comment": "add to the contracts list"
+    "comment": "add to the contracts list",
+    "example": "**importer-moodle** implements `import.platform`"
   },
   {
     "name": "register.after.contracts",
@@ -569,7 +624,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": false,
-    "comment": "inspect the final contracts list (audit, conflicts)"
+    "comment": "inspect the final contracts list (audit, conflicts)",
+    "example": "**importers** lists every available import platform in the UI"
   },
   {
     "name": "register.before.prompts",
@@ -580,7 +636,8 @@
     "returns": "the list with this plugin's additions",
     "veto": false,
     "detachable": false,
-    "comment": "add to the prompts list"
+    "comment": "add to the prompts list",
+    "example": "**any plugin** adds a 'fix this' prompt only when it currently has unmet requirements"
   },
   {
     "name": "register.after.prompts",
@@ -591,7 +648,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": false,
-    "comment": "inspect the final prompts list (audit, conflicts)"
+    "comment": "inspect the final prompts list (audit, conflicts)",
+    "example": "**mcp** serves the final list through MCP's prompts feature"
   },
   {
     "name": "render.before",
@@ -602,7 +660,8 @@
     "returns": "the context, or `ctx.respond(html)` to short-circuit with a cached document",
     "veto": true,
     "detachable": false,
-    "comment": "serve a cached document with ctx.respond(html), or prepare the context"
+    "comment": "serve a cached document with ctx.respond(html), or prepare the context",
+    "example": "**page-cache** returns the cached HTML with `ctx.respond(html)` and skips the rest"
   },
   {
     "name": "render.before.head",
@@ -613,7 +672,8 @@
     "returns": "the context (add to head)",
     "veto": false,
     "detachable": false,
-    "comment": "add meta, link and script tags to the head"
+    "comment": "add meta, link and script tags to the head",
+    "example": "**google-analytics** adds the consent-gated loader; **seo-plus** adds extra meta tags"
   },
   {
     "name": "render.after.head",
@@ -624,7 +684,8 @@
     "returns": "the context",
     "veto": false,
     "detachable": false,
-    "comment": "inspect or reorder the final head"
+    "comment": "inspect or reorder the final head",
+    "example": "**csp** computes a Content-Security-Policy from the final head"
   },
   {
     "name": "render.before.content",
@@ -635,7 +696,8 @@
     "returns": "the context (replace or transform content)",
     "veto": false,
     "detachable": false,
-    "comment": "transform content before it is placed, for example server-side render custom elements"
+    "comment": "transform content before it is placed, for example server-side render custom elements",
+    "example": "**ssr** renders custom elements to HTML; **glossary** links defined terms"
   },
   {
     "name": "render.after.content",
@@ -646,7 +708,8 @@
     "returns": "the context",
     "veto": false,
     "detachable": false,
-    "comment": "inspect or post-process the placed content"
+    "comment": "inspect or post-process the placed content",
+    "example": "**a11y-check** flags the rendered page in preview mode"
   },
   {
     "name": "render.before.body",
@@ -657,7 +720,8 @@
     "returns": "the context (push to body.start)",
     "veto": false,
     "detachable": false,
-    "comment": "inject markup at the start of the body"
+    "comment": "inject markup at the start of the body",
+    "example": "**skip-links** or a **maintenance-banner** right after `<body>`"
   },
   {
     "name": "render.after.body",
@@ -668,7 +732,8 @@
     "returns": "the context (push to body.end)",
     "veto": false,
     "detachable": false,
-    "comment": "inject singletons and scripts at the end of the body, with settings baked in from the plugin's config"
+    "comment": "inject singletons and scripts at the end of the body, with settings baked in from the plugin's config",
+    "example": "**cookie-consent** banner, **announcements** toast, **example** `awesome-counter` singleton with settings baked in"
   },
   {
     "name": "render.after",
@@ -679,7 +744,8 @@
     "returns": "the context (may change html)",
     "veto": false,
     "detachable": false,
-    "comment": "last chance to alter the final document; store it in a cache"
+    "comment": "last chance to alter the final document; store it in a cache",
+    "example": "**page-cache** stores the final document; **minify** compresses it"
   },
   {
     "name": "rebuild.before",
@@ -690,7 +756,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "prepare for a rebuild, or veto it"
+    "comment": "prepare for a rebuild, or veto it",
+    "example": "**static-publish** clears its output folder"
   },
   {
     "name": "rebuild.after",
@@ -701,7 +768,8 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "write this plugin's own managed files"
+    "comment": "write this plugin's own managed files",
+    "example": "**sitemap / llms.txt**, **views** snapshots and feeds, **search** index file"
   },
   {
     "name": "schedule.before.run",
@@ -712,7 +780,8 @@
     "returns": "nothing",
     "veto": true,
     "detachable": false,
-    "comment": "skip a job run (for example during maintenance)"
+    "comment": "skip a job run (for example during maintenance)",
+    "example": "**maintenance-mode** skips jobs during a maintenance window"
   },
   {
     "name": "schedule.after.run",
@@ -723,6 +792,7 @@
     "returns": "nothing",
     "veto": false,
     "detachable": true,
-    "comment": "record the result or alert on failure"
+    "comment": "record the result or alert on failure",
+    "example": "**log** records the result; **notifications** alerts on a failed job"
   }
 ]
