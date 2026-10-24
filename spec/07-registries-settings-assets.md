@@ -25,15 +25,17 @@ Part of the HAXcms plugin specification (decision source: https://github.com/hax
 - Legacy: a plugin may read and interpret an old core location (such as `metadata.site.settings.gaID`) as a fallback, with a one-time `upgrade` step to move it.
 - Admin menu structure is not final; this area will be informed by the API structure and revised.
 
-### 7.2 Merlin programs (provisional)
+### 7.2 Merlin options and programs
 
-A program is split into data and code so options are listed without loading any plugin JavaScript. Field names are provisional until checked against the super-daemon option and program shape (schema: `schema/merlin-program.schema.json`).
+The Merlin contract is documented in https://github.com/haxtheweb/merlin-schema (option schema, program schema, rules for tools registering commands). Plugins do not invent their own shape: a declaration in `registries/merlin/*.yaml` wraps a real MerlinOption (`option:`) and is validated against that repository's `merlin-option.schema.json` (`schema/merlin-declaration.schema.json` here adds the plugin-side wrapper).
 
-- `kind: static`: the results are listed in the declaration. No JS.
-- `kind: api`: names an operation from the plugin's own contract and a `map` from response fields to result fields. Announcements' tip of the day and What's New fit here. No JS.
-- `kind: module`: points at an ES module under `frontend/dist` that exports a program factory. The module is imported lazily when the program runs. The factory receives a host context (an authenticated call helper for the plugin's operations, translation helpers, the site context) and nothing else.
-
-At load the host registers every declaration with Merlin, so options appear without importing plugin code.
+- Only options expressible as data are declarable: `super-daemon-run-program`, `hax-super-daemon-insert-tag`, `execute-keyboard-shortcut`, `disabled`, or a custom event name with JSON detail. Options that need live references (`super-daemon-element-method` / `-click` targets) are registered from a plugin module, not declared.
+- For `super-daemon-run-program`, `option.value.program` is omitted and a `program:` block says how the host builds it, so the option is listed without loading plugin JavaScript:
+  - `kind: static`: `results` are listed MerlinOption rows.
+  - `kind: api`: an `operation` from the plugin's own contract, a `map` from response fields to row fields, and a `row` template for the fixed parts (eventName, value shape).
+  - `kind: module`: a `module` under `frontend/dist` and a `factory` export. The host registers the usual lazy `import()` of a `createXProgram(context)` factory, exactly the pattern the existing programs use (`async (input, values) => MerlinOption[]`). The context carries an authenticated call helper for the plugin's operations and translation helpers.
+- `machineName` and `name` are required on programs so they can be launched by machine name. Context arrays, `inline`/`inlineOnly`, `hidden`, `voice` and `shortcut` follow the merlin-schema rules.
+- Conformance: module files must pass `merlin-validate --scan` from merlin-schema.
 
 ## Front-end assets
 

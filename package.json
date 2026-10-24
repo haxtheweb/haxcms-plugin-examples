@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "description": "Spec, schema, conformance fixtures and example plugins for HAXcms plugins",
-  "scripts": { "test": "node tests/validate-manifests.mjs" },
-  "devDependencies": { "ajv": "8.20.0", "ajv-formats": "3.0.1", "yaml": "2.9.1" }
+  "scripts": {
+    "test": "node tests/validate-manifests.mjs"
+  },
+  "devDependencies": {
+    "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.9.1"
+  }
 }

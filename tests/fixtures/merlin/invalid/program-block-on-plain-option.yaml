@@ -1,0 +1,5 @@
+option:
+  title: X
+  eventName: hax-super-daemon-insert-tag
+  value: { tag: x-tag }
+program: { kind: module, module: a.js, factory: createX }

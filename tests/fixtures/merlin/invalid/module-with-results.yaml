@@ -1,6 +1,0 @@
-machineName: x
-title: X
-path: HAX/action/x
-kind: module
-module: frontend/dist/x.js
-results: [{ title: nope }]

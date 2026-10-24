@@ -1,8 +1,16 @@
-machineName: announcements-tip
-title: Tip of the day
-icon: lightbulb
-tags: [tips]
-path: HAX/action/tips
-kind: api
-operation: announcementsGetDailyTip
-map: { title: label, description: description }
+option:
+  title: Tip of the day
+  icon: icons:lightbulb-outline
+  tags: [tips, announcements]
+  path: HAX/action/tips
+  context: [HAX]
+  voice: tip of the day
+  eventName: super-daemon-run-program
+  value:
+    name: Tip of the day
+    machineName: announcements-tip
+program:
+  kind: api
+  operation: announcementsGetDailyTip
+  map: { title: label, description: description }
+  row: { eventName: super-daemon-noop, value: {} }
