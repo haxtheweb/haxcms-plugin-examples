@@ -12,17 +12,32 @@ const load = (n) => ajv.compile(JSON.parse(readFileSync(join(root, "schema", n),
 const merlinOption = JSON.parse(readFileSync(join(root, "node_modules/@haxtheweb/merlin-schema/merlin-option.schema.json"), "utf8"));
 ajv.addSchema(merlinOption);
 const validateOption = ajv.getSchema(merlinOption.$id);
+const addPkg = (pkgPath) => { const sc = JSON.parse(readFileSync(join(root, "node_modules", pkgPath), "utf8")); ajv.addSchema(sc); return sc; };
+const haxProps = addPkg("hax-schema/schema/haxProperties.schema.json");
+addPkg("json-outline-schema/schema/json-outline-schema.schema.json");
+const siteSchema = addPkg("json-outline-schema/schema/haxcms-site.schema.json");
+const skeletonSchema = addPkg("json-outline-schema/schema/skeleton.schema.json");
+const external = {
+  "ext:skeleton": ajv.getSchema(skeletonSchema.$id),
+  "ext:haxProperties": ajv.getSchema(haxProps.$id),
+  "ext:site": ajv.getSchema(siteSchema.$id),
+  "ext:settings": ajv.compile({ $ref: `${haxProps.$id}#/properties/settings` }),
+};
 const compiled = {};
 const suites = [
   ["plugin.schema.json", "valid", true], ["plugin.schema.json", "invalid", false],
+  ["ext:skeleton", "registries/skeletons/valid", true], ["ext:skeleton", "registries/skeletons/invalid", false],
+  ["ext:haxProperties", "registries/elements/valid", true], ["ext:haxProperties", "registries/elements/invalid", false],
+  ["ext:settings", "registries/settings/valid", true], ["ext:settings", "registries/settings/invalid", false],
+  ["ext:site", "registries/site/valid", true], ["ext:site", "registries/site/invalid", false],
   ["merlin-declaration.schema.json", "merlin/valid", true], ["merlin-declaration.schema.json", "merlin/invalid", false],
 ];
 let failures = 0;
 for (const [schemaFile, dir, expectValid] of suites) {
-  const validate = (compiled[schemaFile] ??= load(schemaFile));
+  const validate = (external[schemaFile] ?? (compiled[schemaFile] ??= load(schemaFile)));
   const base = join(root, "tests/fixtures", dir);
-  for (const f of readdirSync(base).filter((n) => n.endsWith(".yaml")).sort()) {
-    const doc = parse(readFileSync(join(base, f), "utf8"));
+  for (const f of readdirSync(base).filter((n) => /\.(ya?ml|json)$/.test(n)).sort()) {
+    const doc = (f.endsWith(".json") ? JSON.parse : parse)(readFileSync(join(base, f), "utf8"));
     let ok = validate(doc);
     if (ok && schemaFile.startsWith("merlin")) {
       // the host fills value.program for programs, then the real Merlin option schema applies

@@ -10,6 +10,9 @@
     "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
+    "hax-element-schema": "github:haxtheweb/hax-element-schema#45712aead49ba8c1de0e7eb6f43600d8b14956c0",
+    "hax-schema": "github:haxtheweb/hax-schema#269988cecf63c0f64ec89a4367492852b22c4f86",
+    "json-outline-schema": "github:haxtheweb/json-outline-schema#e06cfbdf264b12d292158a4fec935b65f495a45d",
     "yaml": "2.9.1"
   }
 }
