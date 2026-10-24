@@ -160,3 +160,21 @@
   given: "the comprehensive example enabled"
   when: "each operation in schema/hook-contracts.json runs once"
   then: "the before hook logs before the operation and the after hook after it, with subject and previous as listed"
+- id: hook-094
+  title: "an alias fires once and under the subscribed name"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin subscribed to page.before.save"
+  when: "a page is updated"
+  then: "the hook runs once, named page.before.save, with the page content loaded"
+- id: hook-095
+  title: "theme.before.change only fires when the theme changes"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin subscribed to theme.before.change"
+  when: "site settings saved twice: once changing the title, once changing metadata.theme"
+  then: "the hook runs only for the second save, with the old theme in ctx.previous"
+- id: hook-096
+  title: "other plugins can subscribe to a plugin-defined hook"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin B depends on example and subscribes to example.after.explode"
+  when: "example fires the explosion"
+  then: "B's hook runs with { fileId, size, at }"

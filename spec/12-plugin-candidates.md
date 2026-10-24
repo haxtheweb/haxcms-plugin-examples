@@ -15,12 +15,26 @@ A working list for scoping the refactor, built from the hook examples in spec/06
 | `announcements` | What's New and HAX Tips for users and site owners | new | system store, `user.after.login`, `site.after.create`, `render.after.body`, `plugin.after.upgrade`, Merlin `api` program, routes |
 | `agent-skills` | publishes `site` and `system` skills from enabled plugins into `.well-known/agent-skills` | extract (`rebuildAgentSkills`) | `rebuild.after`, `plugin.after.enable` / `.disable` |
 | default theme pack | the default theme (today `clean-two`) and its siblings as a `pack` | extract | theme registry only |
+| `outline` | the outline editor: page tree operations and the editor UI | extract | see below |
+| `git` | commits after saves, history and revert; defines `git.*` | extract | defines `git.before.commit` / `git.after.commit`; `page.after.save`, `manifest.after.save` |
+| `files` | file manager, uploads, upload targets for the editor; defines the `file.*` aliases | extract | `file` entity, upload routes, appstore upload app, `file.*` |
+
+Required core plugins load automatically and cannot be disabled; making them plugins is about structure. Each one has its own folder, manifest, contract, tests and AGENTS.md, so the code is modular, testable and maintainable in isolation, and the same rules that bind contributors bind core.
+
+### How the outline editor works as a plugin
+
+- **Data stays core.** Pages remain `page` entities and the tree remains `site.json` (`items` with `parent` and `order`). The `outline` plugin owns the operations on them, not the storage.
+- **Routes.** Its contract defines the outline operations (add, move, indent, outdent, rename, delete, reorder, bulk apply), mounted at `/v1/plugins/outline/`, with `legacy` aliases for today's outline endpoints so existing callers and https://github.com/haxtheweb/haxcms-mcp keep working.
+- **Hooks it causes.** Each operation runs through the entity service, so `page.before.save` / `page.after.save`, `page.before.delete` / `page.after.delete` and `manifest.before.save` / `manifest.after.save` fire as usual, then `git` commits. Other plugins extend the outline through those hooks (for example `regions` keeping region pages out of the menu) without touching the editor.
+- **UI.** The editor element is registered in the element registry with the `outline-` prefix and opened from an admin panel and from Merlin options (`kind: module` programs for "add page", "move page").
+- **Skills and prompts.** A `site` skill teaches agents the outline operations; a `developer` skill covers the editor code.
+- **Tests.** Its cases cover every operation in both runtimes, which today is spread across the backends.
 
 ## Core optional
 
 | Plugin | What it does | From | Key hooks and registries |
 |---|---|---|---|
-| `log` | the unified log, health chip data, log page | new | every failure path writes to it; `schedule.after.run`, `user.after.login` |
+| `log` | the unified log and log page; optional (health chips work without it) | new | every failure path writes to it; `schedule.after.run`, `user.after.login` |
 | `mcp` | discovery, scoped tokens and policy for https://github.com/haxtheweb/haxcms-mcp; HAXiam blocks it for now | extract (`mcp.enabled`, `mcp.readOnly`) | `register.before.routes`, `register.after.prompts`, `rest.before.request`, `plugin.before.enable` |
 | `cookie-consent` | consent state and banner | new | `render.after.body`, `privacy` declarations of other plugins |
 | `google-analytics` | consent-gated analytics loader | extract (`gaID`) | `plugin.after.install`, `config.before.save`, `plugin.before.requirements`, `render.before.head`; requires `cookie-consent` |
@@ -54,7 +68,7 @@ A working list for scoping the refactor, built from the hook examples in spec/06
 
 ## Priority
 
-1. **Vehicle:** `announcements`, with the fixtures and `log` alongside so health, requirements and tests are exercised from the start.
+1. **Vehicle:** `announcements`, with the fixtures and `log` alongside so health, requirements and tests are exercised from the start. The required core plugins (`outline`, `git`, `files`, `agent-skills`) are carved out as the refactor reaches each area.
 2. **Prove settings migration and output injection on small extractions:** `cookie-consent` + `google-analytics`, `author-profile`, `regions`, one appstore provider.
 3. **Platform features that test the hard hooks:** `page-cache`, `ssr`, `search`, `views`, `comments`, `agent-skills`, `mcp`, `scheduler-timer`.
 4. **Bulk extractions and contrib:** importers, exporters, remaining appstore providers, `pwa`, `seo-plus`, deploy targets, contrib ideas.

@@ -323,6 +323,10 @@
         }
       }
     },
+    "hookDefinitions": {
+      "type": "string",
+      "description": "Path to hooks this plugin defines and fires (hook-contracts.schema.json). Names start with the plugin id; aliases may point at core hooks or the plugin's own."
+    },
     "registries": {
       "type": "object",
       "additionalProperties": false,

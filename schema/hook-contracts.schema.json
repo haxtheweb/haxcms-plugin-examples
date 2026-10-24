@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haxtheweb.org/schema/haxcms-plugin/hook-contracts.schema.json",
+  "title": "Hook contracts",
+  "description": "Definitions of hooks: the core list (schema/hook-contracts.json) and hooks a plugin defines (manifest hookDefinitions). An entry with aliasOf is an alias: the loader expands a subscription to it into subscriptions to the listed hooks with the given filters, and it fires once per operation.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "name",
+      "phase",
+      "when",
+      "subject",
+      "returns",
+      "veto"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z]*(\\.[a-z][a-zA-Z]*)+$"
+      },
+      "phase": {
+        "enum": [
+          "before",
+          "after"
+        ]
+      },
+      "definedBy": {
+        "type": "string",
+        "description": "core, or the id of the plugin that defines and fires the hook."
+      },
+      "when": {
+        "type": "string"
+      },
+      "aliasOf": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "hook"
+          ],
+          "properties": {
+            "hook": {
+              "type": "string"
+            },
+            "entities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "changed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Only when one of these dot paths in the subject differs from ctx.previous."
+            }
+          }
+        }
+      },
+      "subject": {
+        "type": "string"
+      },
+      "previous": {
+        "type": "string"
+      },
+      "returns": {
+        "type": "string"
+      },
+      "veto": {
+        "type": "boolean"
+      },
+      "detachable": {
+        "type": "boolean"
+      },
+      "comment": {
+        "type": "string",
+        "description": "One line for generated stubs."
+      },
+      "example": {
+        "type": "string",
+        "description": "When a plugin would use it."
+      }
+    }
+  }
+}

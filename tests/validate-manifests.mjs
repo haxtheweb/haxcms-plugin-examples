@@ -55,4 +55,13 @@ for (const [schemaFile, dir, expectValid] of suites) {
     console.log(`${pass ? "ok  " : "FAIL"} ${dir}/${f}${pass || ok ? "" : ""}${!pass && !ok ? " " + JSON.stringify(validate.errors) : ""}`);
   }
 }
+// the core hook contracts validate against their own schema, and every alias points at a real hook
+{
+  const v = load("hook-contracts.schema.json");
+  const core = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8"));
+  const names = new Set(core.map((c) => c.name));
+  const bad = !v(core) ? JSON.stringify(v.errors) : core.flatMap((c) => (c.aliasOf || []).filter((a) => !names.has(a.hook)).map((a) => `${c.name} -> ${a.hook}`)).join(", ");
+  if (bad) failures++;
+  console.log(`${bad ? "FAIL" : "ok  "} schema/hook-contracts.json${bad ? " " + bad : ""}`);
+}
 if (failures) { console.error(`${failures} failure(s)`); process.exit(1); }

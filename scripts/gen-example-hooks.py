@@ -4,6 +4,8 @@
 import json, re, os
 root = os.path.join(os.path.dirname(__file__), "..")
 C = json.load(open(os.path.join(root, "schema/hook-contracts.json")))
+import yaml
+C = C + yaml.safe_load(open(os.path.join(root, "examples/example/config/hooks.yaml")))  # the example's own hooks
 ex = os.path.join(root, "examples/example")
 extras = {
   **{f"entity.{p}.{o}": "    entities: [awesomeFile]\n" for p in ("before","after") for o in ("create","read","update","delete")},

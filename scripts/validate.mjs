@@ -36,6 +36,7 @@ const validators = {
   locale: own("locale-overlay.schema.json"),
   prompts: own("prompts.schema.json"),
   testCases: own("test-case.schema.json"),
+  hookDefs: own("hook-contracts.schema.json"),
 };
 const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
 const hookContracts = Object.fromEntries(readJson(join(root, "schema/hook-contracts.json")).map((c) => [c.name, c]));
@@ -118,7 +119,7 @@ function validatePlugin(manifestPath) {
   if (!validators.manifest(m)) fmt(validators.manifest.errors).forEach((e) => err(e.path, e.message));
   if (!m || typeof m !== "object") return { file: manifestPath, errors, warnings };
   if (m.id && basename(dir) !== m.id) err("/id", `id "${m.id}" must equal the plugin folder name "${basename(dir)}"`);
-  for (const key of ["openapi", "entities", "contracts", "datastores", "settings", "admin"]) {
+  for (const key of ["openapi", "entities", "contracts", "datastores", "settings", "admin", "hookDefinitions"]) {
     if (m[key] && !existsSync(join(dir, m[key]))) err(`/${key}`, `file not found: ${m[key]}`);
   }
   for (const rt of m.runtimes || []) {
@@ -129,8 +130,20 @@ function validatePlugin(manifestPath) {
   for (const rt of Object.keys(m.entry || {})) if (!(m.runtimes || []).includes(rt)) err("/entry", `entry.${rt} but runtime ${rt} is not in runtimes`);
   if (!m.core && m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") warn("/runtimes", "single runtime: first-party plugins should provide both nodejs and php");
   if (m.openapi && m.staticCapable !== false) warn("/staticCapable", "plugin has routes: set staticCapable: false so it is tagged as needing a server (or explain how it degrades statically)");
+  // plugin-defined hooks and aliases
+  const ownHooks = {};
+  if (m.hookDefinitions && existsSync(join(dir, m.hookDefinitions))) {
+    const defs = readAny(join(dir, m.hookDefinitions));
+    if (!validators.hookDefs(defs)) fmt(validators.hookDefs.errors).forEach((e) => err(`${m.hookDefinitions}${e.path === "/" ? "" : e.path}`, e.message));
+    else for (const [i, d] of defs.entries()) {
+      if (m.id && !d.name.startsWith(m.id + ".")) err(`${m.hookDefinitions}/${i}/name`, `plugin-defined hook "${d.name}" must start with "${m.id}."`);
+      if (knownHooks.has(d.name)) err(`${m.hookDefinitions}/${i}/name`, `"${d.name}" is already a core hook`);
+      ownHooks[d.name] = d;
+    }
+    for (const [i, d] of Object.entries(Object.values(ownHooks))) for (const a of d.aliasOf || []) if (!knownHooks.has(a.hook) && !ownHooks[a.hook]) err(`${m.hookDefinitions}/${i}/aliasOf`, `alias target "${a.hook}" is not a core hook or one this plugin defines`);
+  }
   for (const [i, h] of (m.hooks || []).entries()) if (h.detached && hookContracts[h.name] && !hookContracts[h.name].detachable) err(`/hooks/${i}/detached`, `${h.name} cannot be detached (${hookContracts[h.name].phase === "before" ? "before hooks run in the save path" : "the caller waits for its result"})`);
-  for (const [i, h] of (m.hooks || []).entries()) if (!knownHooks.has(h.name)) warn(`/hooks/${i}/name`, `unknown hook "${h.name}" (open vocabulary; the loader will warn)`);
+  for (const [i, h] of (m.hooks || []).entries()) if (!knownHooks.has(h.name) && !ownHooks[h.name]) warn(`/hooks/${i}/name`, `unknown hook "${h.name}" (open vocabulary; the loader will warn)`);
   for (const [i, c] of (m.capabilities || []).entries()) if (!knownCaps.has(c)) warn(`/capabilities/${i}`, `unknown capability "${c}" (open vocabulary; the loader will warn)`);
   if (m.dependencies && m.id && m.dependencies.some((d) => d.split("@")[0] === m.id)) err("/dependencies", "a plugin cannot depend on itself");
   const prefix = m.tagPrefix;

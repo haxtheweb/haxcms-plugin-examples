@@ -32,6 +32,7 @@ entry:
 openapi: config/openapi.yaml
 entities: config/entities.yaml
 contracts: config/contracts.yaml
+hookDefinitions: config/hooks.yaml
 datastores: config/datastores.yaml
 settings: config/settings.schema.json
 admin: config/admin.yaml
@@ -66,8 +67,16 @@ hooks:
     entities: [awesomeFile]
   - name: page.before.save
   - name: page.after.save
+  - name: page.before.delete
+  - name: page.after.delete
   - name: manifest.before.save
   - name: manifest.after.save
+  - name: theme.before.change
+  - name: theme.after.change
+  - name: file.before.save
+  - name: file.after.save
+  - name: file.before.delete
+  - name: file.after.delete
   - name: config.before.read
     config: ["*"]
   - name: config.after.read
@@ -126,3 +135,6 @@ hooks:
   - name: rebuild.after
   - name: schedule.before.run
   - name: schedule.after.run
+  - name: example.before.explode
+  - name: example.after.explode
+  - name: example.before.awesomeSave

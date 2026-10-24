@@ -72,6 +72,18 @@ class ExamplePlugin {
     $this->log("page.after.save", $ctx);
   }
 
+  // refuse to delete a page others link to, or veto
+  // hook: page.before.delete
+  public function pageBeforeDelete($ctx) {
+    $this->log("page.before.delete", $ctx);
+  }
+
+  // clean up anything tied to the deleted page
+  // hook: page.after.delete
+  public function pageAfterDelete($ctx) {
+    $this->log("page.after.delete", $ctx);
+  }
+
   // inspect or adjust site.json before it is written, or veto
   // hook: manifest.before.save
   public function manifestBeforeSave($ctx) {
@@ -82,6 +94,42 @@ class ExamplePlugin {
   // hook: manifest.after.save
   public function manifestAfterSave($ctx) {
     $this->log("manifest.after.save", $ctx);
+  }
+
+  // check the new theme is compatible, or veto
+  // hook: theme.before.change
+  public function themeBeforeChange($ctx) {
+    $this->log("theme.before.change", $ctx);
+  }
+
+  // react to the new theme
+  // hook: theme.after.change
+  public function themeAfterChange($ctx) {
+    $this->log("theme.after.change", $ctx);
+  }
+
+  // check type and size, rename, or veto
+  // hook: file.before.save
+  public function fileBeforeSave($ctx) {
+    $this->log("file.before.save", $ctx);
+  }
+
+  // react to a new or changed file
+  // hook: file.after.save
+  public function fileAfterSave($ctx) {
+    $this->log("file.after.save", $ctx);
+  }
+
+  // refuse while pages still embed the file, or veto
+  // hook: file.before.delete
+  public function fileBeforeDelete($ctx) {
+    $this->log("file.before.delete", $ctx);
+  }
+
+  // remove derived files
+  // hook: file.after.delete
+  public function fileAfterDelete($ctx) {
+    $this->log("file.after.delete", $ctx);
   }
 
   // uncommon: audit or restrict access to configuration
@@ -414,5 +462,23 @@ class ExamplePlugin {
   // hook: schedule.after.run
   public function scheduleAfterRun($ctx) {
     $this->log("schedule.after.run", $ctx);
+  }
+
+  // make the explosion smaller, or veto it
+  // hook: example.before.explode
+  public function exampleBeforeExplode($ctx) {
+    $this->log("example.before.explode", $ctx);
+  }
+
+  // react to an explosion
+  // hook: example.after.explode
+  public function exampleAfterExplode($ctx) {
+    $this->log("example.after.explode", $ctx);
+  }
+
+  // same as entity.before.create/update on awesomeFile, under a clearer name
+  // hook: example.before.awesomeSave
+  public function exampleBeforeAwesomeSave($ctx) {
+    $this->log("example.before.awesomeSave", $ctx);
   }
 }

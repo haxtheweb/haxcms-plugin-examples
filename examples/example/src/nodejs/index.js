@@ -49,6 +49,14 @@ export default {
     "page.after.save": async (ctx) => {
       log("page.after.save", ctx);
     },
+    // refuse to delete a page others link to, or veto
+    "page.before.delete": async (ctx) => {
+      log("page.before.delete", ctx);
+    },
+    // clean up anything tied to the deleted page
+    "page.after.delete": async (ctx) => {
+      log("page.after.delete", ctx);
+    },
     // inspect or adjust site.json before it is written, or veto
     "manifest.before.save": async (ctx) => {
       log("manifest.before.save", ctx);
@@ -56,6 +64,30 @@ export default {
     // react to outline or settings changes: rebuild a derived file, notify
     "manifest.after.save": async (ctx) => {
       log("manifest.after.save", ctx);
+    },
+    // check the new theme is compatible, or veto
+    "theme.before.change": async (ctx) => {
+      log("theme.before.change", ctx);
+    },
+    // react to the new theme
+    "theme.after.change": async (ctx) => {
+      log("theme.after.change", ctx);
+    },
+    // check type and size, rename, or veto
+    "file.before.save": async (ctx) => {
+      log("file.before.save", ctx);
+    },
+    // react to a new or changed file
+    "file.after.save": async (ctx) => {
+      log("file.after.save", ctx);
+    },
+    // refuse while pages still embed the file, or veto
+    "file.before.delete": async (ctx) => {
+      log("file.before.delete", ctx);
+    },
+    // remove derived files
+    "file.after.delete": async (ctx) => {
+      log("file.after.delete", ctx);
     },
     // uncommon: audit or restrict access to configuration
     "config.before.read": async (ctx) => {
@@ -278,6 +310,18 @@ export default {
     // record the result or alert on failure
     "schedule.after.run": async (ctx) => {
       log("schedule.after.run", ctx);
+    },
+    // make the explosion smaller, or veto it
+    "example.before.explode": async (ctx) => {
+      log("example.before.explode", ctx);
+    },
+    // react to an explosion
+    "example.after.explode": async (ctx) => {
+      log("example.after.explode", ctx);
+    },
+    // same as entity.before.create/update on awesomeFile, under a clearer name
+    "example.before.awesomeSave": async (ctx) => {
+      log("example.before.awesomeSave", ctx);
     },
   },
 };
