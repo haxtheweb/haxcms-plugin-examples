@@ -7,11 +7,13 @@ The architecture decisions and their log live in https://github.com/haxtheweb/is
 | Path | What |
 |---|---|
 | `spec/` | the specification, a changelog with upgrade recipes, and the gap list |
-| `schema/` | JSON Schemas (`plugin.yaml`, Merlin declarations, theme and element registry entries; appstore fragments use https://github.com/haxtheweb/appstore-spec), the hook and capability lists |
+| `schema/` | JSON Schemas (`plugin.yaml`, Merlin declarations, theme and element registry entries, stores, entities, prompts, test cases, hook contracts; appstore fragments use https://github.com/haxtheweb/appstore-spec), the hook contracts (`hook-contracts.json`, source of the spec/06 table), capabilities, categories and derived tags |
 | `scripts/validate.mjs` | `hax-plugin-validate`: validates a plugin folder and its registries |
 | `scripts/check-core-config.mjs` | checks a live HAXcms `coreConfig` folder against the schemas |
-| `examples/` | `minimal-pack`, `data-store`, and the comprehensive `example` plugin |
+| `examples/` | `announcements` (the first real plugin: core, required, both runtimes with a parity test), the comprehensive teaching `example`, `minimal-pack`, `data-store` |
+| `skills/` | draft agent skills for building, auditing, upgrading and porting plugins |
+| `scripts/gen-example-hooks.py`, `scripts/hook-table.mjs` | regenerate the example's hook stubs and the spec/06 table from the hook contracts |
 | `conformance/` | language-neutral cases every backend must pass (runners come later) |
-| `tests/` | fixtures and the checks `npm test` runs |
+| `tests/` | fixtures and the checks `npm test` runs, including each example's own tests and the Node/PHP parity run |
 
 Work lands here through pull requests for review; nothing is merged without maintainer approval.
