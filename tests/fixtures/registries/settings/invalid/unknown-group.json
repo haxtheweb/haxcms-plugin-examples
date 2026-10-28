@@ -1,0 +1,9 @@
+{
+  "configure": [
+    {
+      "title": "No target",
+      "inputMethod": "textfield"
+    }
+  ],
+  "surprise": true
+}

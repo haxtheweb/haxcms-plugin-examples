@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-pack-code
+uuid: 92332739-802f-569f-969d-0762d2712103
+title: fx-pack-code (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+kind: pack
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js

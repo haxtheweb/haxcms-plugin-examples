@@ -1,0 +1,22 @@
+# HTML importer: one of the twelve site importers in core today (systemRoutes/v1/routes/imports/convert*ToSite.js:
+# drupal, elmsln, gitbook, haxcms, html, notion, openstax, plone, pressbooks, quarto, vitepress, wordpress), as a
+# plugin. It implements the core contract import.platform: core's site creation calls every importer the user picked,
+# so adding a platform means adding a plugin, not editing core. The other eleven follow the same shape.
+specVersion: "0.1.0"
+id: importer-html
+uuid: 4f6a8c0e-2a4c-4f6a-8c0e-2a4c6e8a0c2e
+title: Import from HTML
+description: Turns an HTML document into a new site, one page per section heading.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, html]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+staticCapable: false

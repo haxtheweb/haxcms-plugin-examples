@@ -1,0 +1,48 @@
+- id: google-analytics-001
+  title: "inactive until a measurement id is set"
+  given: "no measurement id"
+  when: "load"
+  then: "status inactive; nothing added to pages"
+  run:
+    with: [core-plugins/cookie-consent]
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { status_of: { google-analytics: inactive }, notContains: [googletagmanager] }
+- id: google-analytics-002
+  title: "a malformed id is refused"
+  hook: config.before.save
+  given: "measurementId 'hello'"
+  when: "save settings"
+  then: "vetoed with an explanation"
+  run:
+    with: [core-plugins/cookie-consent]
+    steps:
+      - config: { plugin: google-analytics, values: { measurementId: hello } }
+        expect: { status: 409, message: "is not a Google Analytics measurement id" }
+- id: google-analytics-003
+  title: "first enable moves gaID out of site.json"
+  given: "a site whose site.json has metadata.site.settings.gaID G-ABC1234"
+  when: "enable google-analytics"
+  then: "the id becomes the plugin's setting, site.json no longer has gaID, pages carry the loader"
+  run:
+    with: [core-plugins/cookie-consent]
+    records: { site: { title: Old site, metadata: { site: { settings: { gaID: G-ABC1234, private: false } } } } }
+    steps:
+      - enable: google-analytics
+        expect: { status: 200, status_of: { google-analytics: active } }
+      - record: { type: site }
+        expect: { subject: { metadata: { site: { settings: { private: false } } } }, notContains: [gaID] }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['gtag("config","G-ABC1234")'] }
+- id: google-analytics-004
+  title: "the loader waits for consent"
+  hook: render.before.head
+  given: "measurementId G-ABC1234"
+  when: "a page renders"
+  then: "the head loads gtag only inside HAXConsent.onGrant('analytics'), and the consent banner is on the page"
+  run:
+    with: [core-plugins/cookie-consent]
+    settings: { measurementId: G-ABC1234 }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['onGrant("analytics",go)', '<cookie-consent-banner categories="analytics"'] }

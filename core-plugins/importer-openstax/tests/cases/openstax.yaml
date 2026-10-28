@@ -1,0 +1,96 @@
+- id: importer-openstax-001
+  title: "a book comes over as chapters and pages, with clean HTML, images listed and in-book links rewritten"
+  given: "a book with a preface and one chapter of two sections; section 1.1 has a styled XHTML body with an archive image, a missing image, an in-book link, a relative link, MathML and a script"
+  when: "convert with the book's details URL"
+  then: "four items in book order with nested slugs; 1.1 is clean HTML with a media-image at files/, the missing image at its archive URL, the link at the 1.2 slug; the image is listed for core to fetch"
+  run:
+    fetch:
+      "https://openstax.org/rex/release.json": { status: 200, body: { archiveUrl: /apps/archive/20240226.144633, books: { b3a3f4b8-0000-4c5d-9e6f-00000000000a: { defaultVersion: "3.1" } } } }
+      "https://openstax.org/apps/cms/api/v2/pages/?type=books.Book&fields=title,cnx_id&slug=principles-finance": { status: 200, body: { items: [{ title: Principles of Finance, cnx_id: b3a3f4b8-0000-4c5d-9e6f-00000000000a }] } }
+      "https://openstax.org/apps/archive/20240226.144633/contents/b3a3f4b8-0000-4c5d-9e6f-00000000000a@3.1.json":
+        status: 200
+        body:
+          title: Principles of Finance
+          license: { name: Creative Commons Attribution License, url: "https://creativecommons.org/licenses/by/4.0/" }
+          tree:
+            contents:
+              - { id: "11111111-1111-4111-8111-111111111111@4", title: '<span class="os-text">Preface</span>', slug: preface }
+              - id: subcol1
+                title: '<span class="os-number">1</span><span class="os-text">Introduction to Finance</span>'
+                slug: 1-introduction
+                contents:
+                  - { id: "22222222-2222-4222-8222-222222222222@2", title: '<span class="os-number">1.1</span><span class="os-text">What Is Finance?</span>', slug: 1-1-what-is-finance }
+                  - { id: "33333333-3333-4333-8333-333333333333@2", title: '<span class="os-number">1.2</span><span class="os-text">Key Terms</span>', slug: 1-2-key-terms }
+      "https://openstax.org/apps/archive/20240226.144633/contents/b3a3f4b8-0000-4c5d-9e6f-00000000000a@3.1:11111111-1111-4111-8111-111111111111.json":
+        status: 200
+        body: { content: '<html><body><div data-type="page"><h1 data-type="document-title">Preface</h1><p class="os-para">Welcome.</p><img src="https://cdn.example.net/cover.png" alt="cover"/></div></body></html>' }
+      "https://openstax.org/apps/archive/20240226.144633/contents/b3a3f4b8-0000-4c5d-9e6f-00000000000a@3.1:22222222-2222-4222-8222-222222222222.json":
+        status: 200
+        body:
+          abstract: "<p>Defines <b>finance</b> &amp; money.</p>"
+          content: |
+            <?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>What Is Finance?</title><style>p{color:red}</style></head><body><div data-type="page" id="page_2" class="chapter-content-module">
+            <h2 data-type="document-title"><span class="os-number">1.1</span> What Is Finance?</h2>
+            <p id="fs-1" class="os-para" onclick="track()">Finance is the study of <em data-effect="italics">money</em>.</p>
+            <figure class="os-figure"><img src="../resources/abc123def" alt="A chart &amp; key" width="400" data-media-type="image/png"/></figure>
+            <img src="../resources/missing99" alt="gone" width="10"/>
+            <p>See <a href="../contents/33333333-3333-4333-8333-333333333333#fs-9" class="target-chapter">Key Terms</a> and <a href="../media/guide.pdf">the guide</a>.</p>
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mi mathvariant="normal">x</mi></math>
+            <script>steal()</script>
+            </div></body></html>
+      "https://openstax.org/apps/archive/20240226.144633/contents/b3a3f4b8-0000-4c5d-9e6f-00000000000a@3.1:33333333-3333-4333-8333-333333333333.json":
+        status: 200
+        body: { content: '<div data-type="page"><p>Terms.</p></div>' }
+      "https://openstax.org/apps/archive/20240226.144633/resources/abc123def": { status: 200, headers: { content-type: "image/png" }, body: "" }
+      "https://openstax.org/apps/archive/20240226.144633/resources/missing99": { status: 404, body: "" }
+      cdn.example.net: { status: 200, body: "" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-openstax, input: { url: "https://openstax.org/details/books/principles-finance" } }
+        expect:
+          body:
+            - plugin: importer-openstax
+              result:
+                title: Principles of Finance
+                items:
+                  - { id: item-1, title: Preface, slug: preface, parent: null, order: 0, indent: 0, content: '<p>Welcome.</p><img src="https://cdn.example.net/cover.png" alt="cover" />', metadata: { sourceType: openstax, source: "https://openstax.org/books/principles-finance/pages/preface", openstax: { bookSlug: principles-finance, licenseCode: by } } }
+                  - { id: item-2, title: 1 Introduction to Finance, slug: 1-introduction-to-finance, parent: null, order: 1, content: "<p></p>" }
+                  - { id: item-3, title: 1.1 What Is Finance?, slug: 1-introduction-to-finance/1-1-what-is-finance, parent: item-2, order: 0, indent: 1, description: "Defines finance & money." }
+                  - { id: item-4, slug: 1-introduction-to-finance/1-2-key-terms, parent: item-2, order: 1, content: "<p>Terms.</p>" }
+                files:
+                  - { path: files/abc123def.png, url: "https://openstax.org/apps/archive/20240226.144633/resources/abc123def" }
+          contains:
+            - '<p>Finance is the study of <em>money</em>.</p>'
+            - '<figure><media-image source=\"files/abc123def.png\" alt=\"A chart &amp; key\"></media-image></figure>'
+            - '<img src=\"https://openstax.org/apps/archive/20240226.144633/resources/missing99\" alt=\"gone\" width=\"10\" />'
+            - '<a href=\"1-introduction-to-finance/1-2-key-terms#fs-9\">Key Terms</a>'
+            - '<a href=\"https://openstax.org/apps/archive/media/guide.pdf\">the guide</a>'
+            - '<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><mi mathvariant=\"normal\">x</mi></math>'
+          notContains: ["steal()", "track()", "os-para", "document-title", "p{color", "fs-1"]
+          fetch: { notContains: [cdn.example.net], contains: ['"method":"HEAD"'] }
+- id: importer-openstax-002
+  title: "a book OpenStax does not have is an error"
+  given: "a reader URL whose slug the CMS lookup does not know"
+  when: "convert"
+  then: "an error naming the slug; no archive request"
+  run:
+    fetch:
+      "https://openstax.org/rex/release.json": { status: 200, body: { archiveUrl: /apps/archive/20240226.144633, books: {} } }
+      "https://openstax.org/apps/cms/api/v2/pages/?type=books.Book&fields=title,cnx_id&slug=no-such-book": { status: 200, body: { items: [] } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-openstax, input: { url: "https://openstax.org/books/no-such-book/pages/1-introduction" } }
+        expect:
+          body: [{ result: { error: 'OpenStax has no book with the slug "no-such-book"' } }]
+          fetch: { count: 2, notContains: [/contents/] }
+- id: importer-openstax-003
+  title: "only openstax.org is reachable"
+  given: "a URL on a look-alike host"
+  when: "convert"
+  then: "refused before any request"
+  run:
+    fetch:
+      openstax.org.example.net: { status: 200, body: {} }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-openstax, input: { url: "https://openstax.org.example.net/details/books/principles-finance" } }
+        expect:
+          body: [{ result: { error: "url must be an openstax.org URL, got: openstax.org.example.net" } }]
+          fetch: { count: 0 }

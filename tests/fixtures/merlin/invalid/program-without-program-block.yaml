@@ -1,0 +1,4 @@
+option:
+  title: X
+  eventName: super-daemon-run-program
+  value: { name: X, machineName: x }

@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-routes
+uuid: 30ec580a-f32a-5312-be75-84e59aef5625
+title: fx-routes (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: config/openapi.yaml

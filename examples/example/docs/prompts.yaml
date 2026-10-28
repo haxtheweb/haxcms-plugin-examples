@@ -1,0 +1,18 @@
+prompts:
+  - id: diagnose-health
+    title: Why is this plugin showing a warning?
+    kind: diagnose
+    when: The plugin row shows a health chip
+    skill: example-plugin-dev
+    prompt: |
+      I run HAXcms {{haxcms.version}} on {{runtime}}. The plugin {{plugin.id}} {{plugin.version}} ({{scope}}) has status {{status}}.
+      Unmet requirements: {{requirements}}
+      Recent log entries:
+      {{log}}
+      Explain what is wrong and the exact hax CLI commands to fix it.
+  - id: add-element
+    title: Add a new element to this plugin
+    kind: howto
+    skill: example-plugin-dev
+    prompt: |
+      Using the hax CLI, add a new element to the {{plugin.id}} plugin with `hax plugin add element`, keep the awesome- prefix, then validate.

@@ -1,0 +1,1 @@
+{ "configure": [ { "property": "readOnlyDefault", "title": "New tokens are read-only", "description": "Default for new tokens; each token can still be read-write", "inputMethod": "boolean" } ] }

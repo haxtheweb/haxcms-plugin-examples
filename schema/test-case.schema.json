@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://haxtheweb.org/schema/haxcms-plugin/test-case.schema.json",
+  "title": "Plugin test cases",
+  "description": "The plugin's own behavior cases, in the same shape as the spec's conformance cases, run against both runtimes by the plugin test harness.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "title",
+      "given",
+      "when",
+      "then"
+    ],
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "hook": {
+        "type": "string",
+        "description": "Hook under test, when the case is about one."
+      },
+      "operation": {
+        "type": "string",
+        "description": "OpenAPI operationId under test."
+      },
+      "runtimes": {
+        "type": "array",
+        "items": {
+          "enum": [
+            "nodejs",
+            "php"
+          ]
+        },
+        "description": "Defaults to every runtime the plugin lists."
+      },
+      "given": {
+        "type": "string"
+      },
+      "when": {
+        "type": "string"
+      },
+      "then": {
+        "type": "string"
+      },
+      "run": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Makes the case executable by any adapter (spec/13 section 9). Exactly one of call or fire.",
+        "properties": {
+          "haxcmsVersion": {
+            "type": "string",
+            "description": "Running HAXcms version for this case (default 26.10.1)."
+          },
+          "with": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Other plugin folders to load alongside, relative to the repository root."
+          },
+          "settings": {
+            "type": "object",
+            "description": "Settings for the plugin under test."
+          },
+          "stores": {
+            "type": "object",
+            "description": "Store contents to start with, by store id (also replaces package stores)."
+          },
+          "call": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "type": "string"
+              },
+              "params": {
+                "type": "object"
+              },
+              "query": {
+                "type": "object"
+              },
+              "body": {},
+              "credentials": {
+                "enum": [
+                  "none",
+                  "jwt",
+                  "both"
+                ],
+                "default": "both",
+                "description": "none, JWT only, or JWT plus X-HAXCMS-User-Token."
+              }
+            }
+          },
+          "fire": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hook"
+            ],
+            "properties": {
+              "hook": {
+                "type": "string"
+              },
+              "subject": {},
+              "previous": {},
+              "entity": {
+                "type": "string"
+              },
+              "transaction": {
+                "type": "object",
+                "properties": {
+                  "bulk": {
+                    "type": "boolean"
+                  },
+                  "origin": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "expect": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "integer"
+              },
+              "body": {
+                "description": "Deep subset the response body must match."
+              },
+              "absent": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Keys that must not appear anywhere in the body or returned subject."
+              },
+              "contains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "notContains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "veto": {
+                "type": "boolean"
+              },
+              "message": {
+                "type": "string",
+                "description": "Substring of the veto or error message."
+              },
+              "subject": {
+                "description": "Deep subset the returned subject must match."
+              },
+              "marks": {
+                "type": "object",
+                "description": "Subset of transaction marks after the hook."
+              },
+              "status_of": {
+                "type": "object",
+                "description": "Plugin status after loading, e.g. { example: inactive }."
+              }
+            }
+          },
+          "user": {
+            "type": "object",
+            "description": "The user making the calls (default an admin)."
+          },
+          "records": {
+            "type": "object",
+            "description": "Core records to start with: { site: {...site.json}, page: [...], file: [...] }."
+          },
+          "steps": {
+            "type": "array",
+            "description": "Several actions in order, each with its own expect (call, fire, upgrade, save, delete, record, clock (moves ctx.now()), schedule (runs a job), implementers, exportUser, eraseUser, asUser, transaction).",
+            "items": {
+              "type": "object"
+            }
+          },
+          "exec": {
+            "type": "object",
+            "description": "Fakes for ctx.exec, by command: { rsync: { code, stdout, stderr } }. Nothing runs in the harness; each call is recorded (command, args, temp file names) for the `exec` expectation.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "integer"
+                },
+                "stdout": {
+                  "type": "string"
+                },
+                "stderr": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "fetch": {
+            "type": "object",
+            "description": "Fakes for ctx.fetch and x-hax-proxy, by host: { 'api.vimeo.com': { status, body, headers } }. Egress is still checked; each call is recorded (method, url) for the `fetch` expectation.",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "integer"
+                },
+                "body": {},
+                "headers": {
+                  "type": "object"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "now": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time ctx.now() returns during the case (default 2026-01-01T00:00:00Z)."
+          },
+          "urlAliases": {
+            "type": "array",
+            "description": "Deployment host aliases core applies to input URLs before contract calls (HAXiam serves iam. sites from oer.).",
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to"
+              ],
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "required": [],
+        "not": {
+          "required": [
+            "call",
+            "fire"
+          ]
+        },
+        "anyOf": [
+          {
+            "required": [
+              "call"
+            ]
+          },
+          {
+            "required": [
+              "fire"
+            ]
+          },
+          {
+            "properties": {
+              "expect": {
+                "required": [
+                  "status_of"
+                ]
+              }
+            }
+          },
+          {
+            "required": [
+              "steps"
+            ]
+          }
+        ]
+      },
+      "parityIgnore": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Keys whose values may legitimately differ between runtimes (commit hashes, timestamps); left out of the Node/PHP comparison."
+      }
+    }
+  }
+}

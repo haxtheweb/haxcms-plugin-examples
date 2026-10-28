@@ -1,0 +1,18 @@
+# A Merlin (super-daemon) option declared as data. kind: module runs a program from a plain ES module:
+# the host lazily imports frontend/dist/explode-program.js and calls createExplodeProgram(context).
+option:
+  title: Explode the page
+  icon: icons:flare
+  tags: [awesome]
+  path: HAX/action/explode
+  context: [HAX]
+  voice: explode the page
+  eventName: super-daemon-run-program
+  value:
+    name: Explode the page
+    machineName: awesome-explode
+    placeholder: How many explosions?
+program:
+  kind: module
+  module: frontend/dist/explode-program.js
+  factory: createExplodeProgram

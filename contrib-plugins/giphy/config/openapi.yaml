@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info: { title: Giphy, version: 0.1.0 }
+paths:
+  /search:
+    get:
+      operationId: giphySearch
+      summary: Search Giphy (core adds the key; only the listed parameters pass through)
+      security: [{ bearerAuth: [] }]
+      x-hax-proxy:
+        url: https://api.giphy.com/v1/gifs/search
+        query:
+          api_key: "{{settings.apiKey}}"
+        pass: [lang, limit, offset, q, rating]
+      responses: { "200": { description: OK }, "502": { description: Giphy could not be reached } }

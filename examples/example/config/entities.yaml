@@ -1,0 +1,13 @@
+# Entity types this plugin adds, and annotations it puts on core entities.
+# - awesomeFile extends the core file entity: it inherits file's fields and hooks fire parent first.
+# - annotations add read-time fields under ext.<plugin> on core entities; they are never stored.
+# A plugin may only add fields to schemas it declares here; anything else a hook returns is discarded with a warning.
+entities:
+  awesomeFile:
+    extends: file
+    description: A .awesome file
+    fields:
+      fireworks: { type: boolean, default: true }
+annotations:
+  item:
+    ext.awesome.explosions: { type: integer, note: "added on the way out; never stored" }

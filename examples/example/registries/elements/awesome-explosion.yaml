@@ -1,0 +1,6 @@
+# role: block means authors can insert it from HAX: it must ship haxProperties, and it gets an appstore autoloader entry automatically.
+# The tag starts with the manifest tagPrefix. Packs like this decide which blocks a site's authors see; hydration is unaffected.
+tag: awesome-explosion
+path: frontend/dist/awesome-explosion.js
+role: block
+haxProperties: frontend/dist/awesome-explosion.haxProperties.json

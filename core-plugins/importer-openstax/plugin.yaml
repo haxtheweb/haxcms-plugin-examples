@@ -1,0 +1,26 @@
+# OpenStax importer: extracted from core (systemRoutes/v1/routes/imports/convertOpenstaxToSite.js). Reads an OpenStax
+# textbook through the public archive API and returns its units, chapters and pages as a site tree, with clean HTML and
+# the book's images listed for core to fetch. Implements import.platform; it may fetch only openstax.org, the host of
+# the book URL the person gives (egress { input: url }).
+specVersion: "0.1.0"
+id: importer-openstax
+uuid: ccfb2bb9-0bd4-4a00-96cb-6ddf35fa51a0
+title: Import from OpenStax
+description: Turns an OpenStax textbook into a new site, keeping its chapters, pages, images, links and license.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, openstax, oer]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the OpenStax book the person names: the release manifest, the table of contents, each page and the image types."
+staticCapable: false

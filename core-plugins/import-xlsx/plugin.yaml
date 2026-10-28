@@ -1,0 +1,22 @@
+# Spreadsheet import: extracted from core (systemRoutes/v1/routes/importXlsx.js, vendored SheetJS). A sheet with the
+# columns title, slug, parent and content becomes a page tree. The structure is already in the file, so this
+# implementer returns items directly instead of HTML (the other shape import.file allows).
+specVersion: "0.1.0"
+id: import-xlsx
+uuid: 8e0a2c3d-5f7b-4d9e-8a2c-3d5f7b9e1a3d
+title: Import spreadsheets
+description: Turns a sheet of title, slug, parent and content rows into a page tree.
+version: 0.1.0
+category: authoring
+icon: icons:view-list
+tags: [import, xlsx, spreadsheet]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements:
+  - { name: import.file, accepts: [.xlsx] }
+staticCapable: false

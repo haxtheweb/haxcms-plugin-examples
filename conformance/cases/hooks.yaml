@@ -1,0 +1,348 @@
+- id: hooks-001
+  title: "before hooks may veto with a message"
+  spec: spec/06-hooks-and-contracts.md
+  given: "example vetoes boring.awesome"
+  when: "create awesomeFile named boring.awesome"
+  then: "rejected with the message"
+  run:
+    plugins: [fx-notes, fx-probe-a]
+    load: { settings: { fx-probe-a: { entity.before.create: veto } } }
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { veto: true, message: "fx-probe-a says no" }
+- id: hooks-002
+  title: "a hook returning an invalid entity is discarded and the chain continues"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hook returns entity missing required field"
+  when: "create"
+  then: "previous data used; error logged"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-b]
+    load: { settings: { fx-probe-a: { entity.before.create: invalid } } }
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { veto: false, subject: { title: Hi }, log: { contains: ["missing required fields; discarded", "fx-probe-b:entity.before.create"] } }
+- id: hooks-003
+  title: "after hooks cannot veto"
+  spec: spec/06-hooks-and-contracts.md
+  given: "after hook returns veto"
+  when: "create"
+  then: "operation succeeds; veto ignored and logged"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-b]
+    load: { settings: { fx-probe-a: { entity.after.create: after-veto } } }
+    steps:
+      - fire: { hook: entity.after.create, entity: note, subject: { title: Hi } }
+        expect: { veto: false, log: { contains: ["after hooks cannot veto; ignored", "fx-probe-b:entity.after.create"] } }
+- id: hooks-004
+  title: "a throwing hook does not crash the operation"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hook throws"
+  when: "any operation"
+  then: "operation completes; error logged"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-b]
+    load: { settings: { fx-probe-a: { entity.before.create: throw } } }
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { veto: false, subject: { title: Hi }, log: { contains: ["fx-probe-a broke", "fx-probe-b:entity.before.create"] } }
+- id: hooks-005
+  title: "chain order: priority first, then the loading cascade (dependencies, required, tier low to high, id)"
+  spec: spec/06-hooks-and-contracts.md
+  given: "three plugins with mixed tiers and priorities"
+  when: "invoke hook"
+  then: "documented order"
+  run:
+    plugins: [fx-notes, { path: fx-probe-b, tier: site }, { path: fx-probe-a, tier: system-core }, fx-probe-c]
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { log: { order: ["fx-probe-c:entity.before.create", "fx-probe-a:entity.before.create", "fx-probe-b:entity.before.create"] } }
+- id: hooks-006
+  title: "a hung hook is stopped by the per-hook timeout"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hook never resolves"
+  when: "invoke"
+  then: "operation continues after timeout"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-b]
+    hookTimeout: 200
+    load: { settings: { fx-probe-a: { entity.before.create: hang } } }
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { veto: false, log: { contains: ["timed out after 200 ms", "fx-probe-b:entity.before.create"] } }
+- id: hooks-007
+  title: "every hook in schema/hooks.json is implemented by examples/example"
+  spec: spec/10-examples-conformance.md
+  given: "examples/example"
+  when: "static check"
+  then: "all present in manifest, nodejs and php"
+  run:
+    validate: examples/example
+    expect: { errors: [] }
+- id: hooks-008
+  title: "install fires only the first time a plugin is enabled in a scope; enable fires every time"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin with install and enable hooks, enabled for site A"
+  when: "disable then enable again on site A, then enable on site B"
+  then: "install ran once for A and once for B; enable ran on all three enables"
+  run:
+    plugins: [fx-probe-a, fx-enable-fails]
+    steps:
+      - enable: fx-enable-fails
+        expect: { status: 409, message: "cannot reach the database", status_of: { fx-enable-fails: failed } }
+- id: hooks-009
+  title: "a setting migrated by the install hook leaves the global form and is read from plugin config"
+  spec: spec/07-registries-settings-assets.md
+  given: "site.json has metadata.site.settings.gaID; google-analytics not yet enabled"
+  when: "enable google-analytics for the site"
+  then: "value present in the plugin's settings; global form no longer shows the field"
+- id: hooks-010
+  title: "hook context subject is the entity, page or manifest, plugin, site or user the hook is about"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hooks subscribed to entity.before.update, plugin.after.enable and site.after.create"
+  when: "each fires"
+  then: "ctx.subject is the entity being saved, the plugin object and the site respectively"
+- id: hooks-011
+  title: "the subject is passed by reference: a before hook's change is written, an after hook's change reaches the caller but not the stored record"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hooks that set a field on the subject, subscribed before and after update"
+  when: "update an entity"
+  then: "stored record has the before-hook change only; the returned entity has both"
+- id: hooks-012
+  title: "ctx.previous carries the prior version on update"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an after-update hook"
+  when: "update an entity"
+  then: "ctx.previous is the version before the update"
+  run:
+    plugins: [fx-theme]
+    steps:
+      - fire: { hook: entity.before.update, entity: site, subject: { metadata: { theme: polaris } }, previous: { metadata: { theme: clean-one } } }
+        expect: { log: { contains: ["fx-theme clean-one -> polaris"] } }
+- id: hooks-013
+  title: "git.after.commit fires after every commit made following an item or manifest save"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a git.after.commit hook that records the commit"
+  when: "save a page, then save the manifest"
+  then: "two commits recorded, each after its save completed"
+- id: hooks-014
+  title: "page and manifest hooks are aliases of entity hooks and fire once per operation"
+  spec: spec/06-hooks-and-contracts.md
+  given: "hooks on page.before.save and entity.before.update"
+  when: "save a page"
+  then: "both fire"
+  run:
+    plugins: [fx-probe-a]
+    steps:
+      - fire: { hook: entity.before.update, entity: page, subject: { id: p1, title: One }, previous: { id: p1, title: Zero } }
+        expect: { log: { count: { "fx-probe-a:page.before.save": 1 } } }
+- id: hooks-015
+  title: "a hook's returned subject replaces the subject; returning nothing leaves it unchanged"
+  spec: spec/06-hooks-and-contracts.md
+  given: "two before-update hooks, the first returns a changed item, the second returns nothing"
+  when: "update an entity"
+  then: "stored item has the first hook's change"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-b]
+    load: { settings: { fx-probe-a: { entity.before.create: "set:title=Changed" } } }
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi, body: kept } }
+        expect: { subject: { title: Changed, body: kept } }
+- id: hooks-016
+  title: "a later hook overwriting an earlier hook's field logs a warning naming both plugins"
+  spec: spec/06-hooks-and-contracts.md
+  given: "two plugins set the same field in one chain"
+  when: "invoke the hook"
+  then: "last value stands; warning names both"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-b]
+    load: { settings: { fx-probe-a: { entity.before.create: "set:title=A" }, fx-probe-b: { entity.before.create: "set:title=B" } } }
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { subject: { title: B }, log: { contains: ["fx-probe-b overwrote \"title\" set by fx-probe-a"] } }
+- id: hooks-017
+  title: "before hooks time out at 5 seconds; a manifest timeout raises the limit up to 30 seconds"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a before hook that never resolves"
+  when: "invoke the hook"
+  then: "stopped at 5 s; operation continues"
+- id: hooks-018
+  title: "a detached after hook runs after the response is sent and does not delay it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "git.after.commit declared detached with a 2 second job"
+  when: "save a page"
+  then: "response returned before the job finishes; the job completes within its 60 second limit"
+- id: render-001
+  title: "render.before can short-circuit with a cached document; render.after stores it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a caching plugin"
+  when: "request the same page twice"
+  then: "second request is served from the cache without running render.before.content"
+  run:
+    plugins: [fx-cache]
+    steps:
+      - render: { page: { id: p1, content: "<p>one</p>" } }
+        expect: { cached: false, contains: ["<p>one</p>"] }
+      - render: { page: { id: p1, content: "<p>changed but cached</p>" } }
+        expect: { cached: true, contains: ["<p>one</p>"] }
+- id: render-002
+  title: "a cached document is invalidated by a page save"
+  spec: spec/06-hooks-and-contracts.md
+  given: "cached page"
+  when: "save the page"
+  then: "next request re-renders"
+  run:
+    plugins: [fx-cache]
+    steps:
+      - render: { page: { id: p1, content: "<p>one</p>" } }
+        expect: { cached: false }
+      - fire: { hook: entity.after.update, entity: page, subject: { id: p1 } }
+        expect: {}
+      - render: { page: { id: p1, content: "<p>two</p>" } }
+        expect: { cached: false, contains: ["<p>two</p>"] }
+- id: render-003
+  title: "render.before.content can transform the assembled content before it enters the shell"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an SSR plugin"
+  when: "render a page with a custom element"
+  then: "output contains the element's rendered markup"
+  run:
+    plugins: [fx-ssr]
+    steps:
+      - render: { page: { id: p1, content: "<fx-hello></fx-hello>" } }
+        expect: { contains: ["shadowrootmode"] }
+- id: render-004
+  title: "an injected singleton carries values from the plugin's settings and never a secret"
+  spec: spec/08-capabilities-privacy.md
+  given: "google-analytics with a tracking id and an API secret"
+  when: "render a page"
+  then: "tracking id is in the output; the secret is not"
+  run:
+    plugins: [fx-singleton]
+    load: { settings: { fx-singleton: { greeting: Hello, apiKey: s3cret-value } } }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ["<fx-badge greeting=\"Hello\">"], notContains: ["s3cret-value"] }
+- id: exec-001
+  title: "a plugin that spawns a process without exec:run is rejected"
+  spec: spec/08-capabilities-privacy.md
+  given: "backend code calling spawn without the capability"
+  when: "validate or load"
+  then: "rejected"
+  run:
+    validate: fx-spawn
+    expect: { errors: ["exec:run"] }
+- id: hook-090
+  title: "config hooks without a filter only see the plugin's own config"
+  spec: spec/06-hooks-and-contracts.md
+  given: "A subscribes config.after.save with no config list; B's setting changes"
+  when: "config set B key value"
+  then: "A's hook does not run; with config: [B] or [\"*\"] it does"
+  run:
+    plugins: [fx-needs-token, fx-config-watch]
+    steps:
+      - config: { plugin: fx-needs-token, values: { token: abc } }
+        expect: { log: { count: { "fx-config-watch saw fx-needs-token": 1 } } }
+      - config: { plugin: fx-config-watch, values: { mode: x } }
+        expect: { log: { count: { "fx-config-watch saw fx-config-watch": 2 } } }
+- id: hook-091
+  title: "user hooks get the limited record without users:full"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin subscribed to user.after.login without users:full"
+  when: "a user logs in"
+  then: "subject has id, name, displayName, roles, avatar only; never email, password hash or tokens"
+  run:
+    plugins: [fx-users, fx-users-full]
+    steps:
+      - fire: { hook: user.after.login, subject: { userId: u1 } }
+        expect: { log: { contains: ["fx-users saw avatar,displayName,id,name,roles", "fx-users-full saw avatar,displayName,email,id,name,roles"], notContains: [passwordHash] } }
+- id: hook-092
+  title: "detached is refused where the caller waits"
+  spec: spec/06-hooks-and-contracts.md
+  given: "subscription to rest.after.request with detached: true"
+  when: "load"
+  then: "subscription refused with a reason; other hooks load"
+  run:
+    validate: fx-detached-wait
+    expect: { errors: ["cannot be detached"] }
+- id: hook-093
+  title: "every operation fires its before and after pair"
+  spec: spec/06-hooks-and-contracts.md
+  given: "the comprehensive example enabled"
+  when: "each operation in schema/hook-contracts.json runs once"
+  then: "the before hook logs before the operation and the after hook after it, with subject and previous as listed"
+- id: hook-094
+  title: "an alias fires once and under the subscribed name"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin subscribed to page.before.save"
+  when: "a page is updated"
+  then: "the hook runs once, named page.before.save, with the page content loaded"
+  run:
+    plugins: [fx-probe-a]
+    steps:
+      - fire: { hook: entity.before.create, entity: page, subject: { id: p1, title: New } }
+        expect: { log: { count: { "fx-probe-a:page.before.save": 1 } } }
+- id: hook-095
+  title: "theme.before.change only fires when the theme changes"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin subscribed to theme.before.change"
+  when: "site settings saved twice: once changing the title, once changing metadata.theme"
+  then: "the hook runs only for the second save, with the old theme in ctx.previous"
+  run:
+    plugins: [fx-probe-a]
+    steps:
+      - fire: { hook: entity.before.update, entity: site, subject: { title: B, metadata: { theme: clean-one } }, previous: { title: A, metadata: { theme: clean-one } } }
+        expect: { log: { notContains: ["fx-probe-a:theme.before.change"] } }
+      - fire: { hook: entity.before.update, entity: site, subject: { title: B, metadata: { theme: polaris } }, previous: { title: B, metadata: { theme: clean-one } } }
+        expect: { log: { count: { "fx-probe-a:theme.before.change": 1 } } }
+- id: hook-096
+  title: "other plugins can subscribe to a plugin-defined hook"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin B depends on example and subscribes to example.after.explode"
+  when: "example fires the explosion"
+  then: "B's hook runs with { fileId, size, at }"
+  run:
+    plugins: [fx-definer, fx-suggester]
+    steps:
+      - call: { operation: fxDefinerPing }
+        expect: { status: 200, body: { fired: true }, log: { contains: ["fx-suggester:fx-definer.after.ping"] } }
+- id: hook-097
+  title: "bulk transactions defer marked work to the end"
+  spec: spec/06-hooks-and-contracts.md
+  given: "outline editor opens a bulk transaction and saves 20 pages; git marks git.commit"
+  when: "the transaction ends"
+  then: "one commit containing all 20 pages; page.after.save ran 20 times; transaction.after.end ran once"
+  run:
+    plugins: [fx-tx]
+    steps:
+      - transaction:
+          origin: outline
+          steps:
+            - fire: { hook: entity.after.update, entity: page, subject: { id: p1 } }
+            - fire: { hook: entity.after.update, entity: page, subject: { id: p2 } }
+            - fire: { hook: entity.after.update, entity: page, subject: { id: p3 } }
+        expect: { marks: { fx-tx.reindex: 3 }, log: { count: { "fx-tx reindex 3 pages once": 1 }, notContains: ["fx-tx reindex one page"] } }
+- id: hook-098
+  title: "a suggested plugin's hook is inactive when that plugin is absent"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin B suggests google-analytics and subscribes to one of its hooks; google-analytics not installed"
+  when: "load and render"
+  then: "B is active; the subscription does nothing; no warning"
+  run:
+    plugins: [fx-suggester]
+    expect: { status_of: { fx-suggester: active }, log: { notContains: ["fx-suggester: missing"] } }
+- id: hook-099
+  title: "a nested transaction joins the outer one"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an import opens a bulk transaction and calls outline operations that open their own"
+  when: "the import finishes"
+  then: "one transaction id throughout; transaction.*.start and .end fire once; one git commit"
+  run:
+    plugins: [fx-probe-a]
+    steps:
+      - transaction:
+          steps:
+            - transaction:
+                steps:
+                  - fire: { hook: entity.after.update, entity: page, subject: { id: p1 } }
+        expect: { log: { count: { "fx-probe-a:transaction.before.start": 1, "fx-probe-a:transaction.after.end": 1 } } }

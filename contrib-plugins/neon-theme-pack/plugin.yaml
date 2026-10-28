@@ -1,0 +1,15 @@
+# A fake community theme pack: two themes from one author, the second a child of the first. Declarative only.
+specVersion: "0.1.0"
+id: neon-theme-pack
+uuid: 6b8d0f2a-4c6e-4b8d-0f2a-4c6e8b0d2f4a
+title: Neon themes (fake)
+description: Two bright, high-contrast themes (a fake community pack used to test theme packs).
+version: 1.0.0
+kind: pack
+category: themes
+icon: image:palette
+tags: [themes, neon]
+docs: { readme: README.md, agents: AGENTS.md }
+license: MIT
+tagPrefix: neon-
+untested: true                     # a fake pack for topology testing; real theme packs add web-test-runner tests in test/

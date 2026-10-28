@@ -1,0 +1,59 @@
+- id: log-001
+  title: "entries from other plugins arrive through log.sink and are listed newest first"
+  operation: logList
+  given: "a plugin that throws in a hook"
+  when: "the hook runs, then the log is read"
+  then: "the error is in the log, attributed to that plugin"
+  runtimes: [nodejs]
+  run:
+    with: [conformance/fixtures/fx-notes, conformance/fixtures/fx-probe-a]
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: {}
+      - call: { operation: logList, query: { plugin: fx-probe-a } }
+        expect: { status: 200, body: { items: [{ plugin: fx-probe-a, level: info, message: "fx-probe-a:entity.before.create" }] } }
+- id: log-002
+  title: "the level setting drops lower entries"
+  operation: logList
+  given: "level warn"
+  when: "an info entry and an error entry arrive"
+  then: "only the error is kept"
+  run:
+    settings: { level: warn }
+    steps:
+      - contract: { name: log.sink, op: write, input: { level: info, plugin: x, message: "just saying" } }
+        expect: {}
+      - contract: { name: log.sink, op: write, input: { level: error, plugin: x, message: "broken" } }
+        expect: {}
+      - call: { operation: logList }
+        expect: { body: { total: 1, items: [{ message: broken }] } }
+- id: log-003
+  title: "the log keeps at most maxEntries"
+  operation: logList
+  given: "maxEntries 2"
+  when: "three entries arrive"
+  then: "the oldest is dropped"
+  run:
+    settings: { maxEntries: 2 }
+    steps:
+      - contract: { name: log.sink, op: write, input: { level: info, plugin: x, message: one } }
+        expect: {}
+      - contract: { name: log.sink, op: write, input: { level: info, plugin: x, message: two } }
+        expect: {}
+      - contract: { name: log.sink, op: write, input: { level: info, plugin: x, message: three } }
+        expect: {}
+      - call: { operation: logList }
+        expect: { body: { total: 2, items: [{ message: three }, { message: two }] } }
+- id: log-004
+  title: "the rotate schedule trims a backlog to maxEntries"
+  given: "three stored entries, maxEntries 2"
+  when: "the rotate job runs"
+  then: "the two newest remain"
+  run:
+    settings: { maxEntries: 2 }
+    stores: { entries: [{ time: "2025-01-01T00:00:00.000Z", level: info, plugin: x, message: one }, { time: "2025-06-01T00:00:00.000Z", level: info, plugin: x, message: two }, { time: "2026-01-01T00:00:00.000Z", level: info, plugin: x, message: three }] }
+    steps:
+      - schedule: { plugin: log, id: rotate }
+        expect: { status: 200, body: { ran: true, ok: true } }
+      - call: { operation: logList }
+        expect: { body: { total: 2, items: [{ message: three }, { message: two }] } }

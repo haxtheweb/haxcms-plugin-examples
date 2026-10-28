@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-stage-transform
+uuid: 6fab1557-8b54-5a72-8eb9-6b494107c773
+title: fx-stage-transform (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: render.after
+    priority: -50            # low priority, still before any seal subscriber: stages come first

@@ -1,0 +1,22 @@
+{
+  "apps": [
+    {
+      "details": { "title": "Local files", "icon": "perm-media", "color": "light-blue", "author": "HAXCMS", "description": "HAXCMS integration for HAX", "status": "available", "tags": ["media", "hax"] },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/files",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "files",
+            "pagination": { "style": "link", "props": { "first": "page.first", "next": "page.next", "previous": "page.previous", "last": "page.last" } },
+            "search": { "name": { "title": "File name", "type": "string" } },
+            "data": {},
+            "resultMap": { "defaultGizmoType": "image", "items": "items", "preview": { "title": "name", "details": "mimeType", "image": "url", "id": "uuid" }, "gizmo": { "source": "url", "id": "uuid", "title": "name", "alt": "alt" } }
+          },
+          "add": { "method": "POST", "endPoint": "files", "acceptsGizmoTypes": ["image", "video", "audio", "pdf", "svg", "document", "csv"], "resultMap": { "item": "data", "defaultGizmoType": "image", "gizmo": { "source": "url", "id": "uuid" } } }
+        }
+      }
+    }
+  ]
+}

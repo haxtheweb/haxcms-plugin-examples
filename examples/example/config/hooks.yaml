@@ -1,0 +1,30 @@
+# Hooks this plugin defines and fires. Other plugins can subscribe to them like core hooks.
+- name: example.before.explode
+  phase: before
+  when: "the example's explode route is about to trigger an explosion"
+  subject: "`{ fileId, size }`"
+  returns: "the explosion (may change size)"
+  veto: true
+  comment: "make the explosion smaller, or veto it"
+  example: "a **quiet-hours** plugin vetoes explosions at night"
+- name: example.after.explode
+  phase: after
+  when: "the explosion happened"
+  subject: "`{ fileId, size, at }`"
+  returns: "nothing"
+  veto: false
+  detachable: true
+  comment: "react to an explosion"
+  example: "a **leaderboard** plugin counts explosions per user"
+# An alias: a friendlier name for a common subscription
+- name: example.before.awesomeSave
+  phase: before
+  when: "an .awesome file is about to be saved"
+  aliasOf:
+    - { hook: entity.before.create, entities: [awesomeFile] }
+    - { hook: entity.before.update, entities: [awesomeFile] }
+  subject: "the awesomeFile record"
+  returns: "the record"
+  veto: true
+  comment: "same as entity.before.create/update on awesomeFile, under a clearer name"
+  example: "**example** itself checks the awesome level before saving"

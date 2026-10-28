@@ -1,0 +1,40 @@
+- id: spam-guard-001
+  title: "too many links: refused before it is stored"
+  hook: comments.before.create
+  given: "maxLinks 1, comments with moderation off"
+  when: "a reader posts two links"
+  then: "422 from comments, nothing stored"
+  run:
+    with: [contrib-plugins/comments]
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - config: { plugin: comments, values: { moderation: false } }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: "buy http://a.example and www.b.example" } }
+        expect: { status: 422, message: "at most 1 link" }
+      - call: { operation: commentsList, params: { pageId: p1 } }
+        expect: { body: [] }
+- id: spam-guard-002
+  title: "a blocked word holds an otherwise approved comment"
+  hook: comments.before.create
+  given: "blockedWords 'casino'; moderation off, so comments are normally approved at once"
+  when: "a reader posts about a casino"
+  then: "stored as pending"
+  run:
+    with: [contrib-plugins/comments]
+    settings: { blockedWords: "casino\ncheap pills" }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - config: { plugin: comments, values: { moderation: false } }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: "Best CASINO bonus" } }
+        expect: { status: 200, body: { status: pending } }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: "Nice page" } }
+        expect: { status: 200, body: { status: approved } }
+- id: spam-guard-003
+  title: "without comments, spam guard stays off"
+  given: "comments not installed"
+  when: "load"
+  then: "disabled: missing dependency"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { status_of: { spam-guard: disabled } }

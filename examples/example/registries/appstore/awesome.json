@@ -1,0 +1,80 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Awesome explosions",
+        "icon": "icons:flare",
+        "color": "orange",
+        "author": "Example plugin",
+        "description": "Search a fictional explosion image library.",
+        "status": "available",
+        "tags": [
+          "image",
+          "awesome"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/example/appstore",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "browse",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "previous": "prev",
+                "next": "next",
+                "total_items": "total"
+              }
+            },
+            "search": {
+              "q": {
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "data": {},
+            "resultMap": {
+              "defaultGizmoType": "image",
+              "items": "items",
+              "preview": {
+                "title": "name",
+                "details": "summary",
+                "image": "thumb",
+                "id": "id"
+              },
+              "gizmo": {
+                "source": "url",
+                "title": "name",
+                "id": "id"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "stax": [
+    {
+      "details": {
+        "title": "Explosion grid",
+        "author": "Example plugin",
+        "description": "Two explosions side by side",
+        "status": "available",
+        "tags": [
+          "awesome"
+        ]
+      },
+      "stax": [
+        {
+          "tag": "grid-plate",
+          "properties": {
+            "layout": "1-1"
+          },
+          "content": "<awesome-explosion slot=\"col-1\" intensity=\"2\"></awesome-explosion><awesome-explosion slot=\"col-2\" intensity=\"3\"></awesome-explosion>"
+        }
+      ]
+    }
+  ]
+}

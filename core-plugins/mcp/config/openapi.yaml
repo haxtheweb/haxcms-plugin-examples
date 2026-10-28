@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info: { title: MCP access, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /tokens:
+    get:
+      operationId: mcpTokenList
+      summary: Tokens (never their secret values)
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      responses: { "200": { description: OK } }
+    post:
+      operationId: mcpTokenCreate
+      summary: Create a token; the secret is shown once
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { label: { type: string }, site: { type: string }, readOnly: { type: boolean }, plugins: { type: array, items: { type: string } }, expiresInDays: { type: integer, minimum: 1, maximum: 365 } } } } } }
+      responses: { "200": { description: "{ id, token }" } }
+  /tokens/{id}:
+    delete:
+      operationId: mcpTokenRevoke
+      summary: Revoke a token
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Revoked }, "404": { description: Not found } }
+  /discovery:
+    get:
+      operationId: mcpDiscovery
+      summary: What this token may use - operations marked x-hax-mcp and prompts - for the MCP server
+      x-hax-public: true             # authenticated by the X-HAX-MCP-Token header, checked by the plugin
+      x-hax-rate-limit: { requests: 60, per: minute }
+      responses: { "200": { description: OK }, "401": { description: Missing, unknown or expired token } }

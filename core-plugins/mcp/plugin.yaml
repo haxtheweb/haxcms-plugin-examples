@@ -1,0 +1,31 @@
+# MCP: core, optional, enabled per deployment; HAXiam blocks it for now (deployment config `blocked`).
+# Today haxcms-mcp (https://github.com/haxtheweb/haxcms-mcp) is a separate server driving HAXcms over HTTP, and core
+# has mcp.enabled / mcp.readOnly config. This plugin gives that server what it needs from inside HAXcms: scoped,
+# revocable tokens, a discovery route listing every plugin operation marked x-hax-mcp plus every plugin's prompts,
+# and a guard that keeps calls made with a token inside that token's scope.
+specVersion: "0.1.0"
+id: mcp
+uuid: 3e5a7c9e-1b3d-4e5a-7c9e-1b3d5f7a9c1e
+title: MCP access
+description: Lets AI agents use this HAXcms through MCP with scoped tokens you can revoke.
+version: 0.1.0
+category: integration
+icon: icons:settings-ethernet
+tags: [agents, mcp]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+datastores: config/datastores.yaml
+staticCapable: false
+capabilities: []   # core moves mcp.readOnly out of the core config (legacy.settings)
+legacy:
+  settings:
+    readOnlyDefault: config:mcp.readOnly
+hooks:
+  - name: rest.before.request    # calls carrying an MCP token stay inside the token's scope

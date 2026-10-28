@@ -1,0 +1,84 @@
+- id: importer-pressbooks-001
+  title: "a Pressbooks book comes over through its REST API with parts, chapters and order"
+  given: "a chapter URL of press.example.edu/biology; front matter, one part with three chapters (one not exported, listed out of order), back matter; one chapter that will not load"
+  when: "convert with that URL"
+  then: "front matter, part, its two exported chapters in menu order, back matter; root-relative src made absolute; scripts and handlers gone; nothing outside the book's host fetched"
+  run:
+    fetch:
+      "https://press.example.edu/biology/wp-json/": { status: 200, body: { namespaces: [wp/v2, pressbooks/v2] } }
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/toc":
+        status: 200
+        body:
+          front-matter: [{ id: 5, title: Introduction, slug: introduction, menu_order: 1 }]
+          parts: [{ id: 10, title: Cells, slug: cells, menu_order: 1, chapters: [{ id: 21, title: Membranes, slug: membranes, menu_order: 2, link: "https://other.example.net/membranes" }, { id: 20, title: The Cell, slug: the-cell, menu_order: 1 }, { id: 22, title: Draft notes, menu_order: 3, export: false }] }]
+          back-matter: [{ id: 30, title: Glossary, slug: glossary, menu_order: 1 }]
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/metadata": { status: 200, body: { name: "Open Biology" } }
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/front-matter/5": { status: 200, body: { id: 5, title: { rendered: Introduction }, content: { rendered: '<p>Hi <img src="/biology/wp-content/uploads/cell.png" alt="cell"></p><script>track()</script>' }, link: "https://press.example.edu/biology/front-matter/introduction/" } }
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/parts/10": { status: 200, body: { id: 10, title: { rendered: "Cells &amp; Life" }, content: { rendered: "" } } }
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/chapters/20": { status: 200, body: { id: 20, title: { rendered: The Cell }, content: { rendered: '<p onclick="steal()">Cells are small.</p>' }, link: "https://press.example.edu/biology/chapter/the-cell/" } }
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/chapters/21": { status: 404, body: "" }
+      "https://press.example.edu/biology/wp-json/pressbooks/v2/back-matter/30": { status: 200, body: { id: 30, title: { rendered: Glossary }, content: { rendered: "<p>Cell: a unit.</p>" } } }
+      other.example.net: { status: 200, body: "<p>should not be read</p>" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-pressbooks, input: { url: "https://press.example.edu/biology/chapter/the-cell/" } }
+        expect:
+          body:
+            - plugin: importer-pressbooks
+              result:
+                title: Open Biology
+                items:
+                  - { id: item-1, title: Introduction, slug: introduction, parent: null, order: 0, content: '<p>Hi <img src="https://press.example.edu/biology/wp-content/uploads/cell.png" alt="cell"></p>', metadata: { sourceType: front-matter, pressbooks: { id: 5, slug: introduction, menuOrder: 1 }, source: "https://press.example.edu/biology/front-matter/introduction/" } }
+                  - { id: item-2, title: "Cells & Life", slug: cells-life, parent: null, order: 1, content: "<p></p>", metadata: { sourceType: part } }
+                  - { id: item-3, title: The Cell, slug: cells-life/the-cell, parent: item-2, order: 0, indent: 1, content: "<p>Cells are small.</p>" }
+                  - { id: item-4, title: Membranes, slug: cells-life/membranes, parent: item-2, order: 1, content: "<p></p>", metadata: { source: "https://other.example.net/membranes" } }
+                  - { id: item-5, title: Glossary, slug: glossary, parent: null, order: 2, metadata: { sourceType: back-matter } }
+          notContains: ["track()", "onclick", "Draft notes"]
+          fetch: { notContains: [other.example.net], count: 8 }
+- id: importer-pressbooks-002
+  title: "an uploaded XHTML export is split into the same tree"
+  given: "tests/fixtures/book.html: introduction, part Cells with two chapters, glossary; a script and an onclick inside"
+  when: "convert with files: [book.html]"
+  then: "five items, chapters under the part, section wrappers removed from content, nothing fetched"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-pressbooks, input: { files: [{ name: book.html, data: "PCFET0NUWVBFIGh0bWw+CjxodG1sIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hodG1sIj48aGVhZD48dGl0bGU+T3BlbiBCaW9sb2d5ICZhbXA7IFlvdTwvdGl0bGU+PC9oZWFkPgo8Ym9keT4KPGRpdiBjbGFzcz0iZnJvbnQtbWF0dGVyIGludHJvZHVjdGlvbiIgaWQ9ImZyb250LW1hdHRlci1pbnRyb2R1Y3Rpb24iPjxkaXYgY2xhc3M9ImZyb250LW1hdHRlci10aXRsZS13cmFwIj48aDMgY2xhc3M9ImZyb250LW1hdHRlci1udW1iZXIiPjE8L2gzPjxoMSBjbGFzcz0iZnJvbnQtbWF0dGVyLXRpdGxlIj5JbnRyb2R1Y3Rpb248L2gxPjwvZGl2PjxkaXYgY2xhc3M9InVnYyBmcm9udC1tYXR0ZXItdWdjIj48cD5XZWxjb21lIHRvIHRoZSBib29rLjwvcD48c2NyaXB0PnRyYWNrKCk8L3NjcmlwdD48L2Rpdj48L2Rpdj4KPGRpdiBjbGFzcz0icGFydCIgaWQ9InBhcnQtY2VsbHMiPjxkaXYgY2xhc3M9InBhcnQtdGl0bGUtd3JhcCI+PGgzIGNsYXNzPSJwYXJ0LW51bWJlciI+STwvaDM+PGgxIGNsYXNzPSJwYXJ0LXRpdGxlIj5DZWxsczwvaDE+PC9kaXY+PC9kaXY+CjxkaXYgY2xhc3M9ImNoYXB0ZXIgc3RhbmRhcmQiIGlkPSJjaGFwdGVyLXRoZS1jZWxsIj48ZGl2IGNsYXNzPSJjaGFwdGVyLXRpdGxlLXdyYXAiPjxoMyBjbGFzcz0iY2hhcHRlci1udW1iZXIiPjE8L2gzPjxoMiBjbGFzcz0iY2hhcHRlci10aXRsZSI+VGhlIENlbGw8L2gyPjwvZGl2PjxkaXYgY2xhc3M9InVnYyBjaGFwdGVyLXVnYyI+PGRpdiBjbGFzcz0idGV4dGJveCI+PHAgb25jbGljaz0ieCgpIj5DZWxscyBhcmUgc21hbGwuPC9wPjwvZGl2PjwvZGl2PjwvZGl2Pgo8ZGl2IGNsYXNzPSJjaGFwdGVyIHN0YW5kYXJkIiBpZD0iY2hhcHRlci1tZW1icmFuZXMiPjxkaXYgY2xhc3M9ImNoYXB0ZXItdGl0bGUtd3JhcCI+PGgzIGNsYXNzPSJjaGFwdGVyLW51bWJlciI+MjwvaDM+PGgyIGNsYXNzPSJjaGFwdGVyLXRpdGxlIj5NZW1icmFuZXM8L2gyPjwvZGl2PjxkaXYgY2xhc3M9InVnYyBjaGFwdGVyLXVnYyI+PHA+TGlwaWRzLjwvcD48L2Rpdj48L2Rpdj4KPGRpdiBjbGFzcz0iYmFjay1tYXR0ZXIgYXBwZW5kaXgiIGlkPSJiYWNrLW1hdHRlci1nbG9zc2FyeSI+PGRpdiBjbGFzcz0iYmFjay1tYXR0ZXItdGl0bGUtd3JhcCI+PGgxIGNsYXNzPSJiYWNrLW1hdHRlci10aXRsZSI+R2xvc3Nhcnk8L2gxPjwvZGl2PjxkaXYgY2xhc3M9InVnYyBiYWNrLW1hdHRlci11Z2MiPjxwPkNlbGw6IGEgdW5pdC48L3A+PC9kaXY+PC9kaXY+CjwvYm9keT48L2h0bWw+Cg==" }] } }
+        expect:
+          body:
+            - result:
+                title: "Open Biology & You"
+                items:
+                  - { id: item-1, title: Introduction, slug: introduction, parent: null, order: 0, content: "<p>Welcome to the book.</p>", metadata: { sourceType: front-matter, pressbooks: { slug: front-matter-introduction } } }
+                  - { id: item-2, title: Cells, slug: cells, parent: null, order: 1, content: "<p></p>", metadata: { sourceType: part } }
+                  - { id: item-3, title: The Cell, slug: cells/the-cell, parent: item-2, order: 0, indent: 1, content: '<div class="textbox"><p>Cells are small.</p></div>' }
+                  - { id: item-4, title: Membranes, slug: cells/membranes, parent: item-2, order: 1, content: "<p>Lipids.</p>" }
+                  - { id: item-5, title: Glossary, slug: glossary, parent: null, order: 2, content: "<p>Cell: a unit.</p>" }
+          notContains: ["track()", "onclick"]
+          fetch: { count: 0 }
+- id: importer-pressbooks-003
+  title: "a site without the Pressbooks API is an error, and only that site is asked"
+  given: "a WordPress site whose REST index lacks pressbooks/v2 and whose TOC route is missing"
+  when: "convert"
+  then: "an error result; each candidate base on that host tried, no other host"
+  run:
+    fetch:
+      "https://blog.example.org/wp-json/": { status: 200, body: { namespaces: [wp/v2] } }
+      "https://blog.example.org/wp-json/pressbooks/v2/toc": { status: 404, body: "" }
+      "https://blog.example.org/course/wp-json/": { status: 404, body: "" }
+      "https://blog.example.org/course/wp-json/pressbooks/v2/toc": { status: 404, body: "" }
+      press.example.edu: { status: 200, body: { namespaces: [pressbooks/v2] } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-pressbooks, input: { url: "https://blog.example.org/course/" } }
+        expect:
+          body: [{ result: { error: "no Pressbooks API found at that address (expected /wp-json/pressbooks/v2)" } }]
+          fetch: { count: 4, notContains: [press.example.edu] }
+- id: importer-pressbooks-004
+  title: "missing input and the wrong file type are errors, not crashes"
+  given: "no url or files; then a .docx upload"
+  when: "convert"
+  then: "error results"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-pressbooks, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-pressbooks, input: { files: [{ name: book.docx, data: "UEsDBA==" }] } }
+        expect: { body: [{ result: { error: "expected a Pressbooks XHTML export (.html)" } }] }

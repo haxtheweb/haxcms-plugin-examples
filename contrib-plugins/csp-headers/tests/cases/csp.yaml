@@ -1,0 +1,28 @@
+- id: csp-headers-001
+  title: "the policy allows exactly the inline scripts in the final document"
+  hook: render.after
+  given: "google-analytics adds an inline loader; minify-html changes the document first"
+  when: "a page renders"
+  then: "the CSP meta has the sha256 of the minified loader script, so the browser runs it"
+  runtimes: [nodejs]
+  run:
+    with: [core-plugins/google-analytics, core-plugins/cookie-consent, contrib-plugins/minify-html]
+    settings: { extraHosts: "www.googletagmanager.com" }
+    steps:
+      - config: { plugin: google-analytics, values: { measurementId: G-ABC1234 } }
+      - render: { page: { id: p1, content: "<p>x</p>  <!-- note -->  <p>y</p>" } }
+        expect: { contains: ['<meta http-equiv="Content-Security-Policy" content="default-src', "'sha256-", "https://www.googletagmanager.com", "<p>x</p><p>y</p>"], notContains: ["<!-- note -->"] }
+        capture: { html: html }
+- id: csp-headers-002
+  title: "stage order: transform, then seal, then store"
+  hook: render.after
+  given: "minify-html (transform), csp-headers (seal) and page-cache (store), all at priority 0"
+  when: "a visitor renders a page twice"
+  then: "the cached copy is minified and carries the policy"
+  run:
+    with: [contrib-plugins/minify-html, core-plugins/page-cache]
+    steps:
+      - asUser: null
+      - render: { page: { id: p1, content: "<p>a</p>\n\n<p>b</p><script>\n  go()\n</script>" } }
+      - render: { page: { id: p1, content: "ignored" } }
+        expect: { cached: true, contains: ["<p>a</p><p>b</p>", "Content-Security-Policy", "'sha256-"] }

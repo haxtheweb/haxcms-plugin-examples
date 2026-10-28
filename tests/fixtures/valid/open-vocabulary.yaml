@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: open-vocabulary
+uuid: cd4c5c00-9363-48e4-beaf-693681a3f078
+title: Open vocabulary
+description: Well-formed hook and capability names not yet in the starting list are accepted (the loader warns).
+version: 0.1.0
+runtimes: [php]
+entry: { php: src/php/Plugin.php }
+hooks: [{ name: entity.before.archive }]
+capabilities: ["widgets:render"]

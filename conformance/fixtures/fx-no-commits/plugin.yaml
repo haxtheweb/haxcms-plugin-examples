@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-no-commits
+uuid: 1e3c5a7b-2d4f-4a6c-8e0b-3f5a7c9e1b2d
+title: fx-no-commits (conformance fixture)
+description: Vetoes git.before.commit; used by the git plugin's tests.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+dependencies: [git]
+hooks:
+  - name: git.before.commit

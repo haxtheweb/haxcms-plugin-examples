@@ -1,0 +1,123 @@
+{
+  "configure": [
+    {
+      "property": "header",
+      "title": "Header",
+      "description": "Pages whose content shows in the 'header' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    },
+    {
+      "property": "sidebarFirst",
+      "title": "Sidebar first",
+      "description": "Pages whose content shows in the 'sidebar first' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    },
+    {
+      "property": "sidebarSecond",
+      "title": "Sidebar second",
+      "description": "Pages whose content shows in the 'sidebar second' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    },
+    {
+      "property": "contentTop",
+      "title": "Content top",
+      "description": "Pages whose content shows in the 'content top' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    },
+    {
+      "property": "contentBottom",
+      "title": "Content bottom",
+      "description": "Pages whose content shows in the 'content bottom' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    },
+    {
+      "property": "footerPrimary",
+      "title": "Footer primary",
+      "description": "Pages whose content shows in the 'footer primary' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    },
+    {
+      "property": "footerSecondary",
+      "title": "Footer secondary",
+      "description": "Pages whose content shows in the 'footer secondary' region of themes that have one",
+      "inputMethod": "array",
+      "required": false,
+      "itemLabel": "page",
+      "hideReorder": true,
+      "hideDuplicate": true,
+      "properties": [
+        {
+          "property": "node",
+          "title": "Page",
+          "inputMethod": "select"
+        }
+      ]
+    }
+  ]
+}

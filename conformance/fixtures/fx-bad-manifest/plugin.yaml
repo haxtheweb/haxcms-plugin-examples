@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-bad-manifest
+uuid: 1ee620a2-fdd7-59df-89f0-61329db375f6
+title: fx-bad-manifest (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+surprise: true

@@ -1,0 +1,5 @@
+{
+  "configure": [
+    { "property": "measurementId", "title": "Google Analytics ID", "description": "Your measurement id (G-XXXXXXXXXX, or a legacy UA-XXXXX-Y). Analytics loads only after visitors consent.", "inputMethod": "textfield", "required": true }
+  ]
+}

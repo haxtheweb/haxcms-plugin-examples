@@ -1,0 +1,15 @@
+# NASA images: one of the keyless appstore providers core adds to every editor today (HAXAppStoreService), moved to the
+# community set as a showcase: off by default. The browser calls the public API (images-api.nasa.gov) directly, so there is no
+# route, no key and no code: a pack with one appstore fragment.
+specVersion: "0.1.0"
+id: appstore-nasa
+uuid: c4cd3914-83b8-549d-bc3e-83660d7d9eac
+title: NASA images
+description: Search NASA's public image library from the editor. No API key needed.
+version: 0.1.0
+kind: pack
+category: media
+icon: image:photo-library
+tags: [appstore, space, images]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0

@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info: { title: fx-exec, version: 0.1.0 }
+paths:
+  /run/{cmd}:
+    post:
+      operationId: fxExecRun
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: cmd, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK } }

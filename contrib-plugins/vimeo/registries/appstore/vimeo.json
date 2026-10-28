@@ -1,0 +1,65 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Vimeo",
+        "icon": "av:play-circle-filled",
+        "color": "blue",
+        "author": "Vimeo Inc.",
+        "description": "A high quality video sharing community.",
+        "status": "available",
+        "tags": [
+          "video",
+          "crowdsourced"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/vimeo",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "page": "page",
+                "total_items": "total"
+              }
+            },
+            "search": {
+              "query": {
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "data": {
+              "direction": "asc",
+              "sort": "alphabetical",
+              "filter": "CC",
+              "per_page": "20"
+            },
+            "resultMap": {
+              "defaultGizmoType": "video",
+              "items": "data",
+              "preview": {
+                "title": "name",
+                "details": "description",
+                "image": "pictures.sizes.1.link",
+                "id": "id"
+              },
+              "gizmo": {
+                "_url_source": "https://vimeo.com<%= id %>",
+                "id": "uri",
+                "title": "title",
+                "caption": "description",
+                "description": "description",
+                "citation": "user.name"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

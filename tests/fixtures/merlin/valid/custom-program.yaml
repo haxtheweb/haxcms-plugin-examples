@@ -1,0 +1,15 @@
+option:
+  title: Explode the page
+  icon: icons:flare
+  tags: [awesome]
+  path: HAX/action/explode
+  context: [HAX]
+  eventName: super-daemon-run-program
+  value:
+    name: Explode the page
+    machineName: awesome-explode
+    placeholder: How many explosions?
+program:
+  kind: module
+  module: frontend/dist/explode-program.js
+  factory: createExplodeProgram

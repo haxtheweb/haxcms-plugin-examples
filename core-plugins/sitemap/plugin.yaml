@@ -1,0 +1,26 @@
+# Sitemap: extracted from core. Today HAXCMS.updateAlternateFormats() writes sitemap.xml and sitemap-index.xml on every
+# save (lib/RSS.js) for every item, including unpublished and hidden ones, while llms.txt already skips those. As a
+# plugin it lists only what an anonymous visitor can open (entities.list with listed: true), the rule llms.txt uses.
+specVersion: "0.1.0"
+id: sitemap
+uuid: 2d4f6b8c-0e2a-4c4d-9f6b-8d0f2c4e6a8b
+title: Sitemap
+description: Publishes sitemap.xml so search engines find every public page.
+version: 0.1.0
+category: seo
+icon: icons:list
+tags: [sitemap, search-engines]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+staticCapable: true
+capabilities: ["items:read", "output:managedFiles"]
+managedFiles:
+  - { path: sitemap.xml, title: Sitemap, type: application/xml }
+  - sitemap-index.xml
+hooks:
+  - name: rebuild.after

@@ -1,0 +1,65 @@
+- id: importer-gitbook-001
+  title: "a GitBook on GitHub comes over with its table of contents as the page tree"
+  given: "github.com/acme/handbook (no branch named; main has no SUMMARY.md, master does), nested and unlinked SUMMARY entries, an external link, pages with images and a script, one page missing"
+  when: "convert with the repository URL"
+  then: "five pages in SUMMARY order with parents, order and depth; Markdown converted by import-markdown; images listed under files/ and rewritten; the external link and the script dropped; the missing page empty"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://github.com/acme/handbook/raw/main/SUMMARY.md": { status: 404, body: "" }
+      "https://github.com/acme/handbook/raw/master/SUMMARY.md": { status: 200, body: "# Summary\n\n* [Introduction](README.md)\n* [Getting started](getting-started/README.md)\n  * [Install](getting-started/install.md)\n  * Advanced\n    * [Tuning](getting-started/tuning.md#top)\n* [External](https://example.org/x)\n* [Glossary](glossary.md)\n" }
+      "https://github.com/acme/handbook/raw/master/README.md": { status: 200, body: "# Welcome\n\nHello **world**.\n\n![Logo](.gitbook/assets/logo.png)\n" }
+      "https://github.com/acme/handbook/raw/master/getting-started/README.md": { status: 200, body: "Start here.\n" }
+      "https://github.com/acme/handbook/raw/master/getting-started/install.md": { status: 200, body: "Run it.\n\n![Shot](../.gitbook/assets/shot.png)\n\n<script>steal()</script>\n" }
+      "https://github.com/acme/handbook/raw/master/getting-started/tuning.md": { status: 404, body: "" }
+      "https://github.com/acme/handbook/raw/master/glossary.md": { status: 200, body: "See [the start](README.md) and ![Logo](/.gitbook/assets/logo.png).\n" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-gitbook, input: { url: "https://github.com/acme/handbook" } }
+        expect:
+          body:
+            - result:
+                title: handbook
+                items:
+                  - { id: item-1, title: Introduction, slug: introduction, parent: null, order: 0, indent: 0, content: "<h1>Welcome</h1><p>Hello <strong>world</strong>.</p><p><img src=\"files/.gitbook/assets/logo.png\" alt=\"Logo\"></p>" }
+                  - { id: item-2, title: Getting started, slug: getting-started, parent: null, order: 1, content: "<p>Start here.</p>" }
+                  - { id: item-3, title: Install, slug: getting-started/install, parent: item-2, order: 0, indent: 1 }
+                  - { id: item-4, title: Tuning, slug: getting-started/tuning, parent: item-2, order: 1, indent: 2, content: "" }
+                  - { id: item-5, title: Glossary, slug: glossary, parent: null, order: 2, content: "<p>See <a href=\"README.md\">the start</a> and <img src=\"files/.gitbook/assets/logo.png\" alt=\"Logo\">.</p>" }
+                files:
+                  - { path: files/.gitbook/assets/logo.png, url: "https://github.com/acme/handbook/raw/master/.gitbook/assets/logo.png" }
+                  - { path: files/.gitbook/assets/shot.png, url: "https://github.com/acme/handbook/raw/master/.gitbook/assets/shot.png" }
+          notContains: ["steal()", "example.org/x", "item-6"]
+- id: importer-gitbook-002
+  title: "a URL that is not a GitBook is an error"
+  given: "a docs folder with no SUMMARY.md, one whose SUMMARY.md has no links, and a call with no url"
+  when: "convert"
+  then: "each comes back as { error } without throwing"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://docs.example.org/book/SUMMARY.md": { status: 404, body: "Not found" }
+      "https://notes.example.org/n/SUMMARY.md": { status: 200, body: "# Notes\n\nJust a paragraph.\n" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-gitbook, input: { url: "https://docs.example.org/book/" } }
+        expect: { body: [{ result: { error: "no SUMMARY.md found at https://docs.example.org/book; this does not look like a GitBook" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-gitbook, input: { url: "https://notes.example.org/n/SUMMARY.md" } }
+        expect: { body: [{ result: { error: "SUMMARY.md lists no pages; this does not look like a GitBook" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-gitbook, input: {} }
+        expect: { body: [{ result: { error: url is required } }] }
+- id: importer-gitbook-003
+  title: "only the named host is reachable"
+  given: "a raw.githubusercontent.com SUMMARY.md linking to pages on another host, and a page whose image is on that host"
+  when: "convert"
+  then: "the outside links are skipped, the outside image is left as is, and the other host is never fetched"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://raw.githubusercontent.com/acme/notes/main/SUMMARY.md": { status: 200, body: "* [Home](home.md)\n* [Away](https://other.example.net/away.md)\n* [Protocol relative](//other.example.net/pr.md)\n* [Climb](../../escape.md)\n" }
+      "https://raw.githubusercontent.com/acme/notes/main/home.md": { status: 200, body: "![Remote](https://other.example.net/pic.png)\n" }
+      other.example.net: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-gitbook, input: { url: "https://raw.githubusercontent.com/acme/notes/main/SUMMARY.md" } }
+        expect:
+          body: [{ result: { title: notes, items: [{ id: item-1, slug: home, content: "<p><img src=\"https://other.example.net/pic.png\" alt=\"Remote\"></p>" }], files: [] } }]
+          notContains: ["should not be read", "item-2", "escape"]
+          fetch: { count: 2, notContains: ['"url":"https://other.example.net', "escape.md"] }

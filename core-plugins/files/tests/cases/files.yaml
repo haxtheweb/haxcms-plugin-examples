@@ -1,0 +1,65 @@
+- id: files-001
+  title: "upload stores the file, records it and fires file.* hooks"
+  operation: filesUpload
+  given: "a site"
+  when: "upload Photo 1.PNG"
+  then: "the name is made safe; the record lists it"
+  run:
+    steps:
+      - call: { operation: filesUpload, body: { name: "Photo 1.PNG", data: aGVsbG8=, alt: A photo } }
+        expect: { status: 200, body: { uuid: file-1, name: photo-1.png, path: files/photo-1.png, mimeType: image/png, size: 5 } }
+      - call: { operation: filesList }
+        expect: { body: { total: 1, items: [{ name: photo-1.png }] } }
+- id: files-002
+  title: "disallowed types are refused"
+  operation: filesUpload
+  given: "an .exe"
+  when: "upload it"
+  then: "400"
+  run:
+    steps:
+      - call: { operation: filesUpload, body: { name: tool.exe, data: aGVsbG8= } }
+        expect: { status: 400, message: "not allowed" }
+- id: files-003
+  title: "size limit from settings"
+  operation: filesUpload
+  given: "maxUploadMb 0.000001"
+  when: "upload 5 bytes"
+  then: "too large"
+  run:
+    settings: { maxUploadMb: 0.000001 }
+    steps:
+      - call: { operation: filesUpload, body: { name: a.txt, data: aGVsbG8= } }
+        expect: { status: 400, message: "too large" }
+- id: files-004
+  title: "delete removes the record"
+  operation: filesDelete
+  given: "an uploaded file"
+  when: "delete it"
+  then: "gone from the list"
+  run:
+    steps:
+      - call: { operation: filesUpload, body: { name: a.txt, data: aGVsbG8= } }
+        expect: { status: 200 }
+      - call: { operation: filesDelete, params: { uuid: file-1 } }
+        expect: { status: 200, body: { deleted: file-1 } }
+      - call: { operation: filesList }
+        expect: { body: { total: 0 } }
+- id: files-veto
+  title: "a vetoed upload is not kept, and a vetoed delete keeps the file"
+  operation: filesUpload
+  given: "a plugin that vetoes files named forbidden"
+  when: "upload forbidden.png; then try to delete an existing forbidden.pdf"
+  then: "409 and no record or bytes for the upload; 409 and the record stays for the delete"
+  run:
+    with: [conformance/fixtures/fx-vetoer]
+    records: { file: [{ uuid: f9, id: f9, name: forbidden.pdf, path: files/forbidden.pdf }] }
+    steps:
+      - call: { operation: filesUpload, body: { name: forbidden.png, data: aGVsbG8= } }
+        expect: { status: 409, message: "fx-vetoer: forbidden" }
+      - call: { operation: filesList }
+        expect: { body: { total: 1, items: [{ name: forbidden.pdf }] } }
+      - call: { operation: filesDelete, params: { uuid: f9 } }
+        expect: { status: 409 }
+      - call: { operation: filesList }
+        expect: { body: { total: 1 } }

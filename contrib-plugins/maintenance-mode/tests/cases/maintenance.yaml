@@ -1,0 +1,41 @@
+- id: maintenance-mode-001
+  title: "visitors get the maintenance page; admins see the site"
+  hook: render.before
+  given: "maintenance on"
+  when: "a visitor and then an admin open a page"
+  then: "the visitor gets the message; the admin gets the page"
+  run:
+    settings: { on: true, message: "Upgrading <b>now</b>" }
+    steps:
+      - asUser: null
+      - render: { page: { id: p1, content: "<p>real</p>" } }
+        expect: { contains: ["Upgrading &lt;b&gt;now&lt;/b&gt;", "noindex"], notContains: ["<p>real</p>"] }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - render: { page: { id: p1, content: "<p>real</p>" } }
+        expect: { contains: ["<p>real</p>"] }
+- id: maintenance-mode-002
+  title: "other plugins' operations answer 503 for non-admins"
+  hook: rest.before.request
+  given: "maintenance on; comments installed"
+  when: "an editor posts a comment"
+  then: "503"
+  run:
+    with: [contrib-plugins/comments]
+    settings: { on: true }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - asUser: { id: u2, name: ed, displayName: Ed, roles: [editor], avatar: null }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: hi } }
+        expect: { status: 503, message: "maintenance in progress" }
+- id: maintenance-mode-003
+  title: "scheduled jobs are skipped"
+  hook: schedule.before.run
+  given: "maintenance on, pauseJobs on"
+  when: "a job is due"
+  then: "it does not run"
+  run:
+    with: [conformance/fixtures/fx-scheduled]
+    settings: { on: true }
+    steps:
+      - schedule: { plugin: fx-scheduled, id: tick }
+        expect: { status: 200, body: { ran: false, skipped: "paused for maintenance" } }

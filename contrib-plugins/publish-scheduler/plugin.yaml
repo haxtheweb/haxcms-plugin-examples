@@ -1,0 +1,26 @@
+# Publish scheduler (fake community plugin). Exercises: plugin fields on core pages (metadata.plugins.<id>, declared
+# in entities.yaml, so they travel with the site and nothing else may write them), a schedule whose run is one bulk
+# transaction (git makes one commit for every page it publishes), and ctx.now().
+specVersion: "0.1.0"
+id: publish-scheduler
+uuid: 0a2c4e5f-7b9d-4f1a-8c4e-5f7b9d1f3a4c
+title: Publish scheduler
+description: Publishes and unpublishes pages at the times authors set.
+version: 0.1.0
+category: authoring
+icon: icons:schedule
+tags: [schedule, publishing]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+entities: config/entities.yaml
+openapi: config/openapi.yaml
+staticCapable: false            # needs the server to run on time; static copies change when republished
+capabilities: ["items:read", "items:write"]
+suggests: [git]
+schedules:
+  - id: publish
+    cron: "*/15 * * * *"
+    handler: publishDue

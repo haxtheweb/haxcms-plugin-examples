@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-detached-wait
+uuid: 6e5d5088-5926-53a7-8bd0-f889dc2679a4
+title: fx-detached-wait (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: rest.after.request
+    detached: true

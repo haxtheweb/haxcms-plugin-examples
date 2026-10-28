@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-theme
+uuid: c3c3230d-ed55-5a69-8509-def871cbbbea
+title: fx-theme (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: theme.before.change

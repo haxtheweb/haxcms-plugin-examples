@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/datastores.schema.json",
+  "title": "Plugin datastores (config/datastores.yaml) - DRAFT",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stores"
+  ],
+  "properties": {
+    "stores": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scope"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "scope": {
+            "enum": [
+              "site",
+              "siteData",
+              "system",
+              "manifest",
+              "package"
+            ],
+            "description": "Where the store lives (spec/04). package: read-only data shipped in the plugin's data/ folder (registries, seed content); changes only by upgrading the plugin."
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+\\.(json|yaml|yml)$",
+            "description": "File name inside the scope's plugin folder; never a path. YAML is allowed only for package stores."
+          },
+          "personalData": {
+            "type": "boolean",
+            "default": false,
+            "description": "Records can be exported and erased by user id."
+          },
+          "storeSchema": {
+            "type": "string",
+            "description": "Optional schema name recorded in the store file."
+          },
+          "userKey": {
+            "type": "string",
+            "default": "userId",
+            "description": "personalData stores: the record field holding the user id, used by core to export and erase a user's records."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "scope": {
+                  "const": "manifest"
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "file"
+                ]
+              }
+            },
+            "else": {
+              "required": [
+                "file"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "scope": {
+                  "not": {
+                    "const": "package"
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "file": {
+                  "pattern": "^[A-Za-z0-9._-]+\\.json$"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

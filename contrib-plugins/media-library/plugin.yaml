@@ -1,0 +1,27 @@
+# Media library (fake community plugin). Exercises entity extension (mediaItem extends file: every file field plus
+# alt text, credit and license), hooks on a parent entity that also see the child (ctx.entityType tells them apart),
+# and the files plugin's hook aliases.
+specVersion: "0.1.0"
+id: media-library
+uuid: 9d1f3b4c-6e8a-4c0d-9f3b-4c6e8a0d2f3b
+title: Media library
+description: Keeps alt text, credit and license with every uploaded image, and asks for alt text before an image is used.
+version: 0.1.0
+category: media
+icon: image:photo-library
+tags: [media, images, accessibility]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+dependencies: [files]
+entities: config/entities.yaml
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+staticCapable: false
+capabilities: ["files:read"]
+hooks:
+  - name: file.after.save          # a new image gets a library record (alias from the files plugin)
+  - name: entity.before.update
+    entities: [mediaItem]

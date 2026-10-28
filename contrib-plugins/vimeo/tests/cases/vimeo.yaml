@@ -1,0 +1,49 @@
+- id: vimeo-001
+  title: "inactive without a key, so the app is not in the editor"
+  given: "no key"
+  when: "rebuild"
+  then: "Vimeo is not among the appstore apps; the search route is not served"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { status_of: { vimeo: inactive }, notContains: ['"Vimeo"'] }
+      - call: { operation: vimeoSearch, query: { query: x } }
+        expect: { status: 404 }
+- id: vimeo-002
+  title: "the proxy adds the key server-side and passes only listed parameters"
+  given: "a key; api.vimeo.com answers"
+  when: "the editor searches"
+  then: "the outgoing request carries the key and the search; an unlisted parameter is dropped; the key never reaches the response"
+  run:
+    settings: { apiKey: test-key-vimeo }
+    fetch: { api.vimeo.com: { status: 200, body: {"data": [{"uri": "/videos/1", "name": "Clip", "description": "d", "pictures": {"sizes": [{}, {"link": "https://i.vimeocdn.com/1.jpg"}]}, "user": {"name": "A"}}], "total": 1} } }
+    steps:
+      - rebuild: {}
+        expect: { body: { apps: ["Vimeo"] } }
+      - call: { operation: vimeoSearch, query: { query: cats, sneaky: "1" } }
+        expect:
+          status: 200
+          fetch: { count: 1, contains: ["https://api.vimeo.com/videos", "access_token=test-key-vimeo", "query=cats"], notContains: [sneaky] }
+          notContains: [test-key-vimeo]
+- id: vimeo-003
+  title: "first enable moves the key out of the core config"
+  given: "appStore.apiKeys.vimeo in the core config"
+  when: "enable vimeo"
+  then: "the plugin is active with the key; the core config no longer has it"
+  run:
+    records: { config: [{ id: core, appStore: { apiKeys: { vimeo: old-test-key-vimeo, other: keep } } }] }
+    steps:
+      - enable: vimeo
+        expect: { status: 200, status_of: { vimeo: active } }
+      - record: { type: config, id: core }
+        expect: { subject: { appStore: { apiKeys: { other: keep } } }, notContains: [old-test-key-vimeo] }
+- id: vimeo-004
+  title: "api.vimeo.com down is a 502, not a crash"
+  given: "a key, no answer from api.vimeo.com"
+  when: "search"
+  then: "502 with a log warning"
+  run:
+    settings: { apiKey: test-key-vimeo }
+    steps:
+      - call: { operation: vimeoSearch, query: { query: x } }
+        expect: { status: 502, notContains: [test-key-vimeo], log: { contains: ["network is disabled in the harness"] } }

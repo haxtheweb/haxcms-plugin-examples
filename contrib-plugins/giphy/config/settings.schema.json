@@ -1,0 +1,12 @@
+{
+  "configure": [
+    {
+      "property": "apiKey",
+      "title": "Giphy API key",
+      "description": "Stored on the server; never sent to browsers",
+      "inputMethod": "textfield",
+      "required": true,
+      "x-secret": true
+    }
+  ]
+}

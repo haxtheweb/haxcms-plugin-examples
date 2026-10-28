@@ -1,0 +1,31 @@
+- id: agent-skills-001
+  title: "rebuild publishes the core skills with digests"
+  hook: rebuild.after
+  given: "the core skill set shipped in data/skills"
+  when: "rebuild"
+  then: "index.json lists hax-managed-files and hax-site-structure with sha256 digests; descriptions have no stray quotes"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { status: 200 }
+      - managed: .well-known/agent-skills/index.json
+        expect: { status: 200, contains: ['"name": "hax-managed-files"', '"name": "hax-site-structure"', '"digest": "sha256:', '"description": "Read and navigate'], notContains: ['"description": "\"'] }
+      - managed: .well-known/agent-skills/hax-site-structure/SKILL.md
+        expect: { status: 200, contains: ["name: hax-site-structure"] }
+      - managed: .well-known/agent-skills/.htaccess
+        expect: { status: 200, contains: ["Access-Control-Allow-Origin"] }
+- id: agent-skills-002
+  title: "active plugins' site skills are added; developer skills never are"
+  hook: rebuild.after
+  given: "the example plugin (site skill example-authoring, developer skill example-plugin-dev) is active"
+  when: "rebuild"
+  then: "example-authoring is published; example-plugin-dev is not"
+  run:
+    with: [examples/example]
+    steps:
+      - config: { plugin: example, values: { greeting: Hi } }
+        expect: { status_of: { example: active } }
+      - rebuild: {}
+        expect: { status: 200 }
+      - managed: .well-known/agent-skills/index.json
+        expect: { contains: ['"name": "example-authoring"'], notContains: [example-plugin-dev] }

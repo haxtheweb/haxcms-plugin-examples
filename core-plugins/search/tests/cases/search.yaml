@@ -1,0 +1,14 @@
+- id: search-001
+  title: "public pages only, cleaned text, the site-search format"
+  hook: rebuild.after
+  given: "a public page with markup and an apostrophe, an unpublished page with secret text"
+  when: "rebuild"
+  then: "one entry with lower-case plain text; the secret text is not in the index"
+  run:
+    records:
+      page: [{ id: item-ab-cd, title: Intro, slug: intro, description: Start here, content: "<h2>Café's Menu</h2><p>Soup &amp; bread! &amp;lt;tag&amp;gt;</p>", metadata: { created: 1767225600 } }, { id: item-2, title: Draft, slug: draft, content: "<p>secret plans</p>", metadata: { published: false } }]
+    steps:
+      - rebuild: {}
+        expect: { contains: ["[Search index](lunrSearchIndex.json)"] }
+      - managed: lunrSearchIndex.json
+        expect: { contains: ['"id": "abcd"', '"text": "cafés menu soup bread lt tag gt"', '"created": 1767225600', '"location": "intro"'], notContains: [secret, Draft] }

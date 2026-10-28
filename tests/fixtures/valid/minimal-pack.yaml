@@ -1,0 +1,7 @@
+specVersion: "0.1.0"
+id: minimal-pack
+uuid: 0a91b5e3-93ca-4ff3-8da8-6c56c82d0d61
+title: Minimal pack
+description: Smallest valid plugin; declarative only.
+version: 0.1.0
+kind: pack

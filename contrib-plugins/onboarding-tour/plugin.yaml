@@ -1,0 +1,14 @@
+# Onboarding tour (fake community plugin). Declarative: a dashboard tour over the anchors app-hax promises to keep,
+# translated by a locale overlay, with progress in the user's scaffold memory. No backend code, so it is a pack.
+specVersion: "0.1.0"
+id: onboarding-tour
+uuid: 7b9d1f2a-4c6e-4a8b-9d1f-2a4c6e8b0d1f
+title: Onboarding tour
+description: A short guided tour of the dashboard for people new to HAX.
+version: 0.1.0
+kind: pack
+category: administration
+icon: icons:explore
+tags: [onboarding, help]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0

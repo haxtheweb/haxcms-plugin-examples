@@ -1,0 +1,8 @@
+[
+  { "uuid": "3f1357e7-55af-485c-ba2f-7d034407cdc6", "key": "idea", "label": "Idea", "description": "A way of working we think you'll like.", "icon": "lightbulb-outline", "color": "--ddd-primary-11", "order": 1, "appliesTo": ["update", "tip"] },
+  { "uuid": "1d0d9f37-8a0d-4b35-98c5-5a2612df1370", "key": "feature", "label": "Feature", "description": "Something HAX can do that it couldn't before.", "icon": "stars", "color": "--ddd-primary-2", "order": 2, "appliesTo": ["update", "tip"] },
+  { "uuid": "5b0e06db-a31a-4d78-844e-43ec30a66d16", "key": "block", "label": "Block", "description": "A new block you can add to pages.", "icon": "hax:add-brick", "color": "--ddd-primary-13", "order": 3, "appliesTo": ["update", "tip"] },
+  { "uuid": "27b03c16-2ef7-4dcc-a6c8-38ff69383cdb", "key": "theme", "label": "Theme", "description": "A new look for your site.", "icon": "image:palette", "color": "--ddd-primary-9", "order": 4, "appliesTo": ["update", "tip"] },
+  { "uuid": "cfa6e0f9-19ad-4a39-8643-00cafe45cc03", "key": "template", "label": "Template", "description": "A new starting point for sites.", "icon": "icons:content-copy", "color": "--ddd-primary-5", "order": 5, "appliesTo": ["update", "tip"] },
+  { "uuid": "00755a31-d075-4cbf-b77b-c32024fce8af", "key": "improvement", "label": "Improvement", "description": "Something that works better now.", "icon": "icons:trending-up", "color": "--ddd-primary-7", "order": 6, "appliesTo": ["update", "tip"] }
+]

@@ -1,0 +1,75 @@
+# Variables: `capture` stores a value from a step's result; later steps use it as {{$name}}.
+- id: mcp-001
+  title: "a token sees only operations marked x-hax-mcp, and read-only tokens only GETs"
+  operation: mcpDiscovery
+  given: "the log plugin (logList is x-hax-mcp) and a read-only token"
+  when: "discovery with the token"
+  then: "logList is offered; token routes are not (not marked x-hax-mcp)"
+  parityIgnore: [token, id]
+  run:
+    with: [core-plugins/log]
+    steps:
+      - call: { operation: mcpTokenCreate, body: { label: agent } }
+        capture: { token: body.token }
+        expect: { status: 200, body: { readOnly: true } }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { x-hax-mcp-token: "{{$token}}" } }
+        expect: { status: 200, body: { readOnly: true, operations: [{ operationId: logList }] }, notContains: [mcpTokenCreate, mcpTokenList] }
+- id: mcp-002
+  title: "discovery without a valid token is refused"
+  operation: mcpDiscovery
+  given: "no token, then a made-up one"
+  when: "discovery"
+  then: "401 both times"
+  run:
+    steps:
+      - call: { operation: mcpDiscovery, credentials: none }
+        expect: { status: 401 }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { x-hax-mcp-token: hax_mcp_made_up } }
+        expect: { status: 401 }
+- id: mcp-003
+  title: "calls carrying a token stay inside its scope"
+  hook: rest.before.request
+  given: "a read-only token limited to the log plugin"
+  when: "call logList, then the token routes"
+  then: "logList works; mcpTokenList is refused (not offered to MCP)"
+  parityIgnore: [token, id]
+  run:
+    with: [core-plugins/log]
+    steps:
+      - call: { operation: mcpTokenCreate, body: { plugins: [log] } }
+        capture: { token: body.token }
+        expect: { status: 200 }
+      - call: { operation: logList, headers: { x-hax-mcp-token: "{{$token}}" } }
+        expect: { status: 200 }
+      - call: { operation: mcpTokenList, headers: { x-hax-mcp-token: "{{$token}}" } }
+        expect: { status: 403, message: "may not call mcpTokenList" }
+- id: mcp-004
+  title: "a revoked token stops working"
+  operation: mcpTokenRevoke
+  given: "a token"
+  when: "revoke it, then use it"
+  then: "401"
+  parityIgnore: [token, id, revoked]
+  run:
+    steps:
+      - call: { operation: mcpTokenCreate, body: {} }
+        capture: { token: body.token, tokenId: body.id }
+        expect: { status: 200 }
+      - call: { operation: mcpTokenRevoke, params: { id: "{{$tokenId}}" } }
+        expect: { status: 200 }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { x-hax-mcp-token: "{{$token}}" } }
+        expect: { status: 401 }
+- id: mcp-005
+  title: "token lists never include secrets or hashes"
+  operation: mcpTokenList
+  given: "a token"
+  when: "list tokens"
+  then: "no token value, no hash"
+  parityIgnore: [token, id]
+  run:
+    steps:
+      - call: { operation: mcpTokenCreate, body: { label: agent } }
+        capture: { token: body.token }
+        expect: { status: 200 }
+      - call: { operation: mcpTokenList }
+        expect: { status: 200, body: { items: [{ label: agent }] }, absent: [hash], notContains: ["hax_mcp_"] }

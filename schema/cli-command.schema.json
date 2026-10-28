@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/cli-command.schema.json",
+  "title": "CLI command (registries/cli/*.yaml) - DRAFT",
+  "description": "A command a plugin adds to the hax CLI, exposed as `hax <plugin id> <command>` while the plugin is enabled. The CLI embeds the backend in-process, so it calls the plugin's operation directly with no network or credentials; the core CLI never names a plugin. A plugin may also declare a short top-level alias.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "command",
+    "summary",
+    "operation"
+  ],
+  "properties": {
+    "command": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "alias": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Optional top-level shortcut, so `hax <alias>` runs `hax <plugin id> <command>`. Declared by the plugin, never written into the CLI. Refused if it matches a core command (cli-reserved.json) or another enabled plugin's alias; the namespaced form always works."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One line for `hax <plugin id> --help`; translatable through the plugin's locale overlay."
+    },
+    "operation": {
+      "type": "string",
+      "description": "operationId in the plugin's contract."
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ]
+      },
+      "description": "Fixed query parameters."
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "flag",
+          "param"
+        ],
+        "properties": {
+          "flag": {
+            "type": "string",
+            "pattern": "^--[a-z][a-z0-9-]*$"
+          },
+          "param": {
+            "type": "string",
+            "description": "Query parameter it fills, e.g. filter[type]."
+          },
+          "type": {
+            "enum": [
+              "string",
+              "boolean",
+              "integer"
+            ],
+            "default": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "For boolean flags: the value sent when present."
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "string",
+          "description": "Dot path to the array to print; omit for a single item."
+        },
+        "line": {
+          "type": "string",
+          "description": "Template per item for human output, e.g. '{{label}}: {{description}}'. --json always prints the raw response."
+        }
+      }
+    }
+  }
+}

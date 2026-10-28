@@ -1,0 +1,52 @@
+- id: regions-001
+  title: "first enable moves metadata.theme.regions out of site.json and publishes the map"
+  given: "site.json with regions header [p1] and footerPrimary [p2]"
+  when: "enable regions"
+  then: "site.json has metadata.plugins.regions.map and no metadata.theme.regions"
+  run:
+    records:
+      site: { title: Site, metadata: { theme: { element: clean-one, regions: { header: [p1], footerPrimary: [p2] } } } }
+      page: [{ id: p1, title: Banner }, { id: p2, title: Footer }, { id: p3, title: Welcome }]
+    steps:
+      - enable: regions
+        expect: { status: 200 }
+      - record: { type: site }
+        expect: { subject: { metadata: { theme: { element: clean-one }, plugins: { regions: { map: { header: [p1], footerPrimary: [p2] } } } } }, notContains: ['"regions":{"header"'] }
+- id: regions-002
+  title: "region pages are fragments: left out of llms.txt"
+  hook: rebuild.before
+  given: "p1 in the header region"
+  when: "rebuild"
+  then: "p1 is a fragment; llms.txt lists p3 but not p1"
+  run:
+    records:
+      page: [{ id: p1, title: Banner }, { id: p3, title: Welcome }]
+    steps:
+      - config: { plugin: regions, values: { header: [{ node: p1 }] } }
+        expect: { status: 200 }
+      - rebuild: {}
+        expect: { body: { fragments: [p1] }, contains: [Welcome], notContains: [Banner] }
+- id: regions-003
+  title: "a region entry must be a page of this site"
+  hook: config.before.save
+  given: "header pointing at p9, which does not exist"
+  when: "save settings"
+  then: "vetoed"
+  run:
+    records: { page: [{ id: p1, title: Banner }] }
+    steps:
+      - config: { plugin: regions, values: { header: [{ node: p9 }] } }
+        expect: { status: 409, message: '"p9" is not a page of this site' }
+- id: regions-004
+  title: "deleting a region page warns"
+  hook: page.before.delete
+  given: "p1 in the header region"
+  when: "delete p1"
+  then: "a warning naming the region; the delete is not blocked"
+  run:
+    records: { page: [{ id: p1, title: Banner }] }
+    steps:
+      - config: { plugin: regions, values: { header: [{ node: p1 }] } }
+        expect: { status: 200 }
+      - fire: { hook: entity.before.delete, entity: page, subject: { id: p1, title: Banner } }
+        expect: { veto: false, warnings: ["shown in the header region"] }

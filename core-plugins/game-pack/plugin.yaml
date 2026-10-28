@@ -1,0 +1,19 @@
+# Game pack: the concept games recently added to the webcomponents monorepo (@haxtheweb/micro-game-base), grouped as a
+# pack so a site turns them on as a set. A course skeleton would enable it; a blog would not, keeping its block list short.
+# Declarative only (kind: pack): no backend code, safe at any tier. The elements are published elsewhere, so each entry
+# points at the package specifier instead of shipping files.
+specVersion: "0.1.0"
+id: game-pack
+uuid: 5a7c9e1b-3d5f-4a7c-9e1b-3d5f7a9c1e3b
+title: Learning games
+description: Concept quest, concept map and concept runner games as blocks authors can add to course pages.
+version: 0.1.0
+kind: pack
+category: assessment
+icon: hax:hax2022
+tags: [games, learning]
+siteTypes: [course]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+tagPrefix: concept-

@@ -1,0 +1,2 @@
+stores:
+  - { id: ticks, scope: site, file: ticks.json }

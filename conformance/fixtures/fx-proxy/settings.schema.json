@@ -1,0 +1,1 @@
+{"configure": [{"property": "key", "title": "Key", "inputMethod": "textfield", "required": true, "x-secret": true}]}

@@ -1,0 +1,14 @@
+# `hax announcements whats-new`: added to the CLI only while this plugin is enabled. The CLI runs the backend
+# in-process, so this calls announcementsListAll directly: no network, no credentials, the installed version's data.
+command: whats-new
+alias: whats-new                # so `hax whats-new` works too
+summary: What's new in this HAXcms
+operation: announcementsListAll
+query: { "filter[kind]": update }
+options:
+  - { flag: --type, param: "filter[type]", description: "Only one type: idea, feature, block, theme, template, improvement" }
+  - { flag: --since, param: "filter[sinceVersion]", description: "Only updates newer than this version" }
+  - { flag: --lang, param: lang }
+output:
+  items: items
+  line: "{{version}}  {{label}}: {{description}}"

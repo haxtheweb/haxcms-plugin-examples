@@ -1,0 +1,21 @@
+# WordPress importer: the second of core's twelve importers drafted as a plugin
+# (systemRoutes/v1/routes/imports/convertWordpressToSite.js). With importer-html it proves two implementers of
+# import.platform coexist: the contract is dispatched to the one the person picks, never to both.
+specVersion: "0.1.0"
+id: importer-wordpress
+uuid: 5a7c9e1f-3b5d-4f7a-8c9e-1f3b5d7a9c1e
+title: Import from WordPress
+description: Turns a WordPress export file (WXR) into a new site, keeping the page tree, order and drafts.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, wordpress]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+staticCapable: false

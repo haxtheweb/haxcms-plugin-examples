@@ -1,0 +1,199 @@
+- id: load-001
+  title: "a plugin with an unknown manifest key is rejected and disabled with a reason"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "plugins: [{id: bad, manifest: {surprise: true}}]"
+  when: "load"
+  then: "bad: disabled, reason mentions the key; boot continues"
+  run:
+    plugins: [fx-bad-manifest, fx-probe-a]
+    expect: { status_of: { fx-bad-manifest: refused, fx-probe-a: active }, log: { contains: ["surprise"] } }
+- id: load-002
+  title: "an invalid plugin never stops boot"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugins: [broken, good]"
+  when: "boot"
+  then: "good enabled; broken disabled with reason"
+  run:
+    plugins: [fx-bad-manifest, fx-future, fx-probe-a]
+    expect: { status_of: { fx-probe-a: active } }
+- id: load-003
+  title: "a plugin whose specVersion is newer than the loader is refused"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "plugin specVersion: 99.0.0"
+  when: "load"
+  then: "refused with a version message"
+  run:
+    plugins: [fx-future]
+    expect: { status_of: { fx-future: refused }, log: { contains: ["newer than this backend supports"] } }
+- id: load-004
+  title: "pack plugins never run backend code at any tier"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "kind: pack at tier site with backend flag off"
+  when: "load"
+  then: "enabled; no backend entry executed"
+  run:
+    validate: fx-pack-code
+    expect: { errors: ["must NOT be valid"] }
+- id: load-099
+  title: "a failure while enabling turns the plugin off with a reason"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin whose install hook throws"
+  when: "enable"
+  then: "plugin disabled with the error recorded; other plugins unaffected"
+  run:
+    plugins: [fx-enable-fails, fx-probe-a]
+    steps:
+      - enable: fx-enable-fails
+        expect: { status: 409, status_of: { fx-enable-fails: failed, fx-probe-a: active } }
+- id: load-100
+  title: "a parent plugin cannot be disabled while a dependent is enabled"
+  spec: spec/03-tiers-and-enablement.md
+  given: "A requires B, both enabled"
+  when: "disable B"
+  then: "409 listing A; disabling A first then B succeeds"
+  run:
+    plugins: [fx-probe-a, fx-dependent]
+    steps:
+      - disable: fx-probe-a
+        expect: { status: 409, body: { dependents: [fx-dependent] } }
+      - disable: fx-dependent
+        expect: { status: 200 }
+      - disable: fx-probe-a
+        expect: { status: 200, status_of: { fx-probe-a: disabled } }
+- id: load-101
+  title: "a plugin with unmet requirements is enabled but inactive"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin.before.requirements returns [{key: settings.greeting}]"
+  when: "enable"
+  then: "status enabled/inactive with the message; no hooks, routes or registries run; setting the value makes it active"
+  run:
+    plugins: [fx-needs-token]
+    steps:
+      - call: { operation: fxNeedsTokenPing }
+        expect: { status: 404, status_of: { fx-needs-token: inactive } }
+- id: load-102
+  title: "a system-enabled plugin cannot be disabled for one site"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin enabled at system level"
+  when: "disable --site mysite"
+  then: "refused with a message naming the system scope"
+- id: load-103
+  title: "enabling a declared conflict warns but succeeds"
+  spec: spec/03-tiers-and-enablement.md
+  given: "A conflicts: [B]; B enabled"
+  when: "enable A"
+  then: "A enabled; warning on dashboard, CLI and log"
+  run:
+    plugins: [fx-probe-a, fx-conflict]
+    expect: { status_of: { fx-conflict: active, fx-probe-a: active }, log: { contains: ["conflicts with fx-probe-a"] } }
+- id: load-104
+  title: "hooks run by priority then cascade"
+  spec: spec/06-hooks-and-contracts.md
+  given: "two plugins on render.after, priority 10 and 0"
+  when: "render"
+  then: "priority 10 runs first; equal priorities follow the cascade"
+  run:
+    plugins: [fx-notes, fx-probe-a, fx-probe-c]
+    steps:
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { log: { order: ["fx-probe-c:entity.before.create", "fx-probe-a:entity.before.create"] } }
+- id: load-105
+  title: "a site copy of a plugin overrides the system copy with a warning"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin x 1.0.0 at system, 1.1.0 at site"
+  when: "load for the site"
+  then: "1.1.0 used; warning names both versions"
+  run:
+    plugins: [{ path: fx-probe-a, tier: system-contrib }, { path: fx-probe-a, tier: site }]
+    expect: { log: { contains: ["site copy (0.1.0) overrides system-contrib copy (0.1.0)"] } }
+- id: load-106
+  title: "uninstall is refused while enabled and purges data when run"
+  spec: spec/09-packaging-tooling.md
+  given: "plugin enabled on one site with stored data"
+  when: "uninstall; then disable and uninstall"
+  then: "first refused; second runs uninstall hooks and removes the data and files"
+- id: load-107
+  title: "setting a required value activates the plugin"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin enabled/inactive waiting on settings.greeting"
+  when: "config set greeting hello"
+  then: "config.before.save and config.after.save fire; requirements re-run; status active"
+  run:
+    plugins: [fx-needs-token]
+    steps:
+      - config: { plugin: fx-needs-token, values: { token: abc } }
+        expect: { status_of: { fx-needs-token: active } }
+      - call: { operation: fxNeedsTokenPing }
+        expect: { status: 200, body: { pong: true } }
+- id: load-108
+  title: "importing a site with a missing plugin warns in that site's log"
+  spec: spec/03-tiers-and-enablement.md
+  given: "site.json lists plugin x 1.2.0; deployment lacks x"
+  when: "site added to the deployment"
+  then: "site works; warning in its log naming x and the version"
+- id: load-109
+  title: "disable clears render caches and rebuilds managed outputs"
+  spec: spec/06-hooks-and-contracts.md
+  given: "plugin that injects a singleton, page cached"
+  when: "disable"
+  then: "cache cleared; page re-renders without the singleton; disable hooks ran; data kept"
+- id: load-110
+  title: "overlapping scheduled runs skip"
+  spec: spec/06-hooks-and-contracts.md
+  given: "schedule run in progress holding the lock"
+  when: "second hax plugin schedule run"
+  then: "second run exits without running jobs and logs that it skipped"
+- id: load-111
+  title: "a hand-placed plugin needs confirmation to enable"
+  spec: spec/03-tiers-and-enablement.md
+  given: "plugin copied into the plugins folder without the CLI"
+  when: "enable from the dashboard"
+  then: "flagged not tested, not signed; enable proceeds only after the admin confirms; hax plugin verify clears the flag when checks pass"
+- id: load-112
+  title: "a blocked plugin cannot be enabled"
+  spec: spec/03-tiers-and-enablement.md
+  given: "deployment config mcp: {blocked: true}"
+  when: "enable mcp for a site"
+  then: "refused with the configured reason"
+  run:
+    plugins: [fx-probe-a]
+    load: { blocked: [fx-probe-a] }
+    expect: { status_of: { fx-probe-a: refused }, log: { contains: ["blocked by deployment config"] } }
+- id: load-113
+  title: "install runs the plugin's tests"
+  spec: spec/09-packaging-tooling.md
+  given: "plugin with a failing test case"
+  when: "hax plugin install"
+  then: "install stops and reports the failing case; --allow-failing-tests installs and records it"
+- id: load-114
+  title: "verify clears not-tested but not not-signed"
+  spec: spec/03-tiers-and-enablement.md
+  given: "unsigned plugin copied in by hand, flagged not tested and not signed"
+  when: "hax plugin verify <id> with passing checks"
+  then: "not tested cleared; not signed remains; plugin screen still links the CLI docs"
+- id: load-115
+  title: "a disabled plugin leaves no trace"
+  spec: spec/07-registries-settings-assets.md
+  given: "each plugin in turn disabled (required core plugins included, in a test deployment)"
+  when: "inspect every surface"
+  then: "its routes 404 and are absent from the served contract; absent from entities, contributions, Merlin, CLI help, agent-skills, prompts, blocks, themes, appstore; its hooks never run; the rest of HAX works"
+  run:
+    plugins: [fx-routes, fx-probe-a]
+    load: { disabled: [fx-routes, fx-probe-a] }
+    steps:
+      - call: { operation: fxRoutesSecret }
+        expect: { status: 404 }
+      - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
+        expect: { log: { notContains: ["fx-probe-a:"] } }
+- id: load-116
+  title: "core source never names a plugin"
+  spec: spec/01-principles.md
+  given: "backend and front-end source outside the plugins folders"
+  when: "scan for every plugin id, operationId, element tag and hook name a plugin defines"
+  then: "no matches, except the required core plugin list in deployment config"
+- id: load-117
+  title: "colliding CLI aliases are dropped, namespaced commands still work"
+  spec: spec/09-packaging-tooling.md
+  given: "plugins A and B both declare alias tips"
+  when: "hax tips; hax A tips; hax B tips"
+  then: "hax tips is not registered and the CLI warns naming both; the namespaced forms run"

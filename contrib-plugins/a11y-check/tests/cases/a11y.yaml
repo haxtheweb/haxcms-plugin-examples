@@ -1,0 +1,45 @@
+- id: a11y-check-001
+  title: "saving warns but does not block by default"
+  hook: page.before.save
+  given: "a page with an image without alt, a 'click here' link and an h2 then h4"
+  when: "the page is saved"
+  then: "saved, with three warnings"
+  run:
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "<h2>A</h2><h4>B</h4><img src=x.png><a href=/y>click here</a>" } }
+        expect: { veto: false, warnings: ["image without alt text", "link text does not say where it goes", "heading level skipped: h2 then h4"] }
+- id: a11y-check-002
+  title: "blockMissingAlt refuses the save; alt=\"\" passes"
+  hook: page.before.save
+  given: "blockMissingAlt on"
+  when: "save an image without alt, then with alt=\"\""
+  then: "vetoed, then saved"
+  run:
+    settings: { blockMissingAlt: true }
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "<img src=x.png>" } }
+        expect: { veto: true, message: "need alt text" }
+      - save: { type: page, record: { id: p1, title: One, content: "<img src=x.png alt=\"\">" } }
+        expect: { veto: false }
+- id: a11y-check-003
+  title: "the overlay appears in preview only"
+  hook: render.after.content
+  given: "a page with an image without alt"
+  when: "it renders in preview, then for publishing"
+  then: "preview has the note and outline; the published page has neither"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "<img src=x.png>" }, mode: preview }
+        expect: { contains: ['<aside class="a11y-check"', "outline:4px dashed"] }
+      - render: { page: { id: p1, content: "<img src=x.png>" }, mode: publish }
+        expect: { notContains: ["a11y-check", "outline:4px dashed"] }
+- id: a11y-check-004
+  title: "the report lists pages with problems, worst first"
+  given: "p1 clean, p2 one warning, p3 an error"
+  when: "GET /report"
+  then: "p3 then p2; p1 absent"
+  run:
+    records: { page: [{ id: p1, title: Clean, content: "<p>ok</p>" }, { id: p2, title: Warn, content: "<table><tr><td>1</td></tr></table>" }, { id: p3, title: Err, content: "<img src=a.png>" }] }
+    steps:
+      - call: { operation: a11yCheckReport }
+        expect: { status: 200, body: [{ page: p3 }, { page: p2 }], notContains: ['"p1"'] }

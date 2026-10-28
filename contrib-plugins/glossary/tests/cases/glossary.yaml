@@ -1,0 +1,34 @@
+- id: glossary-001
+  title: "terms are explained where they first appear, never inside links, headings or code"
+  hook: render.after.content
+  given: "terms API (alias APIs) and HTML"
+  when: "a page renders"
+  then: "the first API and first HTML in text are wrapped; the heading, link and code copies are not; the definition is escaped"
+  run:
+    records: { glossaryTerm: [{ uuid: t1, term: API, definition: "A way for <programs> to talk", aliases: [APIs] }, { uuid: t2, term: HTML, definition: The language of web pages }] }
+    steps:
+      - render: { page: { id: p1, content: "<h2>API basics</h2><p>Many APIs return HTML. An API is <a href=/x>an API</a>.</p><code>API</code>" } }
+        expect: { contains: ['<h2>API basics</h2>', '<glossary-term definition="A way for &lt;programs&gt; to talk">APIs</glossary-term>', '<glossary-term definition="The language of web pages">HTML</glossary-term>', 'An API is <a href=/x>an API</a>', '<code>API</code>'] }
+- id: glossary-002
+  title: "duplicates are refused for every writer, through the entity hooks"
+  hook: entity.before.create
+  given: "API exists"
+  when: "the route adds 'api', then a term is saved directly as an entity with alias API"
+  then: "409 both times"
+  run:
+    records: { glossaryTerm: [{ uuid: t1, term: API, definition: d }] }
+    steps:
+      - call: { operation: glossaryCreate, body: { term: api, definition: again } }
+        expect: { status: 409 }
+      - save: { type: glossaryTerm, record: { uuid: t9, term: Interface, definition: x, aliases: [API] } }
+        expect: { veto: true, message: "already in the glossary" }
+- id: glossary-003
+  title: "visitors may read the glossary"
+  given: "one term"
+  when: "an anonymous call lists terms"
+  then: "200"
+  run:
+    records: { glossaryTerm: [{ uuid: t1, term: API, definition: d }] }
+    steps:
+      - call: { operation: glossaryList, credentials: none }
+        expect: { status: 200, body: [{ term: API }] }

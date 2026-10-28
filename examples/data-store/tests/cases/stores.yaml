@@ -1,0 +1,68 @@
+- id: data-store-001
+  title: "upgrade 0.2.0 moves votes out of site.json into the votes store"
+  given: "a site with 0.1.0 votes at metadata.plugins.data-store.votes"
+  when: "upgrade from 0.1.0"
+  then: "votes readable from the store; the old key is gone from site.json"
+  run:
+    records: { site: { title: Old site, metadata: { plugins: { data-store: { votes: { p1: 3, p2: 1 } } } } } }
+    steps:
+      - call: { operation: dataStoreListVotes }
+        expect: { status: 200, body: { p1: 3, p2: 1 } }
+      - upgrade: { plugin: data-store, from: 0.1.0 }
+        expect: { status: 200, body: { ran: ["0.2.0"] } }
+      - record: { type: site }
+        expect: { notContains: ['"votes"'] }
+      - call: { operation: dataStoreListVotes }
+        expect: { status: 200, body: { p1: 3, p2: 1 } }
+- id: data-store-002
+  title: "notes are only readable by their owner"
+  given: "user u1 writes a note"
+  when: "u2 reads it"
+  then: "403; u1 gets it"
+  run:
+    steps:
+      - call: { operation: dataStoreCreateNote, body: { body: "my note" } }
+        expect: { status: 200, body: { uuid: note-1, userId: u1 } }
+      - asUser: { id: u2, name: other, displayName: Other, roles: [editor], avatar: null }
+      - call: { operation: dataStoreGetNote, params: { uuid: note-1 } }
+        expect: { status: 403 }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: dataStoreGetNote, params: { uuid: note-1 } }
+        expect: { status: 200, body: { body: "my note" } }
+- id: data-store-003
+  title: "core exports and erases a user's personal data without plugin code"
+  given: "notes from u1 and u2"
+  when: "export then erase u1"
+  then: "export lists only u1's notes; erase removes them and keeps u2's"
+  runtimes: [nodejs]
+  run:
+    stores: { notes: [{ uuid: n1, userId: u1, body: a }, { uuid: n2, userId: u2, body: b }] }
+    steps:
+      - exportUser: u1
+        expect: { body: { data-store.notes: [{ uuid: n1 }] }, notContains: ['"n2"'] }
+      - eraseUser: u1
+        expect: { body: { removed: 1 } }
+      - exportUser: u1
+        expect: { notContains: ['"n1"'] }
+- id: data-store-004
+  title: "a manifest store lives inside site.json"
+  given: "no badge yet"
+  when: "set the badge"
+  then: "site.json has metadata.plugins.data-store.badge"
+  run:
+    steps:
+      - call: { operation: dataStoreSetBadge, body: { label: Gold } }
+        expect: { status: 200, body: { label: Gold } }
+      - record: { type: site }
+        expect: { subject: { metadata: { plugins: { data-store: { badge: { label: Gold } } } } } }
+- id: data-store-005
+  title: "votes accumulate in the site store"
+  given: "no votes"
+  when: "vote twice for p1"
+  then: "p1 has 2"
+  run:
+    steps:
+      - call: { operation: dataStoreVote, params: { pageId: p1 } }
+        expect: { body: { votes: 1 } }
+      - call: { operation: dataStoreVote, params: { pageId: p1 } }
+        expect: { body: { votes: 2 } }
