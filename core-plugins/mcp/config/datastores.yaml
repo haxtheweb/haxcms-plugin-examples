@@ -1,2 +1,0 @@
-stores:
-  - { id: tokens, scope: system, file: tokens.json }   # token hashes, never the tokens themselves

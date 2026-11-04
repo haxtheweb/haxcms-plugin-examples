@@ -1,0 +1,12 @@
+# Provider contract this plugin defines. A plugin that accepts OAuth tokens (mcp) lists it in `implements`, depends on
+# oauth, and provides both operations. oauth calls the implementer the token was issued for, never the others.
+contracts:
+  oauth.resource:
+    description: Something tokens can be issued for (an audience), with the scopes it accepts and the rule for each call
+    dispatch: chosen
+    # describe: input {} ->
+    #   { resource: "<absolute URL, the RFC 8707 audience>", title, scopes: [{ scope, title, description, write? }] }
+    #   or { error } when the resource is not configured. Write scopes are only offered when the resource allows them.
+    # check: input { grant: { id, user, client_id, resource, scopes, site }, request: { operationId, method, path, plugin } } ->
+    #   { allow: true } or { allow: false, message }. Runs on every request that carries a token for this resource.
+    operations: [describe, check]

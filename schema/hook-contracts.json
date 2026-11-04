@@ -532,7 +532,7 @@
     "veto": true,
     "detachable": false,
     "comment": "check or adjust the request before the handler runs, or refuse it",
-    "example": "**rate-limit-plus** applies a stricter limit per token; **mcp** checks the scoped token's site and read-only flag",
+    "example": "**rate-limit-plus** applies a stricter limit per token; **oauth** checks its tokens and asks the resource they were issued for (mcp) whether the call is allowed",
     "common": true
   },
   {

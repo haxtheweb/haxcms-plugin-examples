@@ -1,111 +1,85 @@
 <?php
 // MCP access (PHP). Mirrors src/nodejs/index.js.
+// Tokens come from the oauth plugin: this plugin only says what an MCP token is for (describe) and what it may call
+// (check). The oauth plugin verifies the token and passes the grant on in the x-hax-oauth-grant header.
 class McpPlugin {
-  const HEADER = 'x-hax-mcp-token';
-  private function hash($t) { return hash('sha256', (string) $t); }
-  private function findToken($ctx, $raw) {
-    if (!$raw) { return null; }
-    foreach ($ctx->storage->read('tokens') ?: [] as $t) {
-      if ($t['hash'] === $this->hash($raw)) {
-        if (!empty($t['revoked']) || (!empty($t['expires']) && $t['expires'] < $ctx->now())) { return null; }
-        return $t;
-      }
+  const GRANT_HEADER = 'x-hax-oauth-grant';
+  const READ = 'mcp:read';
+  const WRITE = 'mcp:write';
+
+  private function writesAllowed($ctx) { return ($ctx->settings['readOnly'] ?? true) === false; }
+  private function isWrite($method) { return strtoupper((string) ($method ?: 'GET')) !== 'GET'; }
+
+  /** The grant the oauth plugin verified for this request, or null (it removes any copy a client sends). */
+  private function grantOf($ctx, $req) {
+    $g = json_decode((string) ($req['headers'][self::GRANT_HEADER] ?? 'null'), true);
+    if (!is_array($g) || ($g['resource'] ?? null) !== ($ctx->settings['serverUrl'] ?? null) || !in_array(self::READ, $g['scopes'] ?? [], true)) { return null; }
+    return $g;
+  }
+
+  /**
+   * Implements contract oauth.resource, operation describe.
+   *
+   * Names the haxcms-mcp server URL as the audience tokens are issued for, with mcp:read always and mcp:write only when this instance allows writes.
+   *
+   * @param object $ctx    Platform context (spec/13); settings.serverUrl, readOnly.
+   * @param array  $input  Unused.
+   * @return array  [resource, title, scopes], or [error] when the server URL is not set.
+   */
+  public function oauthResourceDescribe($ctx, $input) {
+    if (empty($ctx->settings['serverUrl'])) { return ['error' => 'serverUrl is not set']; }
+    $scopes = [['scope' => self::READ, 'title' => 'Read your sites', 'description' => 'See your sites, pages, files and settings, as you can', 'write' => false]];
+    if ($this->writesAllowed($ctx)) { $scopes[] = ['scope' => self::WRITE, 'title' => 'Change your sites', 'description' => 'Create, edit and delete pages, files and sites, as you can', 'write' => true]; }
+    return ['resource' => $ctx->settings['serverUrl'], 'title' => 'MCP (AI agents)', 'scopes' => $scopes];
+  }
+
+  /**
+   * Implements contract oauth.resource, operation check.
+   *
+   * Decides what an MCP token may call: reads need mcp:read; writes need mcp:write and an instance that allows writes; a plugin operation must be marked x-hax-mcp; a token bound to a site stays on that site.
+   *
+   * @param object $ctx    Platform context (spec/13); settings.readOnly; site.
+   * @param array  $input  [grant => [scopes, site], request => [operationId, method, path, plugin]].
+   * @return array  [allow => true] or [allow => false, message].
+   */
+  public function oauthResourceCheck($ctx, $input) {
+    $g = $input['grant'] ?? [];
+    $r = $input['request'] ?? [];
+    $scopes = $g['scopes'] ?? [];
+    if (!in_array(self::READ, $scopes, true)) { return ['allow' => false, 'message' => 'this token has no mcp:read scope']; }
+    if (($r['operationId'] ?? null) === 'mcpDiscovery') { return ['allow' => true]; }
+    if ($this->isWrite($r['method'] ?? null) && !($this->writesAllowed($ctx) && in_array(self::WRITE, $scopes, true))) { return ['allow' => false, 'message' => 'this MCP token is read-only']; }
+    if (!empty($r['plugin'])) {
+      $op = null;
+      foreach ($ctx->plugins->operations([]) as $o) { if ($o['operationId'] === ($r['operationId'] ?? null)) { $op = $o; } }
+      if (!$op || empty($op['mcp'])) { return ['allow' => false, 'message' => ($r['operationId'] ?? '') . ' is not offered to MCP']; }
     }
-    return null;
-  }
-  private function allowed($t, $op) {
-    return (empty($t['plugins']) || in_array($op['plugin'], $t['plugins'], true)) && (empty($t['readOnly']) || $op['method'] === 'GET') && !empty($op['mcp']);
-  }
-
-  /**
-   * Implements operation mcpTokenCreate.
-   *
-   * Issues a new MCP token, scoped to a site, a list of plugins and read-only or not, and stores only its hash; the raw token is returned once.
-   *
-   * @param object $ctx  Platform context (spec/13); settings.readOnlyDefault.
-   * @param array  $req  body: [label, site, readOnly, plugins, expiresInDays].
-   * @return array  [id, token, readOnly, plugins, site].
-   */
-  public function mcpTokenCreate($ctx, $req) {
-    $b = $req['body'] ?? [];
-    $token = 'hax_mcp_' . bin2hex(random_bytes(24));
-    $record = ['id' => 'tok-' . bin2hex(random_bytes(4)), 'label' => (string) ($b['label'] ?? ''), 'site' => $b['site'] ?? null, 'readOnly' => $b['readOnly'] ?? (($ctx->settings['readOnlyDefault'] ?? true) !== false), 'plugins' => $b['plugins'] ?? [], 'expires' => !empty($b['expiresInDays']) ? $ctx->now() + $b['expiresInDays'] * 86400000 : null, 'hash' => $this->hash($token)];
-    $tokens = $ctx->storage->read('tokens') ?: [];
-    $tokens[] = $record;
-    $ctx->storage->write('tokens', $tokens);
-    return ['id' => $record['id'], 'token' => $token, 'readOnly' => $record['readOnly'], 'plugins' => $record['plugins'], 'site' => $record['site']];
-  }
-
-  /**
-   * Implements operation mcpTokenList.
-   *
-   * Lists the tokens that are not revoked, without their hashes.
-   *
-   * @param object $ctx  Platform context (spec/13).
-   * @param array  $req  Unused.
-   * @return array  [items].
-   */
-  public function mcpTokenList($ctx, $req) {
-    $items = [];
-    foreach ($ctx->storage->read('tokens') ?: [] as $t) { if (empty($t['revoked'])) { unset($t['hash']); $items[] = $t; } }
-    return ['items' => $items];
-  }
-
-  /**
-   * Implements operation mcpTokenRevoke.
-   *
-   * Marks a token revoked so later calls carrying it are refused.
-   *
-   * @param object $ctx  Platform context (spec/13).
-   * @param array  $req  params.id: the token id.
-   * @return array  [revoked => id], or [status => 404, body => [error]].
-   */
-  public function mcpTokenRevoke($ctx, $req) {
-    $tokens = $ctx->storage->read('tokens') ?: [];
-    foreach ($tokens as $i => $t) {
-      if ($t['id'] === $req['params']['id'] && empty($t['revoked'])) { $tokens[$i]['revoked'] = true; $ctx->storage->write('tokens', $tokens); return ['revoked' => $t['id']]; }
-    }
-    return ['status' => 404, 'body' => ['error' => 'not found']];
+    $site = $ctx->site;
+    if (!empty($g['site']) && $site && strpos((string) ($r['path'] ?? ''), '/x/api/') === 0 && $g['site'] !== ($site['name'] ?? null) && $g['site'] !== ($site['id'] ?? null)) { return ['allow' => false, 'message' => 'this MCP token is for the site ' . $g['site']]; }
+    return ['allow' => true];
   }
 
   /**
    * Implements operation mcpDiscovery.
    *
-   * Tells an MCP client what its token may use: the MCP-enabled operations and prompts inside the token's plugin and read-only scope.
+   * Tells the MCP server what the calling token may use: the operations marked x-hax-mcp within its read-only state, and every plugin's prompts.
    *
    * @param object $ctx  Platform context (spec/13).
-   * @param array  $req  headers[x-hax-mcp-token]: the raw token.
-   * @return array  [site, readOnly, operations, prompts], or [status => 401, body => [error]].
+   * @param array  $req  headers[x-hax-oauth-grant]: set by the oauth plugin for a valid MCP token.
+   * @return array  [site, readOnly, scopes, operations, prompts], or [status => 401, body => [error]].
    */
   public function mcpDiscovery($ctx, $req) {
-    $t = $this->findToken($ctx, $req['headers'][self::HEADER] ?? null);
-    if (!$t) { return ['status' => 401, 'body' => ['error' => 'missing, unknown, revoked or expired MCP token']]; }
+    $g = $this->grantOf($ctx, $req);
+    if (!$g) { return ['status' => 401, 'body' => ['error' => 'an MCP token from the oauth plugin is required']]; }
+    $readOnly = !($this->writesAllowed($ctx) && in_array(self::WRITE, $g['scopes'], true));
     $ops = [];
-    foreach ($ctx->plugins->operations(['mcp' => true]) as $op) { if ($this->allowed($t, $op)) { $ops[] = ['plugin' => $op['plugin'], 'operationId' => $op['operationId'], 'method' => $op['method'], 'path' => $op['path'], 'summary' => $op['summary']]; } }
+    foreach ($ctx->plugins->operations(['mcp' => true]) as $op) {
+      if (!$readOnly || !$this->isWrite($op['method'])) { $ops[] = ['plugin' => $op['plugin'], 'operationId' => $op['operationId'], 'method' => $op['method'], 'path' => $op['path'], 'summary' => $op['summary']]; }
+    }
     $prompts = [];
     foreach ($ctx->plugins->prompts() as $p) {
-      if (($p['mcp'] ?? true) !== false && (empty($t['plugins']) || in_array($p['plugin'], $t['plugins'], true))) { $prompts[] = ['plugin' => $p['plugin'], 'id' => $p['id'], 'title' => $p['title'], 'prompt' => $p['prompt']]; }
+      if (($p['mcp'] ?? true) !== false) { $prompts[] = ['plugin' => $p['plugin'], 'id' => $p['id'], 'title' => $p['title'], 'prompt' => $p['prompt']]; }
     }
-    return ['site' => $t['site'], 'readOnly' => $t['readOnly'], 'operations' => $ops, 'prompts' => $prompts];
+    return ['site' => $g['site'] ?? null, 'readOnly' => $readOnly, 'scopes' => $g['scopes'], 'operations' => $ops, 'prompts' => $prompts];
   }
-
-  /**
-   * Implements hook rest.before.request.
-   *
-   * Every call carrying an MCP token must have a valid token and stay inside its scope; otherwise the call is vetoed with 401 or 403. Calls without the header, and mcpDiscovery itself, pass through.
-   *
-   * @param object $ctx  subject: the incoming request [headers, operationId].
-   * @return mixed  null, or a veto.
-   */
-  public function restBeforeRequest($ctx) {
-    $raw = $ctx->subject['headers'][self::HEADER] ?? null;
-    if (!$raw || ($ctx->subject['operationId'] ?? '') === 'mcpDiscovery') { return null; }
-    $t = $this->findToken($ctx, $raw);
-    if (!$t) { return $ctx->veto('missing, unknown, revoked or expired MCP token', 401); }
-    foreach ($ctx->plugins->operations([]) as $op) {
-      if ($op['operationId'] === $ctx->subject['operationId']) { return $this->allowed($t, $op) ? null : $ctx->veto("this MCP token may not call {$ctx->subject['operationId']}", 403); }
-    }
-    return $ctx->veto("this MCP token may not call {$ctx->subject['operationId']}", 403);
-  }
-
 }
