@@ -17,6 +17,11 @@ entry:
 datastores: config/datastores.yaml
 openapi: config/openapi.yaml
 staticCapable: false
+# The core Insights screen turns its outside-link checks on when an enabled plugin provides link.status
+# (spec/07, Front-end extension points); it never looks for this plugin by id.
+implements:
+  - name: insights.check
+    provides: [link.status]
 capabilities: ["items:read", "network:egress"]
 egress:
   - any: true

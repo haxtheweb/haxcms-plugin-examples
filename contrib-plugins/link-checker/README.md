@@ -10,6 +10,7 @@ It must reach hosts nobody can list in advance, so `egress` is `{ any: true, rea
 | Kind | Name | Runs when | What this plugin does |
 |---|---|---|---|
 | operation | `linkCheckerReport` | `GET /x/api/v1/plugins/<id>/report` (bearerAuth) | Returns the report from the last weekly check. |
+| contract | `insights.check` check | core calls it (provides) | Gives the Insights screen the link.status result: the saved weekly report as findings, or a new check first when the screen asks for fresh results. |
 | schedule | `check` | `17 3 * * 1` | Sends one HEAD request to each distinct outside link on listed pages, every Monday, and stores a report of those that answer 4xx/5xx, are unreachable or are refused as private addresses. |
 
 Each code row matches a docblock (`Implements hook ...`, `Implements operation ...`) directly above the implementation in `src/nodejs`.

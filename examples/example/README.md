@@ -133,6 +133,7 @@ The hook sections of `plugin.yaml` and both entries are generated from `schema/h
 | theme | `awesome-explosions-theme` |  | A theme where everything explodes. |
 | skeleton | `skeleton` |  |  |
 | appstore app | `Awesome explosions` |  | Search a fictional explosion image library. |
+| dashboard | `explosions-insights` |  | Explosions |
 | dashboard | `explosions` |  | Recent explosions |
 | CLI command | `hax example explosions` |  | List recent explosions |
 | Merlin | `program` |  |  |

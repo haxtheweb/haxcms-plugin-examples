@@ -51,11 +51,13 @@ export default {
 };
 ```
 
-Plugins that implement a contract add `contracts: { "<contract>": { <operation>: async (ctx, input) => result } }`. Core contracts are listed in `schema/core-contracts.yaml` (`import.platform`, `log.sink`, `privacy.export`, `privacy.delete`); core calls every active implementer.
+Plugins that implement a contract add `contracts: { "<contract>": { <operation>: async (ctx, input) => result } }`. Core contracts are listed in `schema/core-contracts.yaml` (`import.platform`, `import.file`, `log.sink`, `privacy.export`, `privacy.delete`, `insights.check`); core calls the active implementers its dispatch rule selects.
 
 **PHP** (`entry.php`). The file defines one class, `<StudlyId>Plugin` (`announcements` → `AnnouncementsPlugin`, `data-store` → `DataStorePlugin`). Operations are public methods named exactly as the `operationId`; hooks are public methods named by camel-casing the hook (`page.before.save` → `pageBeforeSave`); schedule handlers are public methods named as in `schedules`; contract operations are methods named camel(contract) + Studly(operation) (`import.platform` `convert` → `importPlatformConvert`). One instance per process.
 
 Both runtimes keep logic in plain modules the entry calls (the announcements plugin does this), so the two can be compared call for call.
+
+**Logic shared with the front end.** Analysis that also runs in the browser (Insights' static checks, which the site editor runs before any backend support exists) lives once as a pure ES module under `src/shared/`: no I/O, no globals, input in and plain data out. The Node entry and the front-end element import the same file; the PHP entry ports it, and the plugin's executable cases run the same fixtures through both runtimes (section 9), so the three cannot drift silently. A core required plugin must list both runtimes (spec/02); being shared with the front end does not change that.
 
 ## 4. The context object (`ctx`)
 
@@ -92,7 +94,7 @@ Passed to every hook, operation and scheduled job. Node uses properties and meth
 | `hooks.fire(name, subject, { previous })` | everywhere | fire a hook **this plugin defines** (`hookDefinitions`, or a core contract whose `definedBy` is this plugin, such as `git.*` for `git`); returns `{ subject, veto?, warnings }` after every subscriber ran. Core hooks are fired by the platform only |
 | `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` / `entities.delete(type, id)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, `config` (`core` is the core configuration, for moving settings such as API keys out of it), and entity types other plugins define. `list("page", { listed: true })` returns only what an anonymous visitor can open: published (`metadata.published` not false), not hidden from the menu (`metadata.hideInMenu`), and not a fragment named by `rebuild.before` (region content). Feeds, sitemaps, search indexes and `llms.txt` all use this one rule. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`, `settings:read` for config), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto?, conflict? }`. A record that changed after this plugin read it is refused with `conflict: true` instead of overwriting the other change: re-read and save again |
 | `pluginEnabled(id)` | everywhere | whether another plugin is enabled and active in this scope |
-| `transaction` | everywhere | `{ id, origin, bulk, operations, marks, run(fn, { bulk, origin }) }` (spec/06, Transactions). In PHP `transaction` is an array and `run` is spelled `$ctx->runTransaction($fn, $opts)` |
+| `transaction` | everywhere | `{ id, origin, bulk, atomic, operations, marks, ok?, failed?, run(fn, { bulk, origin, atomic }) }` (spec/06, Transactions; `atomic` is opt-in and `run` rejects when an atomic transaction rolls back). In PHP `transaction` is an array and `run` is spelled `$ctx->runTransaction($fn, $opts)`, which throws on rollback |
 
 | `exec(cmd, args, { cwd?, timeout?, input?, files? })` | everywhere | run a command from the plugin's `exec` list (needs `exec:run`) with an argument list, never a shell; returns `{ code, stdout, stderr }`. `files: { name: { content, mode? } }` are written to a private temp folder for the length of the run and removed afterwards; arguments refer to it as `{tmp}` (an SSH key for rsync never touches the site or the log). Timeout 60 s by default. A command outside the list is refused. Test harnesses answer `exec` from fakes (`run.exec` in a case) and record each call |
 
@@ -109,6 +111,7 @@ A plugin that changes its data shape between versions ships one step per version
 - **Handler signature.** `(ctx, request)` where `request` is `{ params, query, body, headers, files }`.
 - **Response.** Return `{ status, headers?, body }`, or a plain value meaning `200` with that body. `body` may be bytes for binary responses. A value is read as a response only when `status` is an integer and it has no keys other than `status`, `headers` and `body`; a record that happens to have `status` and `body` fields (a comment whose status is `"pending"`) is a plain value. To return a record that would match, wrap it: `{ status: 200, body: record }`.
 - **Errors.** A thrown error becomes `500` with a generic message; the detail goes to the log only. A veto from a hook inside the operation becomes its status (default `409`) with the veto message.
+- **Atomic operations.** `x-hax-transaction: atomic` (per operation, or at the document root as a default) runs the handler inside one atomic transaction (spec/06): if it throws or vetoes, every write it made is put back and the response says `rolledBack: true`. Leave it out for the default behaviour. Any other value is rejected by the validator.
 - **Front end.** Every operation is callable from the dashboard as `@system/<operationId>` or `@site/<operationId>`, registered from the contract.
 
 ## 6. Hook dispatch
@@ -128,7 +131,8 @@ A plugin that changes its data shape between versions ships one step per version
 ## 8. What the backend serves for other surfaces
 
 - `GET /system/api/v1/plugins`: the plugin list (status, health, derived tags, dependents, conflicts).
-- `GET /system/api/v1/plugins/contributions`: dashboard contributions, Merlin declarations, `admin` elements and locale overlays from active plugins. Both credentials.
+- `GET /system/api/v1/plugins/contributions`: dashboard contributions, Merlin declarations, `admin` elements, locale overlays and advertised `contracts` from active plugins. Both credentials.
+- `GET /x/api/v1/plugins/contributions`: the same for one site's admin screens: site-surface contributions, site-scope Merlin declarations, locale overlays and advertised `contracts` from plugins enabled for that site. Site credentials. `contributions` is therefore a reserved plugin id.
 - The site's appstore payload and `wc-registry.json` include plugin fragments at rebuild time (spec/07).
 - `.well-known/agent-skills` includes active plugins' `site` (per site) and `system` (system front end) skills at rebuild.
 - The CLI, which embeds the Node backend in-process, reads `registries/cli/` of active plugins.

@@ -346,3 +346,70 @@
                 steps:
                   - fire: { hook: entity.after.update, entity: page, subject: { id: p1 } }
         expect: { log: { count: { "fx-probe-a:transaction.before.start": 1, "fx-probe-a:transaction.after.end": 1 } } }
+- id: hook-100
+  title: "an atomic operation that fails puts back everything it wrote"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an operation declared x-hax-transaction: atomic saves three pages and a file, and throws before the third page"
+  when: "it is called"
+  then: "500; neither saved page nor the file exists afterwards; marked work is dropped; a later call that succeeds keeps all three pages"
+  run:
+    plugins: [fx-atomic, fx-tx]
+    steps:
+      - call: { operation: fxAtomicSaveAll, body: { file: files/alt-review.txt, failAt: 2, pages: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }, { id: p3, title: Three, content: "" }] } }
+        expect: { status: 500, body: { rolledBack: true }, log: { contains: ["fx-atomic failed at 2"], notContains: ["fx-tx reindex"] } }
+      - record: { type: page, id: p1 }
+        expect: { subject: null }
+      - record: { type: page, id: p2 }
+        expect: { subject: null }
+      - siteFile: files/alt-review.txt
+        expect: { body: { exists: false } }
+      - call: { operation: fxAtomicSaveAll, body: { pages: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }, { id: p3, title: Three, content: "" }] } }
+        expect: { status: 200, body: { saved: 3 }, log: { contains: ["fx-tx reindex 3 pages once"] } }
+      - record: { type: page, id: p3 }
+        expect: { subject: { id: p3, title: Three } }
+- id: hook-101
+  title: "a veto inside an atomic operation keeps its status and rolls back"
+  spec: spec/06-hooks-and-contracts.md
+  given: "the atomic operation vetoes with 422 before its second page"
+  when: "it is called"
+  then: "422 with the veto message; the first page was not kept"
+  run:
+    plugins: [fx-atomic]
+    steps:
+      - call: { operation: fxAtomicSaveAll, body: { vetoAt: 1, pages: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }] } }
+        expect: { status: 422, body: { error: "fx-atomic refused page 1", rolledBack: true } }
+      - record: { type: page, id: p1 }
+        expect: { subject: null }
+- id: hook-102
+  title: "without atomic, a failing operation keeps what it already wrote (the default, unchanged)"
+  spec: spec/06-hooks-and-contracts.md
+  given: "the same work in an operation that does not declare x-hax-transaction"
+  when: "it throws before the third page"
+  then: "500; the first two pages stay saved, as the outline editor's save does today"
+  run:
+    plugins: [fx-atomic]
+    steps:
+      - call: { operation: fxAtomicPlain, body: { failAt: 2, pages: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }, { id: p3, title: Three, content: "" }] } }
+        expect: { status: 500 }
+      - record: { type: page, id: p2 }
+        expect: { subject: { id: p2, title: Two } }
+- id: hook-103
+  title: "ctx.transaction.run with atomic rolls back and rejects; it cannot join a non-atomic transaction"
+  spec: spec/06-hooks-and-contracts.md
+  given: "an operation opens ctx.transaction.run(fn, { atomic: true }) and fn throws; later the same is tried inside an open bulk transaction"
+  when: "each is called"
+  then: "the first rejects with the error and keeps nothing; the second is refused before any write"
+  run:
+    plugins: [fx-atomic]
+    steps:
+      - call: { operation: fxAtomicRun, body: { failAt: 1, pages: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }] } }
+        expect: { status: 409, body: { error: "fx-atomic failed at 1" } }
+      - record: { type: page, id: p1 }
+        expect: { subject: null }
+      - transaction:
+          origin: outline
+          steps:
+            - call: { operation: fxAtomicRun, body: { pages: [{ id: p9, title: Nine, content: "" }] } }
+              expect: { status: 409, body: { error: "an atomic transaction cannot join the open non-atomic one (outline)" } }
+      - record: { type: page, id: p9 }
+        expect: { subject: null }

@@ -23,7 +23,12 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
       "maxLength": 64,
-      "description": "Folder name; kebab-case; unique within a tier."
+      "description": "Folder name; kebab-case; unique within a tier. `contributions` is reserved: it names the listing routes under /system/api/v1/plugins/ and /x/api/v1/plugins/.",
+      "not": {
+        "enum": [
+          "contributions"
+        ]
+      }
     },
     "uuid": {
       "type": "string",
@@ -313,12 +318,22 @@
                   "pattern": "^\\.[a-z0-9]+$"
                 },
                 "description": "For contracts dispatched by file type (import.file): the file extensions this implementer converts."
+              },
+              "provides": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)+$"
+                },
+                "description": "For contracts that dispatch by what is provided (insights.check): the named results this implementer produces, such as link.status. Advertised to the front end by contract name and these names, never by plugin id, so a core screen can turn a feature on when some enabled plugin provides it."
               }
             }
           }
         ]
       },
-      "description": "Core (or plugin-defined) contracts this plugin implements. An entry is the contract name, or { name, accepts } when the contract dispatches by file type."
+      "description": "Core (or plugin-defined) contracts this plugin implements. An entry is the contract name, or { name, accepts } when the contract dispatches by file type, or { name, provides } when it dispatches by named result."
     },
     "hooks": {
       "type": "array",
