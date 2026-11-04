@@ -1,0 +1,9 @@
+entities:
+  mediaItem:
+    extends: file                  # every file field, same primary key; hooks on file also see mediaItem
+    store: media
+    fields:
+      alt: { type: string, note: "empty string means decorative" }
+      decorative: { type: boolean }
+      credit: { type: string }
+      license: { type: string }

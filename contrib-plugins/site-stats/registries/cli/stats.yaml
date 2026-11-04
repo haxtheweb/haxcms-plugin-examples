@@ -1,0 +1,9 @@
+command: report
+alias: site-stats           # hax site-stats
+summary: Pages, words and blocks in this site
+operation: siteStatsReport
+options:
+  - { flag: --public, param: public, description: "Count only pages visitors can open" }
+  - { flag: --top, param: top, description: "How many blocks to list (default 10)" }
+output:
+  line: "{{pages}} pages, {{words}} words, {{blockTypes}} kinds of block"

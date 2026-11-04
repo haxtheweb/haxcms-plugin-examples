@@ -1,0 +1,47 @@
+- id: importer-wordpress-001
+  title: "pages keep their tree and order, posts follow, drafts stay unpublished, trash is dropped, media is listed"
+  given: "a WXR export with a parent page, a child page, a draft post, a trashed page and an image"
+  when: "core calls import.platform convert on importer-wordpress"
+  then: "three items in page-then-post order with parent links; the draft has published false; files lists the image"
+  run:
+    steps:
+      - contract:
+          name: import.platform
+          op: convert
+          plugin: importer-wordpress
+          input:
+            xml: |
+              <?xml version="1.0"?><rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>My Blog</title>
+              <item><title>About</title><wp:post_id>10</wp:post_id><wp:post_type>page</wp:post_type><wp:status>publish</wp:status><wp:post_name>about</wp:post_name><wp:post_parent>0</wp:post_parent><wp:menu_order>1</wp:menu_order><content:encoded><![CDATA[Hello
+
+              World<script>x()</script>]]></content:encoded></item>
+              <item><title>Team</title><wp:post_id>11</wp:post_id><wp:post_type>page</wp:post_type><wp:status>publish</wp:status><wp:post_name>team</wp:post_name><wp:post_parent>10</wp:post_parent><wp:menu_order>2</wp:menu_order><content:encoded><![CDATA[<p>Us</p>]]></content:encoded></item>
+              <item><title>Draft idea</title><wp:post_id>20</wp:post_id><wp:post_type>post</wp:post_type><wp:status>draft</wp:status><wp:post_name>draft-idea</wp:post_name><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><content:encoded><![CDATA[<p>Soon</p>]]></content:encoded></item>
+              <item><title>Old</title><wp:post_id>12</wp:post_id><wp:post_type>page</wp:post_type><wp:status>trash</wp:status><wp:post_name>old</wp:post_name><wp:post_parent>0</wp:post_parent><wp:menu_order>0</wp:menu_order><content:encoded><![CDATA[]]></content:encoded></item>
+              <item><title>logo</title><wp:post_id>30</wp:post_id><wp:post_type>attachment</wp:post_type><wp:status>inherit</wp:status><wp:attachment_url>https://blog.example.org/wp-content/uploads/logo.png</wp:attachment_url></item>
+              </channel></rss>
+        expect:
+          status: 200
+          body: [{ plugin: importer-wordpress, result: { title: My Blog, items: [{ id: item-10, slug: about, parent: null, content: "<p>Hello</p><p>World</p>" }, { id: item-11, parent: item-10, order: 1 }, { id: item-20, metadata: { published: false } }], files: [{ path: files/logo.png, url: "https://blog.example.org/wp-content/uploads/logo.png" }] } }]
+          notContains: ["x()", item-12]
+- id: importer-wordpress-002
+  title: "two importers: the caller must pick one, and both are listed"
+  given: "importer-html and importer-wordpress active"
+  when: "list implementers, then convert without choosing"
+  then: "both listed by title; converting without a choice is refused"
+  run:
+    with: [core-plugins/importer-html]
+    steps:
+      - implementers: import.platform
+        expect: { body: [{ id: importer-html, title: Import from HTML }, { id: importer-wordpress, title: Import from WordPress }] }
+      - contract: { name: import.platform, op: convert, input: { html: "<h1>x</h1>" } }
+        expect: { status: 400, message: "choose one of: importer-html, importer-wordpress" }
+- id: importer-wordpress-003
+  title: "an HTML file sent to the WordPress importer is an error"
+  given: "plain HTML"
+  when: "convert"
+  then: "error result"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-wordpress, input: { html: "<h1>x</h1>" } }
+        expect: { body: [{ result: { error: "a WordPress export (WXR) file is required" } }] }

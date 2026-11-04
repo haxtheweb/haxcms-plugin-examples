@@ -1,0 +1,54 @@
+- id: assets-001
+  title: "only files in the asset manifest are served"
+  spec: spec/07-registries-settings-assets.md
+  given: "file in frontend/dist not in manifest"
+  when: "GET assets/<id>"
+  then: "404"
+- id: assets-002
+  title: "src/, config/ and data/ are never served"
+  spec: spec/07-registries-settings-assets.md
+  given: "request ../config/openapi.yaml"
+  when: "GET assets path traversal"
+  then: "404 or 400"
+- id: assets-003
+  title: "a hash mismatch refuses the asset"
+  spec: spec/07-registries-settings-assets.md
+  given: "file edited after build"
+  when: "GET asset"
+  then: "refused"
+- id: assets-004
+  title: "restricted assets are excluded from remix and export for others"
+  spec: spec/07-registries-settings-assets.md
+  given: "asset redistribution: restricted"
+  when: "export for others"
+  then: "asset absent; theme falls back with a warning"
+- id: assets-005
+  title: "asset URLs carry a content hash, never the HAXcms version"
+  spec: spec/07-registries-settings-assets.md
+  given: "any asset"
+  when: "GET asset URL"
+  then: "no version string"
+- id: asset-090
+  title: "site skills appear in the site's agent-skills index only while enabled"
+  spec: spec/07-registries-settings-assets.md
+  given: "plugin with a site skill and a developer skill"
+  when: "enable for the site, rebuild; then disable, rebuild"
+  then: "index lists the site skill with a sha256 digest, never the developer skill; after disable it is gone"
+- id: asset-091
+  title: "a site's authors only see blocks from packs enabled for it"
+  spec: spec/07-registries-settings-assets.md
+  given: "quizzing pack enabled for site A, not site B"
+  when: "the editor loads in each site"
+  then: "A's appstore block list includes the quiz blocks, B's does not; wc-registry.json is the same for both"
+- id: asset-092
+  title: "disabling a pack in use keeps rendering and lists affected pages"
+  spec: spec/07-registries-settings-assets.md
+  given: "quizzing pack enabled, multiple-choice blocks on two pages"
+  when: "disable the pack for the site"
+  then: "allowed; notice names the two pages; blocks still render; they are no longer insertable or editable"
+- id: asset-093
+  title: "a dashboard contribution renders with existing elements and its badge clears on dismiss"
+  spec: spec/07-registries-settings-assets.md
+  given: "announcements enabled; latestVersion 26.10.1; nothing dismissed in user scaffold memory"
+  when: "open the dashboard, open the modal, press Dismiss"
+  then: "top-bar button with a New chip; modal of accent-cards; after Dismiss whatsNew.dismissedVersion is 26.10.1 and the chip is gone"

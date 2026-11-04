@@ -1,0 +1,1 @@
+export default { hooks: { "theme.before.change": async (ctx) => { ctx.log.info(`fx-theme ${ctx.previous && ctx.previous.metadata && ctx.previous.metadata.theme} -> ${ctx.subject.metadata.theme}`); } } };

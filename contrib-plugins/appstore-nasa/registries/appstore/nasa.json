@@ -1,0 +1,63 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "NASA",
+        "icon": "places:all-inclusive",
+        "color": "blue",
+        "author": "US Government",
+        "description": "The cozmos through one simple API.",
+        "status": "available",
+        "tags": [
+          "images",
+          "government",
+          "space"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "images-api.nasa.gov",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "page": "page"
+              }
+            },
+            "search": {
+              "q": {
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "data": {
+              "media_type": "image"
+            },
+            "resultMap": {
+              "defaultGizmoType": "image",
+              "items": "collection.items",
+              "preview": {
+                "title": "data.0.title",
+                "details": "data.0.description",
+                "image": "links.0.href",
+                "id": "links.0.href"
+              },
+              "gizmo": {
+                "id": "links.0.href",
+                "source": "links.0.href",
+                "title": "data.0.title",
+                "caption": "data.0.description",
+                "description": "data.0.description",
+                "citation": "data.0.photographer",
+                "type": "data.0.media_type"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

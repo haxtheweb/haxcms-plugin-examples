@@ -1,0 +1,15 @@
+# Sketchfab models: one of the keyless appstore providers core adds to every editor today (HAXAppStoreService), moved to the
+# community set as a showcase: off by default. The browser calls the public API (api.sketchfab.com) directly, so there is no
+# route, no key and no code: a pack with one appstore fragment.
+specVersion: "0.1.0"
+id: appstore-sketchfab
+uuid: 685a6c68-6e75-5fc8-b861-104f98bbb2fd
+title: Sketchfab models
+description: Search Sketchfab for 3D models to embed. No API key needed.
+version: 0.1.0
+kind: pack
+category: media
+icon: icons:3d-rotation
+tags: [appstore, 3d, models]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0

@@ -1,0 +1,2 @@
+stores:
+  - { id: entries, scope: system, file: entries.json }   # one log for the deployment

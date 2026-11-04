@@ -1,0 +1,66 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Dailymotion",
+        "icon": "av:play-circle-filled",
+        "color": "blue",
+        "author": "Dailymotion",
+        "description": "A crowdsourced video platform that is ad supported.",
+        "status": "available",
+        "tags": [
+          "video",
+          "crowdsourced"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "api.dailymotion.com",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "videos",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "total_items": "total",
+                "total_pages": "total_pages",
+                "page": "page"
+              }
+            },
+            "search": {
+              "search": {
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "data": {
+              "fields": "description,embed_url,thumbnail_240_url,title,id",
+              "no_live": "1",
+              "ssl_assets": "true",
+              "sort": "relevance",
+              "limit": "20"
+            },
+            "resultMap": {
+              "defaultGizmoType": "video",
+              "items": "list",
+              "preview": {
+                "title": "title",
+                "details": "description",
+                "image": "thumbnail_240_url",
+                "id": "id"
+              },
+              "gizmo": {
+                "title": "title",
+                "description": "description",
+                "source": "embed_url",
+                "alt": "description",
+                "caption": "description"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Stub written by `hax plugin add hook render.after`. It is commented out so it
+# teaches the shape without counting as a test. Uncomment and make it real.
+#
+# - id: example-render-after-001
+#   title: "render.after runs and leaves the page unchanged"
+#   hook: render.after
+#   given: "a page with the plugin enabled"
+#   when: "render"
+#   then: "response body is unchanged and the hook logged once"

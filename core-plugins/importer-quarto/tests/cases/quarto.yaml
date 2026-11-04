@@ -1,0 +1,158 @@
+- id: importer-quarto-001
+  title: "a Quarto book on GitHub comes over with its chapters, parts, callouts and files"
+  given: "stat-lab/intro-stats: _quarto.yml with index, intro, a part with two chapters (one labelled, one that will not load) and an external chapter; pages with front matter, a leading heading, a callout, hidden and shown code chunks, a cross-reference, a span, conditional divs, a video shortcode, an image with fig-alt, a csv link, a remote image and a script"
+  when: "convert with the repository URL"
+  then: "five items in book order with front matter or heading titles; markdown converted by import-markdown; the image and csv listed in files; nothing fetched outside GitHub's hosts"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://api.github.com/repos/stat-lab/intro-stats": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/stat-lab/intro-stats/git/trees/main?recursive=1":
+        status: 200
+        body: { tree: [{ path: _quarto.yml, type: blob }, { path: index.qmd, type: blob }, { path: intro.qmd, type: blob }, { path: chapters, type: tree }, { path: chapters/summaries.qmd, type: blob }, { path: chapters/models.qmd, type: blob }, { path: images/hist.png, type: blob }, { path: data/survey.csv, type: blob }, { path: README.md, type: blob }] }
+      "https://raw.githubusercontent.com/stat-lab/intro-stats/main/_quarto.yml":
+        status: 200
+        body: |
+          project:
+            type: book
+            output-dir: _book
+
+          book:
+            title: "Introductory Statistics"
+            site-url: https://stat-lab.github.io/intro-stats
+            chapters:
+              - index.qmd
+              - intro.qmd   # the first chapter
+              - part: "Describing data"
+                chapters:
+                  - chapters/summaries.qmd
+                  - text: "Models"
+                    href: chapters/models.qmd
+              - https://other.example.net/extra.qmd
+      "https://raw.githubusercontent.com/stat-lab/intro-stats/main/index.qmd":
+        status: 200
+        body: |
+          ---
+          title: "Preface"
+          ---
+
+          Welcome to **statistics**.
+
+          ::: {.callout-note}
+          ## Before you start
+          Install R first.
+          :::
+      "https://raw.githubusercontent.com/stat-lab/intro-stats/main/intro.qmd":
+        status: 200
+        body: |
+          # Introduction {#sec-intro}
+
+          See @fig-hist and the [summaries chapter](chapters/summaries.qmd#means).
+
+          ![A histogram](images/hist.png){fig-alt="Histogram of ages"}
+
+          ```{r}
+          #| echo: false
+          library(ggplot2)
+          ```
+
+          ```{r}
+          summary(ages)
+          ```
+
+          <script>alert(1)</script>
+
+          [Data](data/survey.csv) and ![remote](https://other.example.net/pic.png).
+      "https://raw.githubusercontent.com/stat-lab/intro-stats/main/chapters/summaries.qmd":
+        status: 200
+        body: |
+          ---
+          title: Summaries
+          author: Dana
+          ---
+
+          ## Means
+
+          The mean is [important]{.highlight}.
+
+          ::: {.content-visible when-format="pdf"}
+          PDF only text.
+          :::
+
+          ::: {.content-hidden when-format="pdf"}
+          Web only text.
+          :::
+
+          {{< video https://www.youtube.com/watch?v=abc title="Means explained" >}}
+      "https://raw.githubusercontent.com/stat-lab/intro-stats/main/chapters/models.qmd": { status: 404, body: "" }
+      other.example.net: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { url: "https://github.com/stat-lab/intro-stats" } }
+        expect:
+          body:
+            - plugin: importer-quarto
+              result:
+                title: Introductory Statistics
+                items:
+                  - { id: item-1, title: Preface, slug: home, parent: null, order: 0, content: '<p>Welcome to <strong>statistics</strong>.</p><stop-note status="info" title="Before you start"><div slot="message"><p>Install R first.</p></div></stop-note>', metadata: { sourceType: quarto, quarto: { repo: stat-lab/intro-stats, branch: main, path: index.qmd }, source: "https://stat-lab.github.io/intro-stats/index.html" } }
+                  - { id: item-2, title: Introduction, slug: intro, order: 1, content: '<p>See fig-hist and the <a href="describing-data/summaries#means">summaries chapter</a>.</p><p><media-image source="files/hist.png" alt="Histogram of ages"></media-image></p><pre><code class="language-r">summary(ages)</code></pre><p></p><p><a href="files/survey.csv">Data</a> and <media-image source="https://other.example.net/pic.png" alt="remote"></media-image>.</p>' }
+                  - { id: item-3, title: Describing data, slug: describing-data, order: 2, content: "<p></p>", metadata: { quarto: { path: null } } }
+                  - { id: item-4, title: Summaries, slug: describing-data/summaries, parent: item-3, order: 0, indent: 1, content: '<h2>Means</h2><p>The mean is <span class="highlight">important</span>.</p><p>Web only text.</p><video-player source="https://www.youtube.com/watch?v=abc" media-title="Means explained"></video-player>' }
+                  - { id: item-5, title: Models, slug: describing-data/models, parent: item-3, order: 1, content: '<p>Read this page on <a href="https://stat-lab.github.io/intro-stats/chapters/models.html">the source site</a>.</p>' }
+                files:
+                  - { path: files/hist.png, url: "https://raw.githubusercontent.com/stat-lab/intro-stats/main/images/hist.png" }
+                  - { path: files/survey.csv, url: "https://raw.githubusercontent.com/stat-lab/intro-stats/main/data/survey.csv" }
+          notContains: ["alert(1)", "library(ggplot2)", "PDF only", "extra.qmd"]
+          fetch: { count: 7, notContains: [other.example.net] }
+- id: importer-quarto-002
+  title: "an uploaded zip of a Quarto website follows its sidebar"
+  given: "tests/fixtures/handbook.zip (a GitHub download under handbook-main/): sidebar with index and a Safety section holding a page and a glob; a callout with a title attribute; a README"
+  when: "convert with files: [handbook.zip]"
+  then: "Welcome, the Safety landing page, Rules and Spills under it; the link points at the Rules slug; nothing fetched"
+  run:
+    with: [core-plugins/import-markdown]
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { files: [{ name: handbook.zip, data: "UEsDBBQAAAAIAFqTWF1MLTejgQAAANkAAAAZAAAAaGFuZGJvb2stbWFpbi9fcXVhcnRvLnltbGWNMQ7CMAxF95zCyohE2XsCBjZOkMRGCi1xSYxobo8bIgRis/97/l4yXynIaACkLjTCk3yJQsb0oZEosyJ7ch6OLqFnnqzmJSJ5lzdFF6mbhBwmwpYETkJJypsD7CEmpHW43/CTFH0eOWn52V1Iqu3k/7r7zTrkx0zlq+gH7gbNX1BLAwQUAAAACABak1hd9mlZHX0AAACMAAAAFwAAAGhhbmRib29rLW1haW4vaW5kZXgucW1kHcyxCsIwEIDh/Z7i6KSFxD3g4OALuDgUhyO9xsC10eRKCOK7Wzv+//AZY0CjCju8s/g0M5htwY1pxEGfjHkVLo9DoYm1nfay73k84hRzUQvgnMOP9SSSVjWV8hKXgDt67q6N8ZWTsteYlu4LF6nUClamjH1IIWxeb/8I/ABQSwMEFAAAAAgAWpNYXarDUJ4vAAAANAAAAB4AAABoYW5kYm9vay1tYWluL3NhZmV0eS9ydWxlcy5xbWRTVggqzUkt5uIy1FPwy1dIy89P4TICM1OKMvOygRKK0cWZ6XmxGiBSryAvXZMLAFBLAwQUAAAACABak1hdQKYv2xgAAAAWAAAAHgAAAGhhbmRib29rLW1haW4vc2FmZXR5L3NwaWxscy5tZHPOSU3MUyguyMzJKVZILFHIz0tO1eMCAFBLAwQUAAAACABak1hd+ItLYw4AAAAMAAAAFwAAAGhhbmRib29rLW1haW4vUkVBRE1FLm1k88svUUhUKEhMT9XjAgBQSwMEFAAAAAgAWpNYXUp/0j4MAAAADAAAAB0AAABoYW5kYm9vay1tYWluL3NhZmV0eS9zaWduLnBuZ+sM8HPn5ZLiMgACAFBLAQIUAxQAAAAIAFqTWF1MLTejgQAAANkAAAAZAAAAAAAAAAAAAACAAQAAAABoYW5kYm9vay1tYWluL19xdWFydG8ueW1sUEsBAhQDFAAAAAgAWpNYXfZpWR19AAAAjAAAABcAAAAAAAAAAAAAAIABuAAAAGhhbmRib29rLW1haW4vaW5kZXgucW1kUEsBAhQDFAAAAAgAWpNYXarDUJ4vAAAANAAAAB4AAAAAAAAAAAAAAIABagEAAGhhbmRib29rLW1haW4vc2FmZXR5L3J1bGVzLnFtZFBLAQIUAxQAAAAIAFqTWF1Api/bGAAAABYAAAAeAAAAAAAAAAAAAACAAdUBAABoYW5kYm9vay1tYWluL3NhZmV0eS9zcGlsbHMubWRQSwECFAMUAAAACABak1hd+ItLYw4AAAAMAAAAFwAAAAAAAAAAAAAAgAEpAgAAaGFuZGJvb2stbWFpbi9SRUFETUUubWRQSwECFAMUAAAACABak1hdSn/SPgwAAAAMAAAAHQAAAAAAAAAAAAAAgAFsAgAAaGFuZGJvb2stbWFpbi9zYWZldHkvc2lnbi5wbmdQSwUGAAAAAAYABgC0AQAAswIAAAAA" }] } }
+        expect:
+          body:
+            - result:
+                title: Lab Handbook
+                items:
+                  - { id: item-1, title: Welcome, slug: home, parent: null, order: 0, content: '<p>Read <a href="safety/rules">the rules</a> first.</p><stop-note status="warning" title="Eye protection"><div slot="message"><p>Always wear <em>goggles</em>.</p></div></stop-note>', metadata: { quarto: { repo: null, path: index.qmd } } }
+                  - { id: item-2, title: Safety, slug: safety, parent: null, order: 1, content: "<p></p>" }
+                  - { id: item-3, title: Rules, slug: safety/rules, parent: item-2, order: 0, content: '<ol><li>No food</li><li>No drinks</li></ol><p><media-image source="sign.png" alt="sign"></media-image></p>' }
+                  - { id: item-4, title: Spills, slug: safety/spills, parent: item-2, order: 1, content: "<p>Clean spills at once.</p>" }
+          notContains: ["Not a page"]
+          fetch: { count: 0 }
+- id: importer-quarto-003
+  title: "only GitHub repositories are read, and nothing is fetched for anything else"
+  given: "a GitLab URL, then no input, then a .tar.gz upload"
+  when: "convert"
+  then: "error results and no fetch at all"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      gitlab.com: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { url: "https://gitlab.com/stat-lab/intro-stats" } }
+        expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { files: [{ name: book.tar.gz, data: "AAAA" }] } }
+        expect: { body: [{ result: { error: "expected a .zip of the Quarto project" } }] }
+- id: importer-quarto-004
+  title: "a repository without _quarto.yml, or one GitHub cannot find, is an error"
+  given: "acme/notes whose tree has only markdown; acme/missing answering 404"
+  when: "convert each"
+  then: "error results naming the problem"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://api.github.com/repos/acme/notes": { status: 200, body: { default_branch: trunk } }
+      "https://api.github.com/repos/acme/notes/git/trees/trunk?recursive=1": { status: 200, body: { tree: [{ path: notes.md, type: blob }] } }
+      "https://api.github.com/repos/acme/missing": { status: 404, body: { message: Not Found } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { url: "https://github.com/acme/notes" } }
+        expect: { body: [{ result: { error: "no _quarto.yml found in acme/notes" } }], fetch: { count: 2 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { url: "https://github.com/acme/missing.git" } }
+        expect: { body: [{ result: { error: "unable to read the repository acme/missing (HTTP 404)" } }] }

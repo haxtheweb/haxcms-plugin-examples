@@ -1,0 +1,4 @@
+# Placed by themes (<site-region name="header"> via legacy.tags, or <regions-region name="header">), not by authors.
+tag: regions-region
+path: frontend/dist/regions-region.js
+role: injected

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/theme-registry-entry.schema.json",
+  "title": "HAXcms theme registry entry (DRAFT)",
+  "description": "One entry of coreConfig/themes.json (keyed by the theme element tag), and the shape of a plugin's registries/themes/*.json|yaml file. Derived from the 34 entries in haxcms-nodejs src/coreConfig/themes.json; no schema exists upstream yet, so this is a candidate to move into a shared schemas repo. Fields marked proposed are not read by core today.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "element",
+    "path",
+    "name",
+    "thumbnail",
+    "description",
+    "category"
+  ],
+  "properties": {
+    "element": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)+$",
+      "description": "Custom element tag; equals the registry key in every current entry."
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Module path. Starts with @ for a registry theme (@haxtheweb/...); a site-relative URL is loaded verbatim (issue 3111)."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "thumbnail": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "description": "Seen: Website, Course, Fun. Open list."
+    },
+    "hidden": {
+      "type": "boolean",
+      "default": false,
+      "description": "Not offered in theme pickers."
+    },
+    "priority": {
+      "type": "integer",
+      "default": 0,
+      "description": "Sort weight in pickers."
+    },
+    "terrible": {
+      "type": "boolean",
+      "default": false,
+      "deprecated": true,
+      "description": "Deprecated. Marks intentionally bad novelty themes (for example geocities style) that can be used but are not meant to be; to be rolled into `hidden`. New plugin entries should use `hidden`."
+    },
+    "supportedPalettes": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Palette ids the theme supports; null means not constrained."
+    },
+    "extends": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)+$",
+      "description": "PROPOSED: element tag of a parent theme. Lets a child theme fall back to its parent's registry entry and regions."
+    },
+    "colorSchemes": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "light",
+          "dark"
+        ]
+      },
+      "description": "Color schemes the theme supports through DDD tokens. Plugins that switch schemes (a dark mode toggle) act only on themes that list more than one. Omitted means light only."
+    }
+  }
+}

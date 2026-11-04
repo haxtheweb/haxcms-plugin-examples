@@ -1,0 +1,109 @@
+[
+  {
+    "uuid": "b3235057-f7ed-4133-9623-88ffd1e3e03b",
+    "slug": "plugin-dashboard",
+    "kind": "update",
+    "type": "1d0d9f37-8a0d-4b35-98c5-5a2612df1370",
+    "version": "26.9.1",
+    "status": "ready",
+    "label": "Plugins have their own dashboard",
+    "description": "Turn plugins on and off, see what each one adds, and fix problems from one screen.",
+    "visual": {
+      "mode": "screenshot",
+      "file": "plugin-dashboard.svg",
+      "alt": "The plugin dashboard listing plugins with their status chips"
+    },
+    "links": [
+      {
+        "title": "Plugin documentation",
+        "url": "https://github.com/haxtheweb/haxcms-plugin-examples"
+      }
+    ],
+    "notes": "SAMPLE ENTRY for development; the curation skill replaces the sample data."
+  },
+  {
+    "uuid": "40b0fb67-2ba8-4c81-ab62-0a198ecb7563",
+    "slug": "explosion-block",
+    "kind": "update",
+    "type": "5b0e06db-a31a-4d78-844e-43ec30a66d16",
+    "version": "26.10.1",
+    "status": "ready",
+    "label": "There's a new block: awesome explosion",
+    "description": "Add a little drama to any page. (Sample entry using the example plugin's block.)",
+    "visual": {
+      "mode": "element",
+      "tag": "awesome-explosion"
+    },
+    "links": [],
+    "notes": "SAMPLE ENTRY"
+  },
+  {
+    "uuid": "f646919d-9a2b-4278-8f6e-b648c48f3404",
+    "slug": "faster-saves",
+    "kind": "update",
+    "type": "00755a31-d075-4cbf-b77b-c32024fce8af",
+    "version": "26.10.1",
+    "status": "ready",
+    "label": "Bulk outline edits save once",
+    "description": "Moving many pages now makes a single save and a single history entry.",
+    "links": [],
+    "notes": "SAMPLE ENTRY"
+  },
+  {
+    "uuid": "fc2c81aa-8ca1-47af-974a-eb9cf9fe2e28",
+    "slug": "unreleased-theme",
+    "kind": "update",
+    "type": "27b03c16-2ef7-4dcc-a6c8-38ff69383cdb",
+    "version": "26.11.1",
+    "status": "ready",
+    "label": "A theme from the future",
+    "description": "Ships in a later version than the one running, so it is never served yet.",
+    "links": [],
+    "notes": "SAMPLE ENTRY: tests that future versions are hidden"
+  },
+  {
+    "uuid": "28aec287-5c31-4b51-989c-38b9c73b7ed1",
+    "slug": "draft-template",
+    "kind": "update",
+    "type": "cfa6e0f9-19ad-4a39-8643-00cafe45cc03",
+    "version": "26.10.1",
+    "status": "draft",
+    "label": "A template still being written",
+    "description": "Drafts are never served.",
+    "links": [],
+    "notes": "SAMPLE ENTRY: tests that drafts are hidden"
+  },
+  {
+    "uuid": "cd32a5c1-fd1c-4121-b44c-820281410449",
+    "slug": "merlin-everywhere",
+    "kind": "tip",
+    "type": "3f1357e7-55af-485c-ba2f-7d034407cdc6",
+    "status": "ready",
+    "label": "Ask Merlin instead of hunting for a menu",
+    "description": "Merlin can add pages, insert blocks and find settings from the keyboard.",
+    "links": [],
+    "notes": "SAMPLE ENTRY"
+  },
+  {
+    "uuid": "2a9dcbc6-3a0f-4dd5-b473-c53e8ce189f6",
+    "slug": "drag-blocks",
+    "kind": "tip",
+    "type": "5b0e06db-a31a-4d78-844e-43ec30a66d16",
+    "status": "ready",
+    "label": "Drag blocks to reorder them",
+    "description": "Grab a block's handle and drop it where you want it.",
+    "links": [],
+    "notes": "SAMPLE ENTRY"
+  },
+  {
+    "uuid": "389394cb-a911-4bca-a4a2-fbfb7f690d4a",
+    "slug": "theme-preview",
+    "kind": "tip",
+    "type": "27b03c16-2ef7-4dcc-a6c8-38ff69383cdb",
+    "status": "ready",
+    "label": "Preview a theme before switching",
+    "description": "Site settings show each theme on your own content first.",
+    "links": [],
+    "notes": "SAMPLE ENTRY"
+  }
+]

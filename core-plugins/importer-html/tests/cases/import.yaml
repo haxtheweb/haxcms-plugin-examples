@@ -1,0 +1,24 @@
+- id: importer-html-001
+  title: "one page per h2, the h1 becomes the site title"
+  given: "an HTML document with an h1, an intro paragraph and two h2 sections"
+  when: "core calls import.platform convert"
+  then: "Introduction plus two pages; script and onclick removed"
+  run:
+    steps:
+      - contract:
+          name: import.platform
+          op: convert
+          plugin: importer-html
+          input: { html: "<html><body><h1>My Course</h1><p>Welcome</p><script>alert(1)</script><h2>Week 1</h2><p onclick=\"x()\">Read</p><h2>Week 1</h2><p>More</p></body></html>" }
+        expect:
+          body: [{ plugin: importer-html, result: { title: My Course, items: [{ title: Introduction, slug: introduction }, { title: Week 1, slug: week-1, content: "<p>Read</p>" }, { title: Week 1, slug: week-1-2 }] } }]
+          notContains: ["alert(1)", "onclick"]
+- id: importer-html-002
+  title: "missing html is an error, not a crash"
+  given: "no html"
+  when: "convert"
+  then: "an error result"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-html, input: {} }
+        expect: { body: [{ result: { error: "html is required" } }] }

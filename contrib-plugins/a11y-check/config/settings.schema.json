@@ -1,0 +1,6 @@
+{
+  "configure": [
+    { "property": "blockMissingAlt", "title": "Refuse saves with images that have no alt text", "description": "Off: a warning only. Decorative images use alt=\"\".", "inputMethod": "boolean" },
+    { "property": "previewOverlay", "title": "Outline problems in the preview", "inputMethod": "boolean" }
+  ]
+}

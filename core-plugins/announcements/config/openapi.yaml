@@ -1,0 +1,83 @@
+# Announcements routes. System scope: mounted at /system/api/v1/plugins/announcements/.
+# Every operation requires BOTH the JWT and the X-HAXCMS-User-Token header (one security requirement listing both),
+# because responses carry the running HAXcms version (version confidentiality, https://github.com/haxtheweb/issues/issues/3174).
+# Lists accept filter[kind], filter[type] (key or uuid), filter[sinceVersion], filter[beforeVersion], page.limit, page.offset and lang.
+openapi: 3.1.0
+info:
+  title: Announcements
+  version: 0.1.0
+x-hax-scope: system
+paths:
+  /latest:
+    get:
+      operationId: announcementsListLatest
+      summary: Updates for the latest curated version, with latestVersion and the types map
+      x-hax-mcp: true
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ $ref: "#/components/parameters/lang" }]
+      responses: { "200": { description: OK }, "401": { description: Missing or invalid credentials } }
+  /all:
+    get:
+      operationId: announcementsListAll
+      summary: Every served entry, filterable (the CLI uses filter[sinceVersion])
+      x-hax-mcp: true
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/lang" }
+        - { name: "filter[kind]", in: query, schema: { enum: [update, tip] } }
+        - { name: "filter[type]", in: query, schema: { type: string } }
+        - { name: "filter[sinceVersion]", in: query, description: Updates newer than this version (the CLI), schema: { type: string } }
+        - { name: "filter[beforeVersion]", in: query, description: Updates older than this version (the dashboard's Earlier section), schema: { type: string } }
+        - { name: page.limit, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: page.offset, in: query, schema: { type: integer, minimum: 0 } }
+      responses: { "200": { description: OK }, "401": { description: Missing or invalid credentials } }
+  /tips:
+    get:
+      operationId: announcementsListTips
+      summary: Tips only
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ $ref: "#/components/parameters/lang" }]
+      responses: { "200": { description: OK }, "401": { description: Missing or invalid credentials } }
+  /tips/daily:
+    get:
+      operationId: announcementsGetDailyTip
+      summary: Tip of the day, the same for every caller on a UTC date
+      x-hax-mcp: true
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/lang" }
+        - { name: exclude, in: query, description: Comma-separated uuids to skip, schema: { type: string } }
+        - { name: seed, in: query, schema: { type: string } }
+      responses: { "200": { description: OK }, "404": { description: No tips }, "401": { description: Missing or invalid credentials } }
+  /types:
+    get:
+      operationId: announcementsListTypes
+      summary: The six announcement types
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ $ref: "#/components/parameters/lang" }]
+      responses: { "200": { description: OK }, "401": { description: Missing or invalid credentials } }
+  /types/{uuid}:
+    get:
+      operationId: announcementsGetType
+      summary: One announcement type
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ $ref: "#/components/parameters/uuid" }, { $ref: "#/components/parameters/lang" }]
+      responses: { "200": { description: OK }, "404": { description: Not found }, "401": { description: Missing or invalid credentials } }
+  /{uuid}:
+    get:
+      operationId: announcementsGet
+      summary: One entry of either kind (404 for drafts and unreleased versions)
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ $ref: "#/components/parameters/uuid" }, { $ref: "#/components/parameters/lang" }]
+      responses: { "200": { description: OK }, "404": { description: Not found }, "401": { description: Missing or invalid credentials } }
+  /{uuid}/visual:
+    get:
+      operationId: announcementsGetVisual
+      summary: Image bytes for a screenshot visual
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ $ref: "#/components/parameters/uuid" }]
+      responses: { "200": { description: Image }, "404": { description: No screenshot }, "401": { description: Missing or invalid credentials } }
+components:
+  parameters:
+    lang: { name: lang, in: query, description: Language tag for labels and descriptions; English when missing or untranslated, schema: { type: string } }
+    uuid: { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }

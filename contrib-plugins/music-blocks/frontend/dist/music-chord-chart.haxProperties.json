@@ -1,0 +1,43 @@
+{
+  "api": "1",
+  "type": "element",
+  "canScale": true,
+  "canEditSource": true,
+  "contentEditable": false,
+  "hideDefaultSettings": false,
+  "gizmo": {
+    "title": "Chord chart",
+    "description": "A chord progression shown four chords to a bar",
+    "icon": "av:queue-music",
+    "color": "purple",
+    "tags": [
+      "Content",
+      "music",
+      "chords"
+    ],
+    "handles": [],
+    "meta": {
+      "author": "Music blocks contributors"
+    }
+  },
+  "settings": {
+    "configure": [
+      {
+        "attribute": "chords",
+        "title": "Chords",
+        "description": "Chord names separated by spaces (G D Em C)",
+        "inputMethod": "textfield",
+        "required": true
+      }
+    ]
+  },
+  "demoSchema": [
+    {
+      "tag": "music-chord-chart",
+      "properties": {
+        "chords": "G D Em C"
+      },
+      "content": ""
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+# SEO meta (fake community plugin). Exercises plugin fields in the page settings form (entities.yaml metadata.page.form):
+# authors set a search description and a share image per page; the plugin renders them as meta tags.
+specVersion: "0.1.0"
+id: seo-meta
+uuid: 0e2a4c5d-7f9b-4d1e-8a4c-5d7f9b1e3a4c
+title: SEO meta tags
+description: Lets authors set a search description and share image per page, and adds the matching meta tags.
+version: 0.1.0
+category: seo
+icon: icons:search
+tags: [seo, open-graph, social]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+entities: config/entities.yaml
+staticCapable: true
+capabilities: ["output:inject", "site:read"]
+hooks:
+  - name: page.before.save
+  - name: render.before.head

@@ -1,0 +1,28 @@
+# Outline: extracted from core and required. Today PATCH /x/api/v1/site/outline (updateSiteOutline) applies a whole
+# outline (titles, parents, order, new and removed pages) atomically, and the outline designer in haxcms-elements calls
+# it. As a plugin it owns that operation, keeps the old path through legacy.routes, and does the work through core
+# entities inside one bulk transaction, so every page and site hook fires and git makes one commit.
+specVersion: "0.1.0"
+id: outline
+uuid: 9b1d3f5a-7c9e-4b1d-3f5a-7c9e1b3d5f7a
+title: Outline
+description: Reorganize a site's pages (add, rename, move, nest, remove) in one step.
+version: 0.1.0
+category: authoring
+icon: icons:list
+tags: [outline, pages]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+required: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+dependencies: [git]          # informational for a required plugin: outline edits are committed by git
+staticCapable: false
+capabilities: ["items:read", "items:write", "site:read", "site:write"]
+legacy:
+  routes:
+    "/x/api/v1/site/outline": outlineUpdate

@@ -1,0 +1,6 @@
+- name: fx-definer.after.ping
+  phase: after
+  when: ping happened
+  subject: "`{ at }`"
+  returns: nothing
+  veto: false

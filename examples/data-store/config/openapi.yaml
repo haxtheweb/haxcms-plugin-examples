@@ -1,0 +1,43 @@
+# Site-scope routes (default x-hax-scope): /x/api/v1/plugins/data-store/...
+openapi: 3.1.0
+info: { title: Data store example, version: 0.2.0 }
+paths:
+  /votes:
+    get:
+      operationId: dataStoreListVotes
+      summary: Votes per page (falls back to the 0.1.0 location in site.json until the upgrade runs)
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: OK } }
+  /votes/{pageId}:
+    post:
+      operationId: dataStoreVote
+      summary: Add a vote for a page
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: pageId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK } }
+  /notes:
+    post:
+      operationId: dataStoreCreateNote
+      summary: Create a note owned by the caller
+      security: [{ bearerAuth: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string } } } } } }
+      responses: { "200": { description: OK } }
+  /notes/{uuid}:
+    get:
+      operationId: dataStoreGetNote
+      summary: One note; 403 unless the caller owns it
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: uuid, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK }, "403": { description: Not the owner }, "404": { description: Not found } }
+  /badge:
+    get:
+      operationId: dataStoreGetBadge
+      summary: The site's badge (manifest store, inside site.json)
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: OK } }
+    put:
+      operationId: dataStoreSetBadge
+      summary: Set the site's badge
+      security: [{ bearerAuth: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, properties: { label: { type: string } } } } } }
+      responses: { "200": { description: OK } }

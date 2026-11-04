@@ -1,0 +1,4 @@
+stores:
+  - id: pages          # rendered documents by page id; never travels with the site
+    scope: siteData
+    file: pages.json

@@ -1,0 +1,28 @@
+# Notion importer: extracted from core (systemRoutes/v1/routes/imports/convertNotionToSite.js). Reads a Notion export
+# that was committed to a GitHub repository: every markdown page, its Notion properties (lesson, id, type) and the
+# images and files beside it. Implements import.platform; markdown goes to import.file (import-markdown) through the
+# platform. It may reach only GitHub's API and raw-file hosts.
+specVersion: "0.1.0"
+id: importer-notion
+uuid: c128819c-70ff-46d1-9d47-be7e99db5462
+title: Import from Notion
+description: Turns a Notion export kept in a GitHub repository into a new site, grouping pages under their lessons.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, notion, github]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+dependencies: [import-markdown]   # each page's markdown is converted by import.file
+capabilities: ["network:egress"]
+# The person gives a github.com repository URL; the files are read from GitHub's API (the file tree) and raw host.
+egress:
+  - api.github.com
+  - raw.githubusercontent.com
+staticCapable: false

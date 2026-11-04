@@ -1,0 +1,44 @@
+- id: feeds-001
+  title: "rebuild writes both feeds, newest first, unpublished pages left out"
+  hook: rebuild.after
+  given: "pages created in seconds and milliseconds, one unpublished (published: \"false\") and one hidden from the menu; a domain in site.json"
+  when: "rebuild"
+  then: "rss.xml lists p2 then p1, links on the domain, dates in RFC 822; atom.xml has full content; llms.txt lists both feeds"
+  run:
+    records:
+      site: { title: "Course & More", description: "<p>About</p>", metadata: { site: { domain: "https://example.org/course", updated: 1767225600 } } }
+      page: [{ id: p1, title: One, slug: one, content: "<p>First</p>", metadata: { created: 1767225600 } }, { id: p2, title: Two, slug: two, content: "<p>Second ]]> x</p>", metadata: { created: 1767312000000 } }, { id: p3, title: Hidden, slug: hidden, content: "", metadata: { created: 1767398400, published: "false" } }, { id: p4, title: Unlisted, slug: unlisted, content: "", metadata: { created: 1767398400, hideInMenu: true } }]
+    steps:
+      - rebuild: {}
+        expect: { status: 200, contains: ["## Resources", "[RSS feed](rss.xml)", "[Atom feed](atom.xml)"] }
+      - managed: rss.xml
+        expect: { contains: ["<title>Course &amp; More</title>", "<link>https://example.org/course/</link>", "<description>About</description>", "<link>https://example.org/course/two</link>", "<pubDate>Fri, 02 Jan 2026 00:00:00 GMT</pubDate>"], notContains: [Hidden, Unlisted] }
+      - managed: atom.xml
+        expect: { contains: ["<published>2026-01-01T00:00:00.000Z</published>", "Second ]]]]><![CDATA[> x"] }
+- id: feeds-002
+  title: "the limit setting and missing dates"
+  hook: rebuild.after
+  given: "limit 1; pages without created dates"
+  when: "rebuild"
+  then: "one item; the missing date is the frozen clock, so both backends agree"
+  run:
+    settings: { limit: 1, fullContent: false }
+    now: "2026-03-01T12:00:00Z"
+    records: { page: [{ id: a, title: A, slug: a, content: "x" }, { id: b, title: B, slug: b, content: "y" }] }
+    steps:
+      - rebuild: {}
+      - managed: rss.xml
+        expect: { contains: ["<title>A</title>", "Sun, 01 Mar 2026 12:00:00 GMT", "/a</link>"], notContains: ["<title>B</title>"] }
+      - managed: atom.xml
+        expect: { notContains: ["<content"] }
+- id: feeds-003
+  title: "disabled: feeds are not advertised"
+  given: "feeds disabled"
+  when: "rebuild"
+  then: "llms.txt has no Resources section"
+  run:
+    records: { page: [{ id: a, title: A, slug: a, content: "x" }] }
+    steps:
+      - disable: feeds
+      - rebuild: {}
+        expect: { notContains: ["RSS feed"] }

@@ -1,0 +1,9 @@
+stores:
+  - id: comments        # per site, on the server only; never travels with the site folder
+    scope: siteData
+    file: comments.json
+    personalData: true  # core exports and erases by authorId; the plugin writes no code for it
+    userKey: authorId
+  - id: republish       # page ids whose published snapshot is out of date after an erase
+    scope: siteData
+    file: republish.json

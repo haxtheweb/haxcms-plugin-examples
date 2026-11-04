@@ -1,0 +1,4 @@
+{ "configure": [
+  { "property": "default", "title": "Start in", "inputMethod": "select", "options": { "system": "The visitor's system setting", "light": "Light", "dark": "Dark" } },
+  { "property": "position", "title": "Position", "inputMethod": "select", "options": { "bottom-right": "Bottom right", "bottom-left": "Bottom left" } }
+] }

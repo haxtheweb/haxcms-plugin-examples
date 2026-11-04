@@ -1,0 +1,23 @@
+# Community plugin (moved out of core: nice to have, off by default; pasting a video or image URL still works without it).
+# Unsplash: an appstore provider extracted from core (HAXAppStoreService.loadBaseAppStore() adds it when
+# appStore.apiKeys.unsplash is set, and sends the key to the browser inside the payload). Declarative: there is no plugin code.
+# Its one operation is an x-hax-proxy that core answers on either backend, adding the secret key server-side.
+specVersion: "0.1.0"
+id: unsplash
+uuid: b27df17b-c4c8-5329-9689-928cf8525299
+title: Unsplash
+description: Search Unsplash from the editor and insert open photos. The access key stays on the server.
+version: 0.1.0
+category: media
+icon: image:collections
+tags: [images, appstore]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+openapi: config/openapi.yaml       # no entry, no runtimes: every operation is an x-hax-proxy
+settings: config/settings.schema.json
+staticCapable: false               # searching needs the server; inserted media works anywhere
+capabilities: ["network:egress", "settings:secret"]
+egress: [api.unsplash.com]
+legacy:
+  settings:
+    apiKey: config:appStore.apiKeys.unsplash   # core moves it here on first enable

@@ -1,0 +1,35 @@
+# A small type entity says how a category is presented; each announcement points at one by uuid.
+# Both use uuid primary keys generated once by the curation skill and committed in source, so references
+# and translations stay stable across releases and across both backends.
+entities:
+  announcementType:
+    description: One of the six presentation categories (idea, feature, block, theme, template, improvement)
+    primaryKey: uuid
+    store: types
+    requiredFields: [uuid, key, label, icon, color, order, appliesTo]
+    fields:
+      uuid: { type: string }
+      key: { type: string, note: "unique; also accepted as the filter[type] value" }
+      label: { type: string, note: "translatable; no 'New' prefix" }
+      description: { type: string, note: "translatable, one line" }
+      icon: { type: string, note: "icon id, e.g. hax:add-brick" }
+      color: { type: string, note: "DDD token name; the client derives black or white text" }
+      order: { type: integer }
+      appliesTo: { type: array, note: "[update, tip]" }
+  announcement:
+    description: A curated What's New entry (kind update) or an evergreen tip (kind tip)
+    primaryKey: uuid
+    store: announcements
+    requiredFields: [uuid, slug, kind, type, label, description, status]
+    fields:
+      uuid: { type: string }
+      slug: { type: string, note: "unique, human-readable" }
+      kind: { type: string, note: "update | tip; an extensible enum" }
+      type: { type: string, note: "announcementType uuid" }
+      version: { type: string, note: "updates only: the HAXcms version it ships in; served only to doubly authenticated requests" }
+      label: { type: string, note: "translatable" }
+      description: { type: string, note: "translatable" }
+      visual: { type: object, note: "{ mode: element, tag } or { mode: screenshot, file, alt }; screenshots are served by the visual route" }
+      links: { type: array, note: "[{ title, url }]" }
+      status: { type: string, note: "source only: draft | ready" }
+      notes: { type: string, note: "source only" }

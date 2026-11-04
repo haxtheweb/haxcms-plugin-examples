@@ -1,0 +1,72 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "CC Mixter",
+        "icon": "av:library-music",
+        "color": "purple",
+        "author": "CC Mixter",
+        "description": "User submitted audio files and music.",
+        "status": "available",
+        "tags": [
+          "audio",
+          "crowdsourced"
+        ]
+      },
+      "connection": {
+        "protocol": "http",
+        "url": "ccmixter.org",
+        "data": {
+          "format": "json",
+          "sort": "name",
+          "limit": "20"
+        },
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "api/query",
+            "pagination": {
+              "style": "link",
+              "props": {
+                "first": "paging.first",
+                "next": "paging.next",
+                "previous": "paging.previous",
+                "last": "paging.last"
+              }
+            },
+            "search": {
+              "tags": {
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "data": {
+              "direction": "asc",
+              "sort": "alphabetical",
+              "filter": "CC",
+              "per_page": "20"
+            },
+            "resultMap": {
+              "defaultGizmoType": "audio",
+              "items": "",
+              "preview": {
+                "title": "upload_name",
+                "details": "upload_description_plain",
+                "image": "license_logo_url",
+                "id": "upload_id"
+              },
+              "gizmo": {
+                "source": "files.0.download_url",
+                "id": "upload_id",
+                "title": "upload_name",
+                "caption": "upload_description_plain",
+                "description": "upload_description_plain",
+                "citation": "license_name"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

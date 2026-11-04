@@ -1,0 +1,52 @@
+openapi: 3.1.0
+info:
+  title: Example plugin
+  version: 0.1.0
+# The plugin's routes, as OpenAPI 3.1. Paths are relative; the platform mounts them at /v1/plugins/example/.
+# Every operation is secured unless it says x-hax-public: true (rate limited; x-hax-rate-limit can tighten it).
+# Operation ids start with the plugin id. x-hax-mcp: true offers an operation as an MCP tool when the MCP plugin is on.
+# One version (/v1) only: these APIs evolve without breaking changes, and agents keep callers in step.
+paths:
+  /explosions:
+    get:
+      operationId: exampleListExplosions
+      summary: List explosions (authenticated)
+      # offered as an MCP tool when the optional MCP plugin is enabled; the caller's own permissions still apply
+      x-hax-mcp: true
+      security:
+        - bearerAuth: []
+          userTokenHeader: []
+      responses:
+        "200": { description: OK }
+    post:
+      operationId: exampleExplode
+      summary: Trigger an explosion; fires example.before.explode (can veto) and example.after.explode
+      security:
+        - bearerAuth: []
+          userTokenHeader: []
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { fileId: { type: string }, size: { type: integer } } }
+      responses:
+        "200": { description: OK }
+        "409": { description: Vetoed by a hook }
+  /appstore/browse:
+    get:
+      operationId: exampleAppstoreBrowse
+      summary: Appstore browse for registries/appstore; adds the secret apiKey server-side so the browser never sees it
+      security:
+        - bearerAuth: []
+          userTokenHeader: []
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+  /public/ping:
+    get:
+      operationId: examplePing
+      summary: Public ping
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 30, per: minute }
+      responses:
+        "200": { description: OK }

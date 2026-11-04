@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/entities.schema.json",
+  "title": "Plugin entities (config/entities.yaml) - DRAFT",
+  "description": "Extends or adds entities and annotates existing ones. Extensions never break the parent (spec/04).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "entities": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "extends": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "primaryKey": {
+            "type": "string",
+            "default": "uuid"
+          },
+          "scope": {
+            "enum": [
+              "site",
+              "system"
+            ]
+          },
+          "store": {
+            "type": "string",
+            "description": "id of a store in datastores.yaml."
+          },
+          "storage": {
+            "enum": [
+              "inherited"
+            ]
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "enum": [
+                    "string",
+                    "integer",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object"
+                  ]
+                },
+                "default": {},
+                "note": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "personalData": {
+            "type": "boolean"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "not": {
+                "required": [
+                  "extends"
+                ]
+              }
+            },
+            "then": {
+              "anyOf": [
+                {
+                  "required": [
+                    "store"
+                  ]
+                },
+                {
+                  "required": [
+                    "storage"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "annotations": {
+      "type": "object",
+      "description": "entity -> namespaced annotation field. Never stored; ignored on write.",
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "pattern": "^ext\\.[a-z][a-z0-9-]*\\.[A-Za-z0-9._-]+$"
+        },
+        "additionalProperties": {
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "string",
+                "integer",
+                "number",
+                "boolean",
+                "array",
+                "object"
+              ]
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Fields this plugin keeps on core records it does not own, stored in the record itself under metadata.plugins.<plugin id> (so they travel with the site, like a manifest store). Keyed by entity type (page, site, file). Core checks every save: fields under a plugin's namespace that the plugin did not declare here, or of the wrong type, are dropped with a warning.",
+      "propertyNames": {
+        "enum": [
+          "page",
+          "site",
+          "file"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "fields"
+        ],
+        "properties": {
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "enum": [
+                    "string",
+                    "integer",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object"
+                  ]
+                },
+                "note": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "form": {
+            "type": "array",
+            "description": "Fields shown to authors in that record's settings dialog (the page settings form), under the plugin's title. haxProperties configure entries; each property must be one of the declared fields.",
+            "items": {
+              "type": "object",
+              "required": [
+                "property",
+                "title",
+                "inputMethod"
+              ],
+              "properties": {
+                "property": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "inputMethod": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

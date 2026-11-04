@@ -1,0 +1,17 @@
+- id: changelog-001
+  title: "a commit adds a line to the Changes page, and the page's own commit does not loop"
+  hook: git.after.commit
+  given: "git and changelog enabled"
+  when: "a page is saved"
+  then: "one commit; the Changes page lists it; its own save does not commit again because git is still inside page.after.save (no re-entry), so it rides along with the next commit"
+  run:
+    with: [core-plugins/git]
+    steps:
+      - save: { type: page, record: { id: p1, title: Welcome, content: "<p>hi</p>" } }
+      - record: { type: page, id: changelog }
+        expect: { subject: { title: Changes, metadata: { log: [{ message: "Page saved: Welcome" }] } }, notContains: ["Page saved: Changes"] }
+      - call: { operation: gitHistory, query: { limit: 5 } }
+        expect: { body: { items: [{ message: "Page saved: Welcome" }] }, notContains: ["Page saved: Changes"], log: { contains: ["page.after.save: not re-entered while it is already running"] } }
+      - save: { type: page, record: { id: p2, title: Second, content: "<p>more</p>" } }
+      - record: { type: page, id: changelog }
+        expect: { subject: { metadata: { log: [{ message: "Page saved: Second" }, { message: "Page saved: Welcome" }] } } }

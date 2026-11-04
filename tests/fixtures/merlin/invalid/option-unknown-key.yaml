@@ -1,0 +1,5 @@
+option:
+  title: X
+  surprise: true
+  eventName: hax-super-daemon-insert-tag
+  value: { tag: x-tag }

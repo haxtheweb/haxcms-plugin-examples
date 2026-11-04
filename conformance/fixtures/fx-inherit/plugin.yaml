@@ -1,0 +1,16 @@
+specVersion: "0.1.0"
+id: fx-inherit
+uuid: a5c45ada-c632-5271-99b5-6375e8f1586f
+title: fx-inherit (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+dependencies: [fx-notes]
+hooks:
+  - name: entity.before.create
+    entities: [specialNote]
+    priority: 100
+  - name: entity.before.create
+    entities: [note]

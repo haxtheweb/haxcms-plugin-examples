@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-singleton
+uuid: 51991a87-11a2-5707-856b-0423ec5e7231
+title: fx-singleton (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: render.after.body

@@ -1,0 +1,26 @@
+openapi: 3.1.0
+info: { title: Files, version: 0.1.0 }
+paths:
+  /files:
+    get:
+      operationId: filesList
+      summary: The site's files
+      security: [{ bearerAuth: [], siteTokenHeader: [] }]
+      parameters: [{ name: name, in: query, description: Filter by part of the name, schema: { type: string } }]
+      responses: { "200": { description: OK } }
+    post:
+      operationId: filesUpload
+      summary: Upload a file (base64 body here; multipart in the backends)
+      security: [{ bearerAuth: [], siteTokenHeader: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [name, data], properties: { name: { type: string }, data: { type: string, contentEncoding: base64 }, alt: { type: string } } }
+      responses: { "200": { description: The file record }, "400": { description: Not allowed }, "409": { description: Vetoed by a hook } }
+  /files/{uuid}:
+    delete:
+      operationId: filesDelete
+      summary: Delete a file (other plugins may refuse, for example while pages embed it)
+      security: [{ bearerAuth: [], siteTokenHeader: [] }]
+      parameters: [{ name: uuid, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Deleted }, "404": { description: Not found }, "409": { description: Vetoed by a hook } }

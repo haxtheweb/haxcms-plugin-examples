@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-needs-token
+uuid: f8e52f4f-ce41-5230-9f9a-6cb6a8695f55
+title: fx-needs-token (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: config/openapi.yaml
+hooks:
+  - name: plugin.before.requirements

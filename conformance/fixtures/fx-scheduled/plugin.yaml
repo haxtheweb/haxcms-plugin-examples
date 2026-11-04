@@ -1,0 +1,13 @@
+specVersion: "0.1.0"
+id: fx-scheduled
+uuid: 8d0f2b3c-5e7a-4c9d-8f2b-3c5e7a9d1f2b
+title: fx-scheduled (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+datastores: datastores.yaml
+schedules:
+  - { id: tick, cron: "*/15 * * * *", handler: tick }
+  - { id: broken, cron: "0 * * * *", handler: broken }

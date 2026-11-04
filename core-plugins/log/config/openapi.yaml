@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info: { title: Log, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /entries:
+    get:
+      operationId: logList
+      summary: Log entries, newest first
+      x-hax-mcp: true
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters:
+        - { name: plugin, in: query, schema: { type: string } }
+        - { name: level, in: query, schema: { enum: [info, warn, error] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses: { "200": { description: OK } }

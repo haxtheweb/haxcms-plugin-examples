@@ -1,0 +1,42 @@
+- id: importer-elmsln-001
+  title: "a course site comes over with its tree, files and a link for the page that could not be read"
+  given: "courses.example.edu/sites/bio101/site.json named bio101, one location prefixed with /bio101/, one page that 404s, one listing a file, one with a script"
+  when: "convert with the site's site.json URL"
+  then: "three pages with ids, tree and HTML (script dropped); the missing page links to its source; the file listed once"
+  run:
+    fetch:
+      "https://courses.example.edu/sites/bio101/site.json": { status: 200, body: { title: "Biology 101", metadata: { site: { name: bio101 } }, items: [{ id: item-1, title: Welcome, slug: welcome, location: /bio101/pages/welcome/index.html, parent: null, order: 0, metadata: { files: [{ url: files/syllabus.pdf }] } }, { id: item-2, title: Cells, slug: cells, location: pages/cells/index.html, parent: item-1, order: 0, indent: 1, metadata: { files: [{ url: files/syllabus.pdf }] } }, { id: item-3, title: Lab, slug: lab, location: pages/lab/index.html, parent: null, order: 1 }] } }
+      "https://courses.example.edu/sites/bio101/pages/welcome/index.html": { status: 200, body: "<p onclick=\"go()\">Hello</p><script>track()</script>" }
+      "https://courses.example.edu/sites/bio101/pages/cells/index.html": { status: 200, body: "<p>Cells</p>" }
+      "https://courses.example.edu/sites/bio101/pages/lab/index.html": { status: 404, body: "" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-elmsln, input: { url: "https://courses.example.edu/sites/bio101/site.json" } }
+        expect:
+          body: [{ result: { title: "Biology 101", items: [{ id: item-1, slug: welcome, parent: null, content: "<p>Hello</p>" }, { id: item-2, parent: item-1, indent: 1, content: "<p>Cells</p>" }, { id: item-3, content: "<p>get source from <a href=\"https://courses.example.edu/sites/bio101/pages/lab/index.html\">https://courses.example.edu/sites/bio101/pages/lab/index.html</a></p>" }], files: [{ path: files/syllabus.pdf, url: "https://courses.example.edu/sites/bio101/files/syllabus.pdf" }] } }]
+          notContains: ["track()", "go()"]
+- id: importer-elmsln-002
+  title: "a URL that is not an ELMS:LN site is an error"
+  given: "a host that answers site.json with an HTML page, and a call with no url"
+  when: "convert"
+  then: "both come back as { error } without throwing"
+  run:
+    fetch:
+      "https://www.example.com/site.json": { status: 200, body: "<html><body>Not here</body></html>" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-elmsln, input: { url: "https://www.example.com/" } }
+        expect: { body: [{ result: { error: "no site.json with items at https://www.example.com; this does not look like an ELMS:LN site" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-elmsln, input: {} }
+        expect: { body: [{ result: { error: url is required } }] }
+- id: importer-elmsln-003
+  title: "only the named site is reachable"
+  given: "a site.json whose page location is a full URL on another host"
+  when: "convert"
+  then: "the location is read under the named site (and missing there), the other host is never fetched"
+  run:
+    fetch:
+      "https://courses.example.edu/c/site.json": { status: 200, body: { title: C, items: [{ id: a, title: A, slug: a, location: pages/a/index.html }, { id: b, title: B, slug: b, location: "https://other.example.net/b.html" }] } }
+      "https://courses.example.edu/c/pages/a/index.html": { status: 200, body: "<p>ok</p>" }
+      other.example.net: { status: 200, body: "<p>should not be read</p>" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-elmsln, input: { url: "https://courses.example.edu/c/" } }
+        expect: { body: [{ result: { items: [{ id: a, content: "<p>ok</p>" }, { id: b }] } }], notContains: ["should not be read"], fetch: { count: 3, contains: ["https://courses.example.edu/c/https://other.example.net/b.html"], notContains: ['"url":"https://other.example.net'] } }

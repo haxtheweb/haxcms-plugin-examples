@@ -1,0 +1,75 @@
+{
+  "name": "@haxtheweb/haxcms-plugin-spec",
+  "type": "module",
+  "description": "Spec, schema, conformance fixtures and example plugins for HAXcms plugins",
+  "scripts": {
+    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node scripts/plugin-docs.mjs --check && node tests/check-plugin-tests.mjs && node conformance/run.mjs"
+  },
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haxtheweb/haxcms-plugin-examples.git"
+  },
+  "bugs": {
+    "url": "https://github.com/haxtheweb/issues/issues"
+  },
+  "bin": {
+    "hax-plugin-validate": "scripts/validate.mjs",
+    "hax-plugin-test": "harness/run-cases.mjs"
+  },
+  "files": [
+    "schema/",
+    "scripts/validate.mjs",
+    "spec/",
+    "conformance/",
+    "examples/",
+    "skills/",
+    "harness/",
+    "core-plugins/",
+    "contrib-plugins/",
+    "scripts/"
+  ],
+  "exports": {
+    "./schema/*": "./schema/*",
+    "./harness/*": "./harness/*",
+    "./conformance/*": "./conformance/*",
+    "./scripts/*": "./scripts/*",
+    "./core-plugins/*": "./core-plugins/*",
+    "./contrib-plugins/*": "./contrib-plugins/*",
+    "./examples/*": "./examples/*",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@haxtheweb/appstore-spec": "github:haxtheweb/appstore-spec#292689a41304689eb391b09d6c8e15837b77a7c2",
+    "@haxtheweb/hax-element-schema": "github:haxtheweb/hax-element-schema#45712aead49ba8c1de0e7eb6f43600d8b14956c0",
+    "@haxtheweb/hax-schema": "github:haxtheweb/hax-schema#269988cecf63c0f64ec89a4367492852b22c4f86",
+    "@haxtheweb/json-outline-schema-spec": "github:haxtheweb/json-outline-schema#e06cfbdf264b12d292158a4fec935b65f495a45d",
+    "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e"
+  },
+  "peerDependencies": {
+    "@haxtheweb/hax-schema": "*",
+    "@haxtheweb/json-outline-schema-spec": "*",
+    "@haxtheweb/merlin-schema": "*",
+    "@haxtheweb/appstore-spec": "*"
+  },
+  "peerDependenciesMeta": {
+    "@haxtheweb/hax-schema": {
+      "optional": true
+    },
+    "@haxtheweb/json-outline-schema-spec": {
+      "optional": true
+    },
+    "@haxtheweb/merlin-schema": {
+      "optional": true
+    },
+    "@haxtheweb/appstore-spec": {
+      "optional": true
+    }
+  }
+}

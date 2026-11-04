@@ -1,0 +1,74 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Giphy",
+        "icon": "gif",
+        "color": "green",
+        "author": "Giphy",
+        "description": "Crowd sourced memes via animated gifs.",
+        "status": "available",
+        "tags": [
+          "gif",
+          "crowdsourced",
+          "meme"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/giphy",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": {
+              "style": "offset",
+              "props": {
+                "offset": "pagination.offset",
+                "total": "pagination.total_count",
+                "count": "pagination.count"
+              }
+            },
+            "search": {
+              "q": {
+                "title": "Search",
+                "type": "string"
+              },
+              "rating": {
+                "title": "Rating",
+                "type": "string"
+              },
+              "lang": {
+                "title": "Language",
+                "type": "string"
+              }
+            },
+            "data": {
+              "limit": "20",
+              "lang": "en"
+            },
+            "resultMap": {
+              "defaultGizmoType": "image",
+              "items": "data",
+              "preview": {
+                "title": "title",
+                "details": "description",
+                "image": "images.preview_gif.url",
+                "id": "id"
+              },
+              "gizmo": {
+                "source": "images.original.url",
+                "source2": "images.480w_still.url",
+                "id": "id",
+                "title": "title",
+                "alt": "title",
+                "caption": "user.display_name",
+                "citation": "user.display_name"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

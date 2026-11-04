@@ -1,0 +1,1 @@
+{ "configure": [ { "property": "extraHosts", "title": "Also allow scripts from", "description": "One host per line (for example a CDN)", "inputMethod": "textarea" } ] }

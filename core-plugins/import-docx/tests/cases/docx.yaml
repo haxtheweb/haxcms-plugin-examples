@@ -1,0 +1,30 @@
+- id: import-docx-001
+  title: "a Word file becomes pages by heading, with lists, tables, links and emphasis"
+  given: "tests/fixtures/sample.docx: a Title, intro text, Heading 1 Week 1 (with Heading 2 Reading and Steps), Heading 1 Week 2"
+  when: "it is imported as a site"
+  then: "Course Guide (intro), Week 1 with children Reading (bullets) and Steps (numbered), Week 2 with a table"
+  run:
+    steps:
+      - importFile: { file: tests/fixtures/sample.docx, method: site }
+        expect:
+          status: 200
+          body:
+            plugin: import-docx
+            title: Course Guide
+            items:
+              - { title: Course Guide, slug: course-guide, content: "<p>Intro text before any heading.</p>" }
+              - { title: Week 1, slug: week-1, content: '<p>Read the <strong>first</strong> chapter, see <a href="https://example.org/book">the site</a>.</p>' }
+              - { title: Reading, slug: week-1/reading, parent: item-2, content: "<ul><li>Chapter one</li><li>Chapter two</li></ul>" }
+              - { title: Steps, parent: item-2, content: "<ol><li>Open the book</li><li>Take notes &amp; reflect</li></ol>" }
+              - { title: Week 2, content: "<table><tr><th>Day</th><th>Task</th></tr><tr><td>Mon</td><td>Quiz</td></tr></table><p><em>Emphasis here.</em></p>" }
+- id: import-docx-002
+  title: "as one page, and a file that is not a zip"
+  given: "the same file with method page; then a text file named .docx"
+  when: "imported"
+  then: "one page holding everything; then a clear error"
+  run:
+    steps:
+      - importFile: { file: tests/fixtures/sample.docx, method: page }
+        expect: { body: { items: [{ title: Course Guide }] }, contains: ["<h1>Week 1</h1>", "<h2>Reading</h2>"] }
+      - importFile: { name: old.docx, data: "aGVsbG8gd29ybGQ=", method: site }
+        expect: { status: 422, message: "not a .docx file" }

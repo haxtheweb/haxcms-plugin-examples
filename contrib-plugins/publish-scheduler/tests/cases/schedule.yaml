@@ -1,0 +1,45 @@
+- id: publish-scheduler-001
+  title: "due pages are published in one run and one commit"
+  given: "two draft pages due before now, one due later; git enabled"
+  when: "the publish job runs"
+  then: "two pages published, their publishAt cleared; the later one untouched; one git commit for both"
+  run:
+    with: [core-plugins/git]
+    now: "2026-05-01T12:00:00Z"
+    records:
+      page:
+        - { id: a, title: A, content: "a", metadata: { published: false, plugins: { publish-scheduler: { publishAt: "2026-05-01T09:00:00.000Z" } } } }
+        - { id: b, title: B, content: "b", metadata: { published: false, plugins: { publish-scheduler: { publishAt: "2026-05-01T11:59:00.000Z" } } } }
+        - { id: c, title: C, content: "c", metadata: { published: false, plugins: { publish-scheduler: { publishAt: "2026-06-01T00:00:00.000Z" } } } }
+    steps:
+      - schedule: { plugin: publish-scheduler, id: publish }
+        expect: { status: 200, body: { result: { published: 2, unpublished: 0 } } }
+      - record: { type: page, id: a }
+        expect: { subject: { metadata: { published: true } }, notContains: [publishAt] }
+      - record: { type: page, id: c }
+        expect: { subject: { metadata: { published: false, plugins: { publish-scheduler: { publishAt: "2026-06-01T00:00:00.000Z" } } } } }
+      - call: { operation: gitHistory }
+        expect: { body: { items: [{ message: "2 changes: Page saved: A; Page saved: B" }] } }
+- id: publish-scheduler-002
+  title: "setting a time stores it in the page under the plugin's namespace"
+  given: "page p1"
+  when: "PUT a publishAt"
+  then: "the page carries metadata.plugins.publish-scheduler.publishAt as an ISO string"
+  run:
+    records: { page: [{ id: p1, title: One, content: "x" }] }
+    steps:
+      - call: { operation: publishSchedulerSet, params: { pageId: p1 }, body: { publishAt: "2026-07-04T10:00:00-04:00" } }
+        expect: { status: 200, body: { publishAt: "2026-07-04T14:00:00.000Z" } }
+      - record: { type: page, id: p1 }
+        expect: { subject: { metadata: { plugins: { publish-scheduler: { publishAt: "2026-07-04T14:00:00.000Z" } } } } }
+- id: publish-scheduler-003
+  title: "core drops undeclared or mistyped fields in another plugin's namespace"
+  given: "an editor (or another plugin) writes metadata.plugins.publish-scheduler with an unknown key and a number"
+  when: "the page is saved"
+  then: "both are dropped with warnings; the declared field stays"
+  run:
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "x", metadata: { plugins: { publish-scheduler: { publishAt: "2026-07-04T14:00:00.000Z", sneaky: 1, unpublishAt: 12345 } } } } }
+        expect: { warnings: ["metadata.plugins.publish-scheduler.sneaky is not declared", "metadata.plugins.publish-scheduler.unpublishAt must be string"] }
+      - record: { type: page, id: p1 }
+        expect: { subject: { metadata: { plugins: { publish-scheduler: { publishAt: "2026-07-04T14:00:00.000Z" } } } }, notContains: [sneaky, "12345"] }

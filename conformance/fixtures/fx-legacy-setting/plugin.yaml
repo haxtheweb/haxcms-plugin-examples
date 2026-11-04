@@ -1,0 +1,14 @@
+specVersion: "0.1.0"
+id: fx-legacy-setting
+uuid: 713c989f-7d8d-5953-a51d-42ba409a7f1a
+title: fx-legacy-setting (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: settings.schema.json
+legacy:
+  settings:
+    token: config:services.fxToken
+    enabled: metadata.site.settings.fxOn

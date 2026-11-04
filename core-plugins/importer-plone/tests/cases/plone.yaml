@@ -1,0 +1,77 @@
+- id: importer-plone-001
+  title: "a Plone site comes over as a page tree by path, with files and images listed"
+  given: "a URL deep inside a Plone site whose REST root is /history; @search returns two documents, a folder, a news item stored in Volto blocks, a link outside any imported folder, a file and an image"
+  when: "convert with that URL"
+  then: "the root is found by walking up; pages ordered by position then title, the document nested under its folder; root-relative links made absolute; scripts and handlers gone; the file and image listed"
+  run:
+    fetch:
+      "https://plone.example.edu/history/@site": { status: 200, body: { "@id": "https://plone.example.edu/history", title: "Department of History" } }
+      "https://plone.example.edu/history/@search?b_start=0&b_size=100&sort_on=path&sort_order=ascending&metadata_fields=UID&metadata_fields=portal_type&metadata_fields=path&metadata_fields=is_folderish&metadata_fields=created&metadata_fields=modified&metadata_fields=review_state&metadata_fields=getObjPositionInParent&fullobjects=1":
+        status: 200
+        body:
+          items_total: 7
+          items:
+            - { "@id": "https://plone.example.edu/history/about", "@type": Document, title: About, UID: uid-about, review_state: published, getObjPositionInParent: 1, text: { data: '<p onclick="y()">We study the past.</p>' } }
+            - { "@id": "https://plone.example.edu/history/courses", "@type": Folder, title: Courses, getObjPositionInParent: 2, description: "" }
+            - { "@id": "https://plone.example.edu/history/courses/hist-101", "@type": Document, title: HIST 101, getObjPositionInParent: 1, description: Survey course, text: { data: '<p>Read the <a href="/history/files/syllabus.pdf">syllabus</a>.</p><script>x()</script>' } }
+            - { "@id": "https://plone.example.edu/history/files/syllabus.pdf", "@type": File, file: { filename: Syllabus Fall.pdf, download: "https://plone.example.edu/history/files/syllabus.pdf/@@download/file" } }
+            - { "@id": "https://plone.example.edu/history/images/map.png", "@type": Image, image: { filename: map.png } }
+            - { "@id": "https://plone.example.edu/history/links/library", "@type": Link, title: Library, remoteUrl: "https://library.example.edu" }
+            - { "@id": "https://plone.example.edu/history/news-2024", "@type": News Item, title: Archive opens, blocks: { a1: { "@type": slate } }, blocks_layout: { items: [a1] } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-plone, input: { url: "https://plone.example.edu/history/courses/hist-101" } }
+        expect:
+          body:
+            - plugin: importer-plone
+              result:
+                title: Department of History
+                items:
+                  - { id: item-1, title: About, slug: about, parent: null, order: 0, indent: 0, content: "<p>We study the past.</p>", metadata: { sourceType: plone, source: "https://plone.example.edu/history/about", plone: { uid: uid-about, type: Document, reviewState: published } } }
+                  - { id: item-2, title: Courses, slug: courses, parent: null, order: 1, content: "<p></p>" }
+                  - { id: item-3, title: HIST 101, slug: courses/hist-101, parent: item-2, order: 0, indent: 1, description: Survey course, content: '<p>Read the <a href="https://plone.example.edu/history/files/syllabus.pdf">syllabus</a>.</p>' }
+                  - { id: item-4, title: Archive opens, slug: news-2024, parent: null, order: 2, content: "<p>This Plone item stores body content in blocks and requires a blocks-to-HTML transform for full fidelity import.</p>" }
+                  - { id: item-5, title: Library, slug: links/library, parent: null, order: 3, content: '<p><a href="https://library.example.edu" target="_blank" rel="noopener noreferrer">https://library.example.edu</a></p>' }
+                files:
+                  - { path: files/syllabus-fall.pdf, url: "https://plone.example.edu/history/files/syllabus.pdf/@@download/file" }
+                  - { path: files/map.png, url: "https://plone.example.edu/history/images/map.png/@@images/image" }
+          notContains: ["x()", "y()", "onclick"]
+          fetch: { contains: ["https://plone.example.edu/history/courses/hist-101/@site", "https://plone.example.edu/history/courses/++api++"], notContains: ["library.example.edu"] }
+- id: importer-plone-002
+  title: "summaries are filled in item by item, and only the given host is reachable"
+  given: "a site that refuses fullobjects; one result's @id points at a backend host"
+  when: "convert"
+  then: "the search is retried without fullobjects; the local item is fetched and filled in; the backend host is never contacted and that item keeps its summary"
+  run:
+    fetch:
+      "https://www.example.org/site/@site": { status: 200, body: { title: Example } }
+      "https://www.example.org/site/@search?b_start=0&b_size=100&sort_on=path&sort_order=ascending&metadata_fields=UID&metadata_fields=portal_type&metadata_fields=path&metadata_fields=is_folderish&metadata_fields=created&metadata_fields=modified&metadata_fields=review_state&metadata_fields=getObjPositionInParent&fullobjects=1": { status: 400, body: { message: fullobjects is not supported } }
+      "https://www.example.org/site/@search?b_start=0&b_size=100&sort_on=path&sort_order=ascending&metadata_fields=UID&metadata_fields=portal_type&metadata_fields=path&metadata_fields=is_folderish&metadata_fields=created&metadata_fields=modified&metadata_fields=review_state&metadata_fields=getObjPositionInParent":
+        status: 200
+        body:
+          items_total: 2
+          items:
+            - { "@id": "https://www.example.org/site/front-page", "@type": Document, title: Front page }
+            - { "@id": "https://cms-backend.example.net/site/secret", "@type": Document, title: Secret, description: From summary }
+      "https://www.example.org/site/front-page": { status: 200, body: { "@id": "https://www.example.org/site/front-page", "@type": Document, title: Welcome, text: { data: "<p>Hello</p>" } } }
+      cms-backend.example.net: { status: 200, body: { title: Leaked, text: { data: "<p>should not be read</p>" } } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-plone, input: { url: "https://www.example.org/site/@search" } }
+        expect:
+          body: [{ result: { title: Example, items: [{ title: Secret, slug: secret, content: "<p>From summary</p>" }, { title: Welcome, slug: front-page, content: "<p>Hello</p>" }] } }]
+          notContains: [Leaked, should not be read]
+          fetch: { notContains: [cms-backend.example.net], count: 4 }
+- id: importer-plone-003
+  title: "a Plone site that refuses REST access is an error that says how to fix it; a URL without a scheme gets https:// from core"
+  given: "a site whose @site answers 401 naming the plone.restapi permission; then a bare host name"
+  when: "convert each"
+  then: "an error naming the site and the permission to enable; the bare host reaches the same site over https"
+  run:
+    fetch:
+      "https://plone.example.com/@site": { status: 401, body: { type: Unauthorized, message: "You are not authorized to access this resource (plone.restapi: Use REST API)." } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-plone, input: { url: "https://plone.example.com/" } }
+        expect:
+          body: [{ result: { error: "Plone REST API detected at https://plone.example.com but access is denied (401). Enable \"plone.restapi: Use REST API\" permission for authenticated/anonymous access and retry." } }]
+      - contract: { name: import.platform, op: convert, plugin: importer-plone, input: { url: "plone.example.com" } }
+        expect:
+          body: [{ result: { error: "Plone REST API detected at https://plone.example.com but access is denied (401). Enable \"plone.restapi: Use REST API\" permission for authenticated/anonymous access and retry." } }]

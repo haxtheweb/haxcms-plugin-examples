@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-required
+uuid: a9d6038a-8d7d-5865-8a5f-33352adca92c
+title: fx-required (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+core: true
+required: true

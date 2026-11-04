@@ -1,0 +1,9 @@
+{
+  "configure": [
+    { "property": "phone", "title": "Phone", "description": "Shown by themes that display contact details", "inputMethod": "textfield" },
+    { "property": "location", "title": "Location", "description": "City, region or similar", "inputMethod": "textfield" },
+    { "property": "website2", "title": "Second website", "description": "Another site you run", "inputMethod": "textfield", "validationType": "url" },
+    { "property": "socialLink", "title": "Social link", "description": "A profile on a social network", "inputMethod": "textfield", "validationType": "url" },
+    { "property": "socialLink2", "title": "Second social link", "description": "Another profile", "inputMethod": "textfield", "validationType": "url" }
+  ]
+}

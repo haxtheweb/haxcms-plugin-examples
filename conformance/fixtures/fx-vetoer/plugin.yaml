@@ -1,0 +1,15 @@
+specVersion: "0.1.0"
+id: fx-vetoer
+uuid: 3f9a1c2e-7b4d-4e8a-9c1f-2e7b4d8a9c1f
+title: fx-vetoer (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+hooks:
+  - name: page.before.save
+  - name: page.before.delete
+  - name: file.before.save
+  - name: file.before.delete

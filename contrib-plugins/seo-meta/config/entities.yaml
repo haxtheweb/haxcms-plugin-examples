@@ -1,0 +1,10 @@
+metadata:
+  page:
+    fields:
+      description: { type: string, note: "shown by search engines; 50 to 160 characters" }
+      image: { type: string, note: "share image: a path under files/ or an https URL" }
+      noindex: { type: boolean }
+    form:
+      - { property: description, title: Search description, description: "What search results show under the title (50 to 160 characters)", inputMethod: textarea }
+      - { property: image, title: Share image, description: "Shown when the page is shared on social media", inputMethod: haxupload }
+      - { property: noindex, title: Hide from search engines, inputMethod: boolean }

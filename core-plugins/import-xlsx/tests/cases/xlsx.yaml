@@ -1,0 +1,27 @@
+- id: import-xlsx-001
+  title: "rows become a page tree; parents are matched by slug"
+  given: "tests/fixtures/sample.xlsx: Home, About, and Team whose parent is about"
+  when: "imported"
+  then: "three items; Team is under About; the content HTML is decoded"
+  run:
+    steps:
+      - importFile: { file: tests/fixtures/sample.xlsx }
+        expect:
+          status: 200
+          body:
+            plugin: import-xlsx
+            items:
+              - { id: item-1, title: Home, slug: home, parent: null, content: "<p>Welcome</p>" }
+              - { id: item-2, title: About, slug: about, parent: null }
+              - { id: item-3, title: Team, slug: team, parent: item-2, indent: 1, content: "<p>People</p>" }
+- id: import-xlsx-002
+  title: "bad rows stop the import with the row number; an unknown sheet is named"
+  given: "a duplicate slug on row 3; then a sheet name that does not exist"
+  when: "imported"
+  then: "422 with row 3; then 422 naming the sheet"
+  run:
+    steps:
+      - importFile: { file: tests/fixtures/duplicate.xlsx }
+        expect: { status: 422, message: "row 3: duplicate slug \"home\" (already used on row 2)" }
+      - importFile: { file: tests/fixtures/sample.xlsx, sheet: Budget }
+        expect: { status: 422, message: "no sheet named \"Budget\"" }

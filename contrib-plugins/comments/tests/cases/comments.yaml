@@ -1,0 +1,95 @@
+- id: comments-001
+  title: "moderation: a reader's comment waits; an editor approves it; visitors see it only when allowed"
+  given: "page p1, moderation on, anonymousRead off"
+  when: "a reader posts, an editor approves, a visitor reads"
+  then: "pending for the reader, hidden from other readers, approved after review; visitors get 401 until anonymousRead is on"
+  run:
+    records: { page: [{ id: p1, title: One, content: "<p>x</p>" }] }
+    steps:
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: "  Nice <b>page</b>  " } }
+        expect: { status: 200, body: { id: c1, status: pending, body: "Nice <b>page</b>", authorName: Reader } }
+      - asUser: { id: u3, name: other, displayName: Other, roles: [viewer], avatar: null }
+      - call: { operation: commentsList, params: { pageId: p1 } }
+        expect: { status: 200, body: [] }
+      - call: { operation: commentsModerate, params: { id: c1 }, body: { status: approved } }
+        expect: { status: 403 }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: commentsModerate, params: { id: c1 }, body: { status: approved } }
+        expect: { status: 200, body: { status: approved } }
+      - call: { operation: commentsList, params: { pageId: p1 }, credentials: none }
+        expect: { status: 401 }
+      - config: { plugin: comments, values: { anonymousRead: true } }
+        expect: { status: 200 }
+      - call: { operation: commentsList, params: { pageId: p1 }, credentials: none }
+        expect: { status: 200, body: [{ id: c1 }] }
+- id: comments-002
+  title: "posting needs a real page and a non-empty body"
+  given: "no page p9"
+  when: "post to p9, then post an empty comment to p1"
+  then: "404 then 422"
+  run:
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - call: { operation: commentsCreate, params: { pageId: p9 }, body: { body: hi } }
+        expect: { status: 404 }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: "   " } }
+        expect: { status: 422 }
+- id: comments-003
+  title: "only the author or a moderator deletes a comment"
+  given: "c1 by u2"
+  when: "u3 deletes, then u2 deletes"
+  then: "403 then 200"
+  run:
+    stores: { comments: [{ id: c1, pageId: p1, authorId: u2, authorName: Reader, body: hi, status: approved }] }
+    steps:
+      - asUser: { id: u3, name: other, displayName: Other, roles: [viewer], avatar: null }
+      - call: { operation: commentsDelete, params: { id: c1 } }
+        expect: { status: 403 }
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: commentsDelete, params: { id: c1 } }
+        expect: { status: 200, body: { deleted: c1 } }
+- id: comments-004
+  title: "deleting a page deletes its thread"
+  hook: page.after.delete
+  given: "comments on p1 and p2"
+  when: "p1 is deleted"
+  then: "only p2's comment remains"
+  run:
+    records: { page: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }] }
+    stores: { comments: [{ id: c1, pageId: p1, authorId: u2, authorName: R, body: a, status: approved }, { id: c2, pageId: p2, authorId: u2, authorName: R, body: b, status: approved }] }
+    steps:
+      - delete: { type: page, id: p1 }
+        expect: { body: { deleted: true } }
+      - call: { operation: commentsList, params: { pageId: p1 } }
+        expect: { body: [] }
+      - call: { operation: commentsList, params: { pageId: p2 } }
+        expect: { body: [{ id: c2 }] }
+- id: comments-005
+  title: "published pages carry approved comments, escaped"
+  hook: render.after.content
+  given: "one approved comment with markup and one pending"
+  when: "p1 renders"
+  then: "the approved one appears escaped; the pending one does not"
+  run:
+    stores: { comments: [{ id: c1, pageId: p1, authorId: u2, authorName: Reader, body: "<script>x</script>", status: approved }, { id: c2, pageId: p1, authorId: u3, authorName: Other, body: secret, status: pending }] }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['<section class="hax-comments"', "&lt;script&gt;x&lt;/script&gt;"], notContains: [secret, "<script>x"] }
+- id: comments-006
+  title: "erasing a user removes their comments and lists pages to republish"
+  hook: user.after.erase
+  given: "u2 has an approved comment on p1 and a pending one on p2"
+  when: "core erases u2"
+  then: "core removes both with no plugin code; the plugin lists p1 (only approved comments were published)"
+  run:
+    stores: { comments: [{ id: c1, pageId: p1, authorId: u2, authorName: R, body: a, status: approved }, { id: c2, pageId: p2, authorId: u2, authorName: R, body: b, status: pending }, { id: c3, pageId: p1, authorId: u3, authorName: O, body: c, status: approved }] }
+    steps:
+      - exportUser: u2
+        expect: { body: { comments.comments: [{ id: c1 }, { id: c2 }] } }
+      - eraseUser: u2
+        expect: { body: { removed: 2 } }
+      - call: { operation: commentsRepublish }
+        expect: { body: [p1] }
+      - render: { page: { id: p1, content: "" } }
+        expect: { notContains: ["<strong>R</strong>"], contains: ["<strong>O</strong>"] }

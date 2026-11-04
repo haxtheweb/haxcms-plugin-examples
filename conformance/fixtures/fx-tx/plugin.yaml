@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-tx
+uuid: 7f7de21f-b2eb-51e9-9aba-ee54d244962c
+title: fx-tx (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: page.after.save
+  - name: transaction.after.end

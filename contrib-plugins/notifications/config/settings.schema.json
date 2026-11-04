@@ -1,0 +1,5 @@
+{ "configure": [
+  { "property": "webhook", "title": "Slack incoming webhook URL", "description": "https://hooks.slack.com/services/...", "inputMethod": "textfield", "required": true, "x-secret": true },
+  { "property": "onPending", "title": "Tell moderators about comments waiting for review", "inputMethod": "boolean" },
+  { "property": "onJobFailure", "title": "Tell admins when a scheduled job fails", "inputMethod": "boolean" }
+] }

@@ -1,0 +1,54 @@
+- id: notifications-001
+  title: "a comment held for review posts to Slack; an approved one does not"
+  hook: comments.after.create
+  given: "comments with moderation on; a webhook"
+  when: "a reader comments, then an editor comments"
+  then: "one Slack post, for the reader's pending comment; the webhook secret is not in any response"
+  run:
+    with: [contrib-plugins/comments]
+    settings: { webhook: "https://hooks.slack.com/services/T0/B0/secret123" }
+    fetch: { hooks.slack.com: { status: 200, body: ok } }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: hi } }
+        expect: { status: 200, body: { status: pending }, fetch: { count: 1, contains: ['"method":"POST"', "hooks.slack.com/services/T0/B0/secret123"] }, notContains: [secret123] }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: ok } }
+        expect: { status: 200, body: { status: approved }, fetch: { count: 0 } }
+- id: notifications-002
+  title: "a failed scheduled job posts to Slack"
+  hook: schedule.after.run
+  given: "a job that throws"
+  when: "it runs"
+  then: "Slack is told which job failed"
+  run:
+    with: [conformance/fixtures/fx-scheduled]
+    settings: { webhook: "https://hooks.slack.com/services/T0/B0/x" }
+    fetch: { hooks.slack.com: { status: 200, body: ok } }
+    steps:
+      - schedule: { plugin: fx-scheduled, id: broken }
+        expect: { status: 500, fetch: { count: 1 } }
+- id: notifications-003
+  title: "Slack down: logged, never an error for the person commenting"
+  given: "no answer from hooks.slack.com"
+  when: "a pending comment is posted"
+  then: "the comment is stored; the log has a warning"
+  run:
+    with: [contrib-plugins/comments]
+    settings: { webhook: "https://hooks.slack.com/services/T0/B0/x" }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: commentsCreate, params: { pageId: p1 }, body: { body: hi } }
+        expect: { status: 200, log: { contains: ["could not reach Slack: network is disabled in the harness"] } }
+- id: notifications-004
+  title: "only a Slack webhook URL is accepted"
+  hook: config.before.save
+  given: "an arbitrary URL"
+  when: "save"
+  then: "422"
+  run:
+    steps:
+      - config: { plugin: notifications, values: { webhook: "https://evil.example/x" } }
+        expect: { status: 422 }

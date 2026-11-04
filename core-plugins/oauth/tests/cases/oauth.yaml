@@ -1,0 +1,222 @@
+# The demo-resource fixture (harness/fixtures) is the resource: https://resource.example/api, scopes demo:read and
+# demo:write. PKCE pair used throughout: verifier verifier-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGH,
+# S256 challenge f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA.
+- id: oauth-001
+  title: "metadata names the endpoints, PKCE S256 and the scopes of every resource"
+  operation: oauthMetadata
+  given: "the demo resource and an issuer, registration off"
+  when: "read the metadata anonymously"
+  then: "RFC 8414 document; no registration_endpoint while registration is off"
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu/" }
+    call: { operation: oauthMetadata, credentials: none }
+    expect:
+      status: 200
+      body:
+        issuer: "https://cms.example.edu"
+        authorization_endpoint: "https://cms.example.edu/admin/oauth/authorize"
+        token_endpoint: "https://cms.example.edu/system/api/v1/plugins/oauth/token"
+        registration_endpoint: null
+        code_challenge_methods_supported: [S256]
+        scopes_supported: ["demo:read", "demo:write"]
+- id: oauth-002
+  title: "the whole flow: register, consent, code + PKCE, token, call the resource"
+  operation: oauthToken
+  given: "dynamic registration on, the demo resource"
+  when: "an app registers, the person approves demo:read, the app exchanges the code and calls the resource"
+  then: "tokens are issued, the read works with the grant passed on, the write is refused for lack of demo:write"
+  parityIgnore: [access_token, refresh_token, client_id, redirect, id, created]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu", dynamicRegistration: true }
+    steps:
+      - call: { operation: oauthRegister, credentials: none, body: { client_name: Agent, redirect_uris: ["https://app.example/cb"] } }
+        capture: { client: body.client_id }
+        expect: { status: 201, body: { client_name: Agent, token_endpoint_auth_method: none } }
+      - call: { operation: oauthAuthorizeCheck, query: { response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        expect: { status: 200, body: { client: { client_name: Agent }, resource: { title: Demo resource }, scopes: [{ scope: "demo:read" }] } }
+      - call: { operation: oauthAuthorizeDecide, body: { approve: true, state: s1, response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        capture: { code: "body.redirect ~ code=(hax_ac_[0-9a-f]+)" }
+        expect: { status: 200, contains: ["https://app.example/cb?code=hax_ac_", "&state=s1"] }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: authorization_code, code: "{{$code}}", code_verifier: verifier-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGH, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", resource: "https://resource.example/api" } }
+        capture: { access: body.access_token }
+        expect: { status: 200, body: { token_type: Bearer, expires_in: 3600, scope: "demo:read" } }
+      - call: { operation: demoResourceRead, credentials: none, headers: { authorization: "Bearer {{$access}}" } }
+        expect: { status: 200, body: { grant: { resource: "https://resource.example/api", scopes: ["demo:read"] } } }
+      - call: { operation: demoResourceWrite, credentials: none, headers: { authorization: "Bearer {{$access}}" } }
+        expect: { status: 403, message: "needs demo:write" }
+- id: oauth-003
+  title: "a code is single use and bound to its PKCE verifier"
+  operation: oauthToken
+  given: "an approved code"
+  when: "exchange with a wrong verifier, then again with the right one"
+  then: "the first fails and burns the code; the second finds no code"
+  parityIgnore: [client_id, redirect]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu", dynamicRegistration: true }
+    steps:
+      - call: { operation: oauthRegister, credentials: none, body: { redirect_uris: ["http://localhost:3000/cb"] } }
+        capture: { client: body.client_id }
+        expect: { status: 201 }
+      - call: { operation: oauthAuthorizeDecide, body: { approve: true, response_type: code, client_id: "{{$client}}", redirect_uri: "http://localhost:3000/cb", code_challenge: f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        capture: { code: "body.redirect ~ code=(hax_ac_[0-9a-f]+)" }
+        expect: { status: 200 }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: authorization_code, code: "{{$code}}", code_verifier: not-the-verifier, client_id: "{{$client}}", redirect_uri: "http://localhost:3000/cb" } }
+        expect: { status: 400, body: { error: invalid_grant, error_description: "code_verifier does not match the code_challenge" } }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: authorization_code, code: "{{$code}}", code_verifier: verifier-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGH, client_id: "{{$client}}", redirect_uri: "http://localhost:3000/cb" } }
+        expect: { status: 400, body: { error: invalid_grant, error_description: "unknown or expired code" } }
+- id: oauth-004
+  title: "authorization requests are validated before anyone is asked"
+  operation: oauthAuthorizeCheck
+  given: "a registered client"
+  when: "ask with no PKCE, an unregistered redirect, an unknown resource and an unknown scope"
+  then: "400 with the matching OAuth error each time"
+  parityIgnore: [client_id]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu", dynamicRegistration: true }
+    steps:
+      - call: { operation: oauthRegister, credentials: none, body: { redirect_uris: ["https://app.example/cb"] } }
+        capture: { client: body.client_id }
+        expect: { status: 201 }
+      - call: { operation: oauthAuthorizeCheck, query: { response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", resource: "https://resource.example/api" } }
+        expect: { status: 400, body: { error: invalid_request } }
+      - call: { operation: oauthAuthorizeCheck, query: { response_type: code, client_id: "{{$client}}", redirect_uri: "https://evil.example/cb", code_challenge: x, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        expect: { status: 400, body: { error: invalid_request, error_description: "redirect_uri is not registered for this client" } }
+      - call: { operation: oauthAuthorizeCheck, query: { response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: x, code_challenge_method: S256, resource: "https://elsewhere.example/" } }
+        expect: { status: 400, body: { error: invalid_target } }
+      - call: { operation: oauthAuthorizeCheck, query: { response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: x, code_challenge_method: S256, resource: "https://resource.example/api", scope: "demo:admin" } }
+        expect: { status: 400, body: { error: invalid_scope } }
+- id: oauth-005
+  title: "registration is off by default and refuses unsafe redirect URIs when on"
+  operation: oauthRegister
+  given: "registration off, then on"
+  when: "register; then register with a plain-http public redirect"
+  then: "403 while off; 400 invalid_redirect_uri for http on a public host"
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu" }
+    steps:
+      - call: { operation: oauthRegister, credentials: none, body: { redirect_uris: ["https://app.example/cb"] } }
+        expect: { status: 403 }
+      - config: { plugin: oauth, values: { dynamicRegistration: true } }
+      - call: { operation: oauthRegister, credentials: none, body: { redirect_uris: ["http://app.example/cb"] } }
+        expect: { status: 400, body: { error: invalid_redirect_uri } }
+- id: oauth-006
+  title: "refresh tokens rotate, and reusing an old one revokes the approval"
+  operation: oauthToken
+  given: "tokens from an approved code"
+  when: "refresh, then refresh again with the first (already used) refresh token, then use the newest access token"
+  then: "the first refresh works; the reuse fails and revokes everything from that approval"
+  parityIgnore: [client_id, redirect, access_token, refresh_token, id]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu", dynamicRegistration: true }
+    steps:
+      - call: { operation: oauthRegister, credentials: none, body: { redirect_uris: ["https://app.example/cb"] } }
+        capture: { client: body.client_id }
+        expect: { status: 201 }
+      - call: { operation: oauthAuthorizeDecide, body: { approve: true, response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        capture: { code: "body.redirect ~ code=(hax_ac_[0-9a-f]+)" }
+        expect: { status: 200 }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: authorization_code, code: "{{$code}}", code_verifier: verifier-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGH, client_id: "{{$client}}", redirect_uri: "https://app.example/cb" } }
+        capture: { refresh1: body.refresh_token }
+        expect: { status: 200 }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: refresh_token, refresh_token: "{{$refresh1}}", client_id: "{{$client}}" } }
+        capture: { access2: body.access_token }
+        expect: { status: 200, body: { scope: "demo:read" } }
+      - call: { operation: demoResourceRead, credentials: none, headers: { authorization: "Bearer {{$access2}}" } }
+        expect: { status: 200 }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: refresh_token, refresh_token: "{{$refresh1}}" } }
+        expect: { status: 400, body: { error: invalid_grant, error_description: "refresh token already used; the approval has been revoked" } }
+      - call: { operation: demoResourceRead, credentials: none, headers: { authorization: "Bearer {{$access2}}" } }
+        expect: { status: 401 }
+- id: oauth-007
+  title: "access tokens expire, and a denied request goes back with access_denied"
+  operation: oauthToken
+  given: "an access token"
+  when: "use it after its hour; separately, the person declines"
+  then: "401 after expiry; the decline redirects with error=access_denied and the state"
+  parityIgnore: [client_id, access_token, refresh_token, redirect]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu", dynamicRegistration: true }
+    steps:
+      - call: { operation: oauthRegister, credentials: none, body: { redirect_uris: ["https://app.example/cb"] } }
+        capture: { client: body.client_id }
+        expect: { status: 201 }
+      - call: { operation: oauthAuthorizeDecide, body: { approve: false, state: s9, response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        expect: { status: 200, contains: ["https://app.example/cb?error=access_denied&state=s9"] }
+      - call: { operation: oauthAuthorizeDecide, body: { approve: true, response_type: code, client_id: "{{$client}}", redirect_uri: "https://app.example/cb", code_challenge: f37fQwhNJ_58DX6t5-oHANB3LRewM-uTcGUNiQokpcA, code_challenge_method: S256, resource: "https://resource.example/api" } }
+        capture: { code: "body.redirect ~ code=(hax_ac_[0-9a-f]+)" }
+        expect: { status: 200 }
+      - call: { operation: oauthToken, credentials: none, body: { grant_type: authorization_code, code: "{{$code}}", code_verifier: verifier-0123456789-abcdefghijklmnopqrstuvwxyz-ABCDEFGH, client_id: "{{$client}}", redirect_uri: "https://app.example/cb" } }
+        capture: { access: body.access_token }
+        expect: { status: 200 }
+      - clock: "2026-01-01T01:00:01Z"
+      - call: { operation: demoResourceRead, credentials: none, headers: { authorization: "Bearer {{$access}}" } }
+        expect: { status: 401, message: "invalid, expired or revoked token" }
+- id: oauth-008
+  title: "personal tokens, the grant list, and revoking a grant"
+  operation: oauthGrantRevoke
+  given: "a personal token for demo:read demo:write"
+  when: "list grants, write with the token, revoke the grant, write again"
+  then: "the grant is listed without secrets; the write works until the grant is revoked"
+  parityIgnore: [token, id, created, revoked]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu" }
+    steps:
+      - call: { operation: oauthPersonalTokenCreate, body: { label: cli, resource: "https://resource.example/api", scope: "demo:read demo:write" } }
+        capture: { token: body.token, grant: body.id }
+        expect: { status: 200, body: { scope: "demo:read demo:write", expires: null } }
+      - call: { operation: oauthGrantList }
+        expect: { status: 200, body: { items: [{ client_id: personal, client_name: cli, scopes: ["demo:read", "demo:write"] }] }, absent: [hash, resourcePlugin], notContains: ["hax_pt_"] }
+      - call: { operation: demoResourceWrite, credentials: none, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 200, body: { ok: true } }
+      - call: { operation: oauthGrantRevoke, params: { id: "{{$grant}}" } }
+        expect: { status: 200 }
+      - call: { operation: demoResourceWrite, credentials: none, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 401 }
+- id: oauth-009
+  title: "a client cannot forge the grant header"
+  hook: rest.before.request
+  given: "no token, and a made-up x-hax-oauth-grant header"
+  when: "call the resource"
+  then: "the resource sees no grant"
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu" }
+    call: { operation: demoResourceRead, credentials: none, headers: { x-hax-oauth-grant: "{\"scopes\":[\"demo:write\"]}" } }
+    expect: { status: 200, body: { grant: null } }
+- id: oauth-010
+  title: "revocation always answers 200 and revoking an access token stops it"
+  operation: oauthRevoke
+  given: "a personal token and a made-up token"
+  when: "revoke both"
+  then: "200 for both; the personal token stops working"
+  parityIgnore: [token, id]
+  run:
+    with: [harness/fixtures/demo-resource]
+    settings: { issuer: "https://cms.example.edu" }
+    steps:
+      - call: { operation: oauthPersonalTokenCreate, body: { resource: "https://resource.example/api" } }
+        capture: { token: body.token }
+        expect: { status: 200, body: { scope: "demo:read" } }
+      - call: { operation: oauthRevoke, credentials: none, body: { token: hax_at_made_up } }
+        expect: { status: 200 }
+      - call: { operation: oauthRevoke, credentials: none, body: { token: "{{$token}}" } }
+        expect: { status: 200 }
+      - call: { operation: demoResourceRead, credentials: none, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 401 }
+- id: oauth-011
+  title: "without an issuer the plugin is inactive"
+  operation: oauthMetadata
+  given: "no issuer setting"
+  when: "read the metadata"
+  then: "404: an inactive plugin serves nothing"
+  run:
+    call: { operation: oauthMetadata, credentials: none }
+    expect: { status: 404 }

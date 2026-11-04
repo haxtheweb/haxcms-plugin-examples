@@ -1,0 +1,6 @@
+{
+  "configure": [
+    { "property": "serviceWorker", "title": "Offline support", "description": "Cache pages so visitors can read them offline", "inputMethod": "boolean" },
+    { "property": "forceUpgrade", "title": "Ask very old browsers to upgrade", "description": "Send browsers without module support to an upgrade page", "inputMethod": "boolean" }
+  ]
+}

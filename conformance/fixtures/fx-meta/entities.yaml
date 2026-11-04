@@ -1,0 +1,4 @@
+metadata:
+  page:
+    fields:
+      level: { type: integer }

@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-listed
+uuid: d87e56fa-eef0-542c-92f4-611c636cd436
+title: fx-listed (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: openapi.yaml
+capabilities: ["items:read"]

@@ -1,0 +1,6 @@
+# Fields kept on each page under metadata.plugins.publish-scheduler (stored in the page, travels with the site).
+metadata:
+  page:
+    fields:
+      publishAt: { type: string, note: "ISO date-time; the page is published at or after this time" }
+      unpublishAt: { type: string, note: "ISO date-time; the page is unpublished at or after this time" }

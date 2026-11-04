@@ -1,0 +1,7 @@
+{
+  "configure": [
+    { "property": "moderation", "title": "Hold new comments for review", "description": "Comments from people who are not editors wait until an editor approves them", "inputMethod": "boolean" },
+    { "property": "anonymousRead", "title": "Visitors can read comments", "description": "Signed-out visitors see approved comments; only signed-in people can post", "inputMethod": "boolean" },
+    { "property": "snapshot", "title": "Include approved comments in published pages", "description": "Static hosting shows the comments as they were at publish time", "inputMethod": "boolean" }
+  ]
+}

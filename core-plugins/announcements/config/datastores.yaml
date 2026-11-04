@@ -1,0 +1,6 @@
+# Both stores are package scope: read-only JSON shipped in data/, changed only by releasing a new plugin version.
+# The curation skill (skills/announcements-curate) edits them before a release. Source-only fields (status, notes)
+# are stripped before anything is served, and only `ready` entries for released versions are served.
+stores:
+  - { id: types, scope: package, file: types.json }
+  - { id: announcements, scope: package, file: announcements.json }

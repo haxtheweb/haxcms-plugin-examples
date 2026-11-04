@@ -1,0 +1,64 @@
+- id: page-cache-001
+  title: "an anonymous dynamic render is stored and served next time"
+  hook: render.before
+  given: "no signed-in user"
+  when: "render p1 twice"
+  then: "the first is rendered, the second comes from the cache"
+  run:
+    steps:
+      - asUser: null
+      - render: { page: { id: p1, content: "<p>one</p>" } }
+        expect: { cached: false, contains: ["<p>one</p>"] }
+      - render: { page: { id: p1, content: "<p>changed but not saved</p>" } }
+        expect: { cached: true, contains: ["<p>one</p>"] }
+- id: page-cache-002
+  title: "signed-in, preview and publish renders are never cached"
+  given: "an editor signed in"
+  when: "render twice, then preview and publish twice as a visitor"
+  then: "never served from the cache"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "a" } }
+      - render: { page: { id: p1, content: "b" } }
+        expect: { cached: false, contains: [b] }
+      - asUser: null
+      - render: { page: { id: p1, content: "c" }, mode: preview }
+      - render: { page: { id: p1, content: "d" }, mode: preview }
+        expect: { cached: false, contains: [d] }
+      - render: { page: { id: p1, content: "e" }, mode: publish }
+      - render: { page: { id: p1, content: "f" }, mode: publish }
+        expect: { cached: false, contains: [f] }
+- id: page-cache-003
+  title: "saving a page, another plugin's settings, or turning a plugin on clears the cache"
+  given: "a cached page; comments installed"
+  when: "save a page / save comments settings / disable comments"
+  then: "the next render is fresh each time"
+  run:
+    with: [contrib-plugins/comments]
+    steps:
+      - asUser: null
+      - render: { page: { id: p1, content: "v1" } }
+      - save: { type: page, record: { id: p1, title: One, content: "v2" } }
+      - render: { page: { id: p1, content: "v2" } }
+        expect: { cached: false, log: { contains: ["cleared 1 cached pages (page saved)"] } }
+      - config: { plugin: comments, values: { anonymousRead: true } }
+      - render: { page: { id: p1, content: "v3" } }
+        expect: { cached: false, log: { contains: ["(comments settings saved)"] } }
+      - disable: comments
+      - render: { page: { id: p1, content: "v4" } }
+        expect: { cached: false, log: { contains: ["(comments disabled)"] } }
+- id: page-cache-004
+  title: "entries expire after ttl seconds"
+  given: "ttl 60"
+  when: "render, then render again 61 seconds later"
+  then: "fresh"
+  run:
+    settings: { ttl: 60 }
+    steps:
+      - asUser: null
+      - render: { page: { id: p1, content: "old" } }
+      - render: { page: { id: p1, content: "new" } }
+        expect: { cached: true }
+      - clock: "2026-01-01T00:01:01Z"
+      - render: { page: { id: p1, content: "new" } }
+        expect: { cached: false, contains: [new] }

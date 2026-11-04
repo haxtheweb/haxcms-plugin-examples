@@ -1,0 +1,16 @@
+prompts:
+  - id: fix-a11y-issues
+    title: Fix the accessibility problems on my site
+    kind: howto
+    prompt: |
+      Fetch the accessibility report for my HAX site (operation a11yCheckReport, GET /x/api/v1/plugins/a11y-check/report).
+      For each page, propose the smallest content change that fixes each problem (alt text that describes the image's
+      purpose, heading levels without gaps, link text that says where it goes). Do not change the meaning of the content.
+  - id: diagnose-a11y-check
+    title: Saves warn about things that look fine
+    kind: diagnose
+    prompt: |
+      The a11y-check plugin {{plugin.version}} on HAXcms {{haxcms.version}} has status {{status}}. Recent log:
+      {{log}}
+      Explain which rule fired and whether the markup really has the problem (for example an image inside a link whose
+      text already describes it should have alt="").

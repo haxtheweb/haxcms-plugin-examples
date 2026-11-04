@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-optional
+uuid: fc070140-0ea6-55ed-b1ab-fadbd9f0ef0b
+title: fx-optional (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: openapi.yaml

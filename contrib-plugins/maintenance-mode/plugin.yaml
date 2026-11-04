@@ -1,0 +1,25 @@
+# Maintenance mode (fake community plugin). Exercises system-scope settings that affect every site, vetoing other
+# plugins' operations (rest.before.request), answering renders itself (render.before + ctx.respond), and skipping
+# scheduled jobs (schedule.before.run).
+specVersion: "0.1.0"
+id: maintenance-mode
+uuid: 2c4e6a7b-9d1f-4b3c-8e6a-7b9d1f3c5e6a
+title: Maintenance mode
+description: Shows visitors a maintenance page and pauses plugin actions and scheduled jobs while admins work.
+version: 0.1.0
+category: administration
+icon: icons:build
+tags: [maintenance, downtime]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: system              # one switch for the whole deployment
+staticCapable: false
+capabilities: []
+hooks:
+  - name: rest.before.request
+  - name: render.before
+  - name: schedule.before.run

@@ -1,0 +1,2 @@
+stores:
+  - { id: notes, scope: system, file: notes.json }

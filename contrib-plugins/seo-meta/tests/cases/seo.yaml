@@ -1,0 +1,23 @@
+- id: seo-meta-001
+  title: "page fields become meta tags"
+  hook: render.before.head
+  given: "a page with a description, a files/ image and noindex; a site domain"
+  when: "rendered"
+  then: "canonical, Open Graph, description and robots tags, escaped"
+  run:
+    records: { site: { title: Site, metadata: { site: { domain: "https://example.org" } } } }
+    steps:
+      - render: { page: { id: p1, title: "Tom & Jerry", slug: tj, content: "x", metadata: { plugins: { seo-meta: { description: "A \"classic\" cartoon about a cat and a mouse who never stop chasing.", image: files/tj.png, noindex: true } } } } }
+        expect: { contains: ['<link rel="canonical" href="https://example.org/tj">', '<meta property="og:title" content="Tom &amp; Jerry">', 'content="A &quot;classic&quot; cartoon', '<meta property="og:image" content="https://example.org/files/tj.png">', '<meta name="robots" content="noindex">'] }
+- id: seo-meta-002
+  title: "saving trims the description, notes its length, and refuses a bad image"
+  hook: page.before.save
+  given: "a short description, then an http image"
+  when: "saved"
+  then: "a notice; then 422"
+  run:
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "x", metadata: { plugins: { seo-meta: { description: "  Too   short  " } } } } }
+        expect: { veto: false, warnings: ["search description is 9 characters"], subject: { metadata: { plugins: { seo-meta: { description: Too short } } } } }
+      - save: { type: page, record: { id: p1, title: One, content: "x", metadata: { plugins: { seo-meta: { image: "http://x.example/a.png" } } } } }
+        expect: { veto: true, message: "share image must be" }

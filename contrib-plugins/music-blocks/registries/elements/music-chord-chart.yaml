@@ -1,0 +1,4 @@
+tag: music-chord-chart
+path: frontend/dist/music-chord-chart.js
+role: block
+haxProperties: frontend/dist/music-chord-chart.haxProperties.json

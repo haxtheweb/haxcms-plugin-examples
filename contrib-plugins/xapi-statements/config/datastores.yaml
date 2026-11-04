@@ -1,0 +1,9 @@
+stores:
+  - id: queue            # statements not yet sent; per site, never in the site folder
+    scope: siteData
+    file: queue.json
+    personalData: true
+    userKey: userId
+  - id: sent             # what was sent where, per user, so exports and erasure can account for copies in the LRS
+    scope: siteData
+    file: sent.json

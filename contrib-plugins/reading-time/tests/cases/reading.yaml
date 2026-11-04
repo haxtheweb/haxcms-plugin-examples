@@ -1,0 +1,21 @@
+- id: reading-time-001
+  title: "saving computes words and minutes into the page's plugin namespace"
+  hook: page.before.save
+  given: "a page with 450 words and a script"
+  when: "saved"
+  then: "metadata.plugins.reading-time is { words: 450, minutes: 2 }; script text is not counted"
+  run:
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "<p>word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word</p><script>a b c</script>" } }
+        expect: { subject: { metadata: { plugins: { reading-time: { words: 450, minutes: 2 } } } } }
+- id: reading-time-002
+  title: "the page shows the label"
+  hook: render.before.content
+  given: "a page whose metadata says 3 minutes; label 'About {n} minutes'"
+  when: "rendered"
+  then: "the label is at the top of the content"
+  run:
+    settings: { label: "About {n} minutes" }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>", metadata: { plugins: { reading-time: { words: 600, minutes: 3 } } } } }
+        expect: { contains: ['<main><p class="reading-time">About 3 minutes</p><p>x</p>'] }

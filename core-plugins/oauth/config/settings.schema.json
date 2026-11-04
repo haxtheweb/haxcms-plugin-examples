@@ -1,0 +1,6 @@
+{ "configure": [
+  { "property": "issuer", "title": "Issuer URL", "description": "This HAXcms's public base URL (https://cms.example.edu). Required: core has no system-level public URL to read yet", "inputMethod": "textfield", "required": true },
+  { "property": "accessTokenMinutes", "title": "Access tokens last (minutes)", "description": "Short on purpose; clients refresh", "inputMethod": "number" },
+  { "property": "refreshTokenDays", "title": "Refresh tokens last (days)", "description": "Each use replaces the refresh token (rotation)", "inputMethod": "number" },
+  { "property": "dynamicRegistration", "title": "Let apps register themselves", "description": "RFC 7591. Needed by connectors that cannot be pre-registered; off until you choose it", "inputMethod": "boolean" }
+] }

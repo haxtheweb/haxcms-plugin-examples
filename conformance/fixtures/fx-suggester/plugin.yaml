@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-suggester
+uuid: 26e5e250-f8f8-576b-ae94-9729d111d175
+title: fx-suggester (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+suggests: [fx-definer]
+hooks:
+  - name: fx-definer.after.ping

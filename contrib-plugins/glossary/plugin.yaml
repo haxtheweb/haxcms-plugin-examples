@@ -1,0 +1,30 @@
+# Glossary (fake community plugin). Exercises a plugin-defined entity (glossaryTerm, in a site store that travels with
+# the site), entity hooks other plugins can subscribe to, a render hook that places the plugin's own element in
+# content (role injected), and a CLI command.
+specVersion: "0.1.0"
+id: glossary
+uuid: 6a8c0e1f-3b5d-4f7a-8c0e-1f3b5d7a9c0e
+title: Glossary
+description: Keeps a site glossary and explains each term where it first appears on a page.
+version: 0.1.0
+category: content
+icon: icons:book
+tags: [glossary, terms, education]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+tagPrefix: glossary-
+entities: config/entities.yaml
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+staticCapable: true
+staticFallback: Published pages carry each definition inside the page; only editing the glossary needs the server.
+capabilities: ["output:inject"]
+hooks:
+  - name: render.after.content
+  - name: entity.before.create
+    entities: [glossaryTerm]
+  - name: entity.before.update
+    entities: [glossaryTerm]

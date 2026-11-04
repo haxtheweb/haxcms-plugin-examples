@@ -1,0 +1,26 @@
+# Plone importer: extracted from core (systemRoutes/v1/routes/imports/convertPloneToSite.js). Reads a Plone site through
+# plone.restapi (@site, @search) and returns its documents, folders, news, events and links as a page tree, with images
+# and files listed for core to fetch. Implements import.platform; it may fetch only the site the person points it at
+# (egress { input: url }).
+specVersion: "0.1.0"
+id: importer-plone
+uuid: bc57d683-5040-4138-aa0d-1f6201e81e91
+title: Import from Plone
+description: Copies a Plone site into a new site through its REST API, keeping the folder tree, order, images and files.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, plone]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the Plone site the person names through its REST API: @site, @search and each item."
+staticCapable: false

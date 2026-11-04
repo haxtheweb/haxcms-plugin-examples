@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-exec
+uuid: f2db3742-7d13-5030-8d32-0903f459e3f0
+title: fx-exec (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: openapi.yaml
+capabilities: ["exec:run"]
+exec: [echo]

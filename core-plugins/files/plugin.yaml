@@ -1,0 +1,31 @@
+# Files: extracted from core and required. Today the site API's /x/api/v1/files routes (listFiles, createFile,
+# getFileByUuid, updateFileByUuid, deleteFileByUuid in files.js) store uploads under the site's files/ folder with
+# upload checks (uploadSecurity.js), and generateAppStore adds the "Local files" app so the editor can browse and
+# upload. As a plugin it owns those routes (legacy.routes keeps the old paths), the upload rules, the Local files app,
+# and the file.* hook aliases other plugins subscribe to.
+specVersion: "0.1.0"
+id: files
+uuid: 1c3e5a7b-9d1f-4c3e-5a7b-9d1f3c5e7a9b
+title: Files
+description: Upload, list and delete a site's files, and browse them from the editor.
+version: 0.1.0
+category: media
+icon: icons:folder
+tags: [files, uploads]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+required: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+staticCapable: false
+capabilities: ["files:read", "files:write"]
+legacy:
+  routes:
+    "GET /x/api/v1/files": filesList
+    "POST /x/api/v1/files": filesUpload
+    "DELETE /x/api/v1/files/{fileUuid}": filesDelete

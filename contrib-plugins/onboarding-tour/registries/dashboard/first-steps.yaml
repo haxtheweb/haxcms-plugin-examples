@@ -1,0 +1,13 @@
+id: first-steps
+placement: userMenu
+icon: icons:explore
+label: Take the tour
+badge: { label: New here?, dismissKey: firstStepsTour }   # shows until the tour is finished or dismissed
+action:
+  kind: tour
+  title: Welcome to HAX
+  steps:
+    - { anchor: create-site, title: Make a site, text: "Start here: pick a template or a blank site." }
+    - { anchor: site-list, title: Your sites, text: "Every site you can edit is listed here." }
+    - { anchor: merlin, title: Ask Merlin, text: "Press Ctrl+Shift+K and type what you want to do." }
+    - { anchor: plugins, title: Add features, text: "Turn plugins on for the whole system or one site." }

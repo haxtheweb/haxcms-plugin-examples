@@ -1,0 +1,4 @@
+stores:
+  - id: terms          # travels with the site (<site>/_config/data/glossary/terms.json)
+    scope: site
+    file: terms.json

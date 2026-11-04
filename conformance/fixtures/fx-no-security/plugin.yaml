@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-no-security
+uuid: 9135fb71-ea4c-555e-ab48-27318b4916a7
+title: fx-no-security (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: config/openapi.yaml

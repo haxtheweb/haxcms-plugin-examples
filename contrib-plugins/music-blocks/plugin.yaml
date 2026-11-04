@@ -1,0 +1,17 @@
+# Music blocks (fake community element pack). Unlike game-pack, it ships its own element files (frontend/dist) rather
+# than pointing at a published package. Exercises: a contrib pack with tests, siteTypes for recommendations, the block
+# list vs element registry split, and the in-use notice when a pack whose blocks are on pages is turned off.
+specVersion: "0.1.0"
+id: music-blocks
+uuid: 9b0c1d2e-3f40-4516-a728-394a5b6c7d8e
+title: Music blocks
+description: Blocks for music lessons, a melody staff and a chord chart, written in plain text notation.
+version: 0.1.0
+kind: pack
+category: content
+icon: av:music-note
+tags: [music, education]
+siteTypes: [course, portfolio]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+tagPrefix: music-

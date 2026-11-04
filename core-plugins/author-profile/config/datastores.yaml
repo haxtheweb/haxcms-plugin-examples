@@ -1,0 +1,3 @@
+# Published copy for themes: site.json metadata.plugins.author-profile.profile (settings are the source).
+stores:
+  - { id: profile, scope: manifest }

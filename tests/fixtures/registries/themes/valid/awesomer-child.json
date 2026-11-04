@@ -1,0 +1,9 @@
+{
+  "element": "awesomer-explosions-theme",
+  "path": "frontend/dist/awesomer-explosions-theme.js",
+  "name": "Awesomer explosions",
+  "thumbnail": "frontend/dist/awesomer-explosions.jpg",
+  "description": "An even more awesome child of Awesome explosions.",
+  "category": ["Fun"],
+  "extends": "awesome-explosions-theme"
+}

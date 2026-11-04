@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-definer
+uuid: 30799586-468b-55c0-b3c7-4516316c7f3e
+title: fx-definer (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hookDefinitions: config/hooks.yaml
+openapi: config/openapi.yaml

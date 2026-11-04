@@ -1,0 +1,18 @@
+specVersion: "0.1.0"
+id: data-store
+uuid: 0e31e293-606d-4b86-9cb1-472fbf349b29
+title: Data store example
+description: Uses the four writable store scopes, an upgrade step that moves data out of site.json, and personal data core can export and erase.
+category: developer
+icon: icons:storage
+tags: [example, data]
+version: 0.2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+datastores: config/datastores.yaml
+entities: config/entities.yaml
+openapi: config/openapi.yaml
+capabilities: ["userData:read", "userData:write", "site:read", "site:write"]   # site:* for the upgrade that edits site.json
+staticCapable: false

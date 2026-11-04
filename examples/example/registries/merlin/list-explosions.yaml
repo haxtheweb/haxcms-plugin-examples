@@ -1,0 +1,26 @@
+# A Merlin option with kind: api: results come from one of this plugin's own operations, with no JS.
+# query: parameters for the call ({{input}} is what the user typed); items: where the array is in the response;
+# row: a template per item ({{name}} reads that item's field). Anything smarter belongs in a module program.
+option:
+  title: Find an explosion
+  icon: icons:search
+  tags: [awesome, search]
+  path: HAX/action/find-explosion
+  context: [HAX]
+  eventName: super-daemon-run-program
+  value:
+    name: Find an explosion
+    machineName: awesome-find
+    placeholder: Search explosions
+program:
+  kind: api
+  operation: exampleListExplosions
+  query: { q: "{{input}}" }
+  items: items
+  row:
+    title: "{{name}}"
+    description: "Intensity {{intensity}}"
+    icon: icons:flare
+    path: "HAX/action/find-explosion/{{id}}"
+    eventName: hax-super-daemon-insert-tag
+    value: { tag: awesome-explosion, properties: { intensity: "{{intensity}}" } }

@@ -1,0 +1,56 @@
+- id: pwa-001
+  title: "first enable moves sw and forceUpgrade out of site.json"
+  given: "metadata.site.settings.sw true, forceUpgrade false"
+  when: "enable pwa"
+  then: "pages register the worker; site.json no longer has sw"
+  run:
+    records: { site: { metadata: { site: { settings: { sw: true, forceUpgrade: false, private: false } } } } }
+    steps:
+      - enable: pwa
+        expect: { status: 200 }
+      - record: { type: site }
+        expect: { subject: { metadata: { site: { settings: { private: false } } } }, notContains: ['"sw"', forceUpgrade] }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['navigator.serviceWorker.register("service-worker.js")'] }
+- id: pwa-002
+  title: "rebuild writes the worker and the offline page"
+  hook: rebuild.after
+  given: "offline support on"
+  when: "rebuild"
+  then: "service-worker.js caches pages; offline.html exists"
+  run:
+    settings: { serviceWorker: true }
+    steps:
+      - rebuild: {}
+        expect: { status: 200 }
+      - managed: service-worker.js
+        expect: { status: 200, contains: ["hax-offline-v1"] }
+      - managed: offline.html
+        expect: { status: 200, contains: ["You are offline"] }
+- id: pwa-003
+  title: "turning offline support off leaves a self-removing worker"
+  hook: plugin.after.disable
+  given: "offline support was on"
+  when: "disable the plugin"
+  then: "service-worker.js unregisters itself; pages no longer register it"
+  run:
+    settings: { serviceWorker: true }
+    steps:
+      - rebuild: {}
+        expect: { status: 200 }
+      - disable: pwa
+        expect: { status: 200 }
+      - managed: service-worker.js
+        expect: { contains: ["registration.unregister()"], notContains: ["hax-offline-v1"] }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { notContains: ["serviceWorker.register"] }
+- id: pwa-004
+  title: "off by default"
+  hook: render.after.body
+  given: "default settings"
+  when: "a page renders"
+  then: "no worker registration, no upgrade redirect"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { notContains: ["serviceWorker", "upgrade-browser"] }

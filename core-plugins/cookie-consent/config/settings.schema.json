@@ -1,0 +1,16 @@
+{
+  "configure": [
+    {
+      "property": "message",
+      "title": "Banner message",
+      "description": "Shown to visitors before any tracking runs.",
+      "inputMethod": "textfield"
+    },
+    {
+      "property": "policyUrl",
+      "title": "Privacy policy link",
+      "description": "Optional link shown in the banner.",
+      "inputMethod": "textfield"
+    }
+  ]
+}

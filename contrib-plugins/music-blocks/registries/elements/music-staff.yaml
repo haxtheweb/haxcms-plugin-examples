@@ -1,0 +1,4 @@
+tag: music-staff
+path: frontend/dist/music-staff.js
+role: block
+haxProperties: frontend/dist/music-staff.haxProperties.json

@@ -1,0 +1,21 @@
+- id: music-blocks-001
+  title: "while enabled, both blocks are in the block list and the registry"
+  given: "music-blocks enabled"
+  when: "the site rebuilds"
+  then: "blocks lists music-chord-chart and music-staff; the registry maps both to this plugin's assets"
+  run:
+    steps:
+      - rebuild: { reason: save }
+        expect: { body: { blocks: [music-chord-chart, music-staff], registry: { music-staff: x/api/v1/plugins/music-blocks/assets/music-staff.js } } }
+- id: music-blocks-002
+  title: "turning the pack off while its blocks are on pages: allowed, with a notice; placed blocks still hydrate"
+  given: "page p1 uses music-staff, p2 uses nothing"
+  when: "disable music-blocks, then rebuild"
+  then: "disable succeeds and names p1; the block list drops both blocks but the registry keeps them"
+  run:
+    records: { page: [{ id: p1, title: Scales, content: "<music-staff notes=\"C4 D4 E4\"></music-staff>" }, { id: p2, title: Intro, content: "<p>hi</p>" }] }
+    steps:
+      - disable: music-blocks
+        expect: { status: 200, body: { status: disabled, inUse: [{ page: p1, tags: [music-staff] }] }, notContains: ['"p2"'] }
+      - rebuild: { reason: plugins }
+        expect: { body: { blocks: [], registry: { music-staff: x/api/v1/plugins/music-blocks/assets/music-staff.js } } }

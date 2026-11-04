@@ -1,0 +1,4 @@
+tag: concept-runner-game
+path: "@haxtheweb/micro-game-base/lib/concept-runner-game.js"
+role: block
+haxProperties: "@haxtheweb/micro-game-base/lib/concept-runner-game.haxProperties.json"

@@ -1,0 +1,58 @@
+- id: git-001
+  title: "a page save makes one commit"
+  hook: page.after.save
+  given: "a new site"
+  when: "save a page"
+  then: "history has one commit named after the page"
+  parityIgnore: [hash]   # commit hashes include the commit time
+  run:
+    steps:
+      - save: { type: page, record: { id: p1, title: Welcome, content: "<p>Hi</p>" } }
+        expect: {}
+      - call: { operation: gitHistory }
+        expect: { status: 200, body: { items: [{ message: "Page saved: Welcome" }] } }
+- id: git-002
+  title: "a bulk edit makes a single commit"
+  hook: transaction.before.end
+  given: "a transaction saving three pages"
+  when: "the transaction ends"
+  then: "one commit listing the changes"
+  parityIgnore: [hash]   # commit hashes include the commit time
+  run:
+    steps:
+      - transaction:
+          origin: outline
+          steps:
+            - save: { type: page, record: { id: p1, title: One, content: "1" } }
+            - save: { type: page, record: { id: p2, title: Two, content: "2" } }
+            - save: { type: page, record: { id: p3, title: Three, content: "3" } }
+        expect: { marks: { git.commit: ["Page saved: One", "Page saved: Two", "Page saved: Three"] } }
+      - call: { operation: gitHistory }
+        expect: { body: { items: [{ message: "3 changes: Page saved: One; Page saved: Two; Page saved: Three" }] }, notContains: ['"message":"Page saved: One"'] }
+- id: git-003
+  title: "another plugin can veto a commit"
+  hook: git.before.commit
+  given: "fx-no-commits vetoes git.before.commit"
+  when: "save a page"
+  then: "no commit"
+  runtimes: [nodejs]
+  run:
+    with: [conformance/fixtures/fx-no-commits]
+    steps:
+      - save: { type: page, record: { id: p1, title: Welcome, content: "<p>Hi</p>" } }
+        expect: { log: { contains: ["commit vetoed: frozen for review"] } }
+      - call: { operation: gitHistory }
+        expect: { body: { items: [] } }
+- id: git-004
+  title: "commit messages are sanitized"
+  hook: page.after.save
+  given: "a page titled with quotes and shell syntax"
+  when: "save it"
+  then: "quotes and backticks are dropped from the commit message"
+  parityIgnore: [hash]   # commit hashes include the commit time
+  run:
+    steps:
+      - save: { type: page, record: { id: p1, title: "Hi\"; rm -rf / `x`", content: "x" } }
+        expect: {}
+      - call: { operation: gitHistory }
+        expect: { body: { items: [{ message: "Page saved: Hi; rm -rf / x" }] }, notContains: ["`", "\\\""] }

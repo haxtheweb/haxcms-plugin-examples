@@ -1,0 +1,130 @@
+- id: plat-001
+  title: "a scheduled job runs as one bulk transaction; a failure reaches schedule.after.run"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-scheduled with tick and broken jobs"
+  when: "run tick twice, then broken"
+  then: "tick returns 1 then 2; broken reports ok false with the error and is logged"
+  run:
+    plugins: [fx-scheduled]
+    steps:
+      - schedule: { plugin: fx-scheduled, id: tick }
+        expect: { status: 200, body: { ran: true, ok: true, result: { ticks: 1 } } }
+      - schedule: { plugin: fx-scheduled, id: tick }
+        expect: { body: { result: { ticks: 2 } } }
+      - schedule: { plugin: fx-scheduled, id: broken }
+        expect: { status: 500, body: { ok: false, error: job exploded }, log: { contains: ["schedule broken: job exploded"] } }
+- id: plat-002
+  title: "a required settings field without a value is an unmet requirement, with no plugin code"
+  spec: spec/03-tiers-and-enablement.md
+  given: "fx-legacy-setting requires token; nothing set anywhere"
+  when: "load"
+  then: "inactive"
+  run:
+    plugins: [fx-legacy-setting]
+    expect: { status_of: { fx-legacy-setting: inactive } }
+- id: plat-003
+  title: "legacy.settings: read as a fallback, moved on first enable, typed, old keys and empty parents removed"
+  spec: spec/02-anatomy-and-manifest.md
+  given: "the core config has services.fxToken; site.json has metadata.site.settings.fxOn = \"1\""
+  when: "load, then enable"
+  then: "active at load (fallback read); after enable the values are plugin settings (enabled is boolean true) and both old keys are gone"
+  run:
+    plugins: [fx-legacy-setting]
+    load: { records: { config: [{ id: core, services: { fxToken: abc } }], site: { metadata: { site: { settings: { fxOn: "1", keep: 1 } } } } } }
+    expect: { status_of: { fx-legacy-setting: active } }
+    steps:
+      - enable: fx-legacy-setting
+        expect: { status: 200, log: { contains: ["moved token, enabled from the core location into plugin settings"] } }
+      - record: { type: config, id: core }
+        expect: { notContains: [fxToken, services] }
+      - record: { type: site }
+        expect: { subject: { metadata: { site: { settings: { keep: 1 } } } }, notContains: [fxOn] }
+- id: plat-004
+  title: "x-hax-proxy: core adds the secret, passes only listed parameters, and keeps the declaration out of the published contract"
+  spec: spec/05-routes-and-security.md
+  given: "fx-proxy with key k1; api.example.org answers"
+  when: "search with q and an extra parameter"
+  then: "one call with key and q only; the response has no key"
+  run:
+    plugins: [fx-proxy]
+    load: { settings: { fx-proxy: { key: k1 } } }
+    fetch: { api.example.org: { status: 200, body: { hits: 1 } } }
+    steps:
+      - call: { operation: fxProxySearch, query: { q: cats, extra: x } }
+        expect: { status: 200, body: { hits: 1 }, fetch: { count: 1, contains: ["key=k1", "q=cats"], notContains: [extra] }, notContains: [k1] }
+- id: plat-005
+  title: "ctx.exec runs only commands in the exec list, without a shell, and never records temp file contents"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-exec lists echo"
+  when: "run echo, then rm"
+  then: "echo runs (faked) with its temp file name recorded; rm is refused"
+  run:
+    plugins: [fx-exec]
+    exec: { echo: { code: 0, stdout: "hi\n" } }
+    steps:
+      - call: { operation: fxExecRun, params: { cmd: echo } }
+        expect: { status: 200, body: { code: 0, stdout: "hi\n" }, exec: { count: 1, contains: ['"cmd":"echo"', '"files":["secret"]'] } }
+      - call: { operation: fxExecRun, params: { cmd: rm } }
+        expect: { status: 403, message: "may not run \"rm\"" }
+- id: plat-006
+  title: "optional auth reaches the handler without a user; a record with status and body fields is not an envelope"
+  spec: spec/05-routes-and-security.md
+  given: "fx-optional with security [{}, bearerAuth]"
+  when: "call without credentials, then signed in"
+  then: "200 both times; the body is the whole record"
+  run:
+    plugins: [fx-optional]
+    steps:
+      - call: { operation: fxOptionalThing, credentials: none }
+        expect: { status: 200, body: { status: visitor, body: text } }
+      - call: { operation: fxOptionalThing }
+        expect: { status: 200, body: { status: member } }
+- id: plat-007
+  title: "a hook never re-enters a subscriber that is already running it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "fx-reentry saves a page from page.after.save"
+  when: "a page is saved"
+  then: "the counter page is saved once, and the skipped re-entry is logged"
+  run:
+    plugins: [fx-reentry]
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "x" } }
+        expect: { log: { contains: ["page.after.save: not re-entered while it is already running"] } }
+      - record: { type: page, id: counter }
+        expect: { subject: { metadata: { n: 1 } } }
+- id: plat-008
+  title: "plugin fields on core records: declared ones stay, others are dropped with a warning"
+  spec: spec/04-entities-data-upgrades.md
+  given: "fx-meta declares page field level (integer)"
+  when: "a page is saved with level 3, level2, and a field under an uninstalled plugin's namespace"
+  then: "level kept; level2 dropped with a warning; the uninstalled plugin's data untouched"
+  run:
+    plugins: [fx-meta]
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "x", metadata: { plugins: { fx-meta: { level: 3, level2: 4 }, gone-plugin: { a: 1 } } } } }
+        expect: { warnings: ["metadata.plugins.fx-meta.level2 is not declared"] }
+      - record: { type: page, id: p1 }
+        expect: { subject: { metadata: { plugins: { fx-meta: { level: 3 }, gone-plugin: { a: 1 } } } }, notContains: [level2] }
+- id: plat-009
+  title: "render.after stages run in order, whatever the priorities"
+  spec: spec/06-hooks-and-contracts.md
+  given: "a transform subscriber at priority -50 and a seal subscriber at 0"
+  when: "a page renders"
+  then: "the seal sees the transformed document"
+  run:
+    plugins: [fx-stage-seal, fx-stage-transform]
+    steps:
+      - render: { page: { id: p1, content: "x" } }
+        expect: { contains: ["<main data-t>", "<!--sealed:after-transform-->"] }
+- id: plat-010
+  title: "listed pages: published, not hidden, not region content"
+  spec: spec/13-backend-platform-contract.md
+  given: "pages a (plain), b (published \"false\"), c (hideInMenu true), d (published true)"
+  when: "a plugin lists pages with listed: true"
+  then: "a and d"
+  run:
+    plugins: [fx-listed]
+    load: { records: { page: [{ id: a, title: A }, { id: b, title: B, metadata: { published: "false" } }, { id: c, title: C, metadata: { hideInMenu: true } }, { id: d, title: D, metadata: { published: true } }] } }
+    steps:
+      - call: { operation: fxListedPublic }
+        expect: { body: [a, d] }

@@ -1,0 +1,5 @@
+{
+  "configure": [
+    { "property": "apiKey", "title": "YouTube Data API key", "description": "From the Google Cloud console (YouTube Data API v3). Kept on the server; never sent to browsers.", "inputMethod": "textfield", "x-secret": true, "required": true }
+  ]
+}

@@ -1,0 +1,27 @@
+# GitBook importer: extracted from core (systemRoutes/v1/routes/imports/convertGitbookToSite.js and
+# convertGitbookToSite.php). Turns a GitBook (a SUMMARY.md table of contents plus Markdown pages) into a new site.
+# Implements import.platform; it may fetch only the host the person points it at (egress { input: url }), and hands each
+# page to the markdown importer through ctx.contracts.call("import.file", ...).
+specVersion: "0.1.0"
+id: importer-gitbook
+uuid: 80dbf598-cc05-4ae8-b0b3-8aa7017e9e84
+title: Import from GitBook
+description: Turns a GitBook (SUMMARY.md and its Markdown pages) into a new site, keeping the table of contents as the page tree.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, gitbook, markdown]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+dependencies: [import-markdown]   # each page's Markdown is converted by import-markdown via the import.file contract
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the book the person names: its SUMMARY.md and the Markdown pages it lists."
+staticCapable: false

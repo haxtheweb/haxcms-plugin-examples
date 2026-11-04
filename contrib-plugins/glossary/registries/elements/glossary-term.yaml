@@ -1,0 +1,4 @@
+# role: injected: the plugin places it in content at render time; authors never insert it.
+tag: glossary-term
+path: frontend/dist/glossary-term.js
+role: injected

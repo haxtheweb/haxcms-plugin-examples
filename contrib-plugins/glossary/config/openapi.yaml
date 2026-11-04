@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info: { title: Glossary, version: 0.1.0 }
+paths:
+  /terms:
+    get:
+      operationId: glossaryList
+      summary: All terms, alphabetical
+      security: [{}, { bearerAuth: [] }]     # readers of a live site may fetch the glossary
+      responses: { "200": { description: OK } }
+    post:
+      operationId: glossaryCreate
+      summary: Add a term
+      security: [{ bearerAuth: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [term, definition], properties: { term: { type: string }, definition: { type: string }, aliases: { type: array, items: { type: string } } } } } } }
+      responses: { "200": { description: OK }, "409": { description: Duplicate term }, "422": { description: Invalid } }

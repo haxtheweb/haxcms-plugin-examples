@@ -1,0 +1,32 @@
+- id: importer-haxcms-001
+  title: "a published site comes over with pages, files and theme overrides"
+  given: "iam.example.edu/sites/course/ (served from oer.), two pages, one listing a file, a theme.css override and the boilerplate custom.es6.js"
+  when: "convert with that URL"
+  then: "both pages with their HTML and tree; the file and theme.css listed; the boilerplate script skipped"
+  run:
+    urlAliases: [{ from: "^https://iam\\.", to: "https://oer." }]   # deployment config (HAXiam), applied by core
+    fetch:
+      "https://oer.example.edu/sites/course/site.json": { status: 200, body: { title: Course, items: [{ id: a, title: Start, slug: start, location: pages/a/index.html, parent: null, order: 0, metadata: { files: [{ url: files/syllabus.pdf }] } }, { id: b, title: Week 1, slug: week-1, location: pages/b/index.html, parent: a, order: 0, indent: 1 }] } }
+      "https://oer.example.edu/sites/course/pages/a/index.html": { status: 200, body: "<p>Welcome</p>" }
+      "https://oer.example.edu/sites/course/pages/b/index.html": { status: 200, body: "<p>Read</p>" }
+      "https://oer.example.edu/sites/course/theme/theme.css": { status: 200, body: "h1{color:red}" }
+      "https://oer.example.edu/sites/course/custom/build/custom.es6.js": { status: 200, body: "// custom comment script here" }
+      "https://oer.example.edu/sites/course/theme/theme.html": { status: 404, body: "" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-haxcms, input: { url: "https://iam.example.edu/sites/course/site.json" } }
+        expect:
+          body: [{ result: { title: Course, items: [{ id: a, content: "<p>Welcome</p>" }, { id: b, parent: a, content: "<p>Read</p>" }], files: [{ path: files/syllabus.pdf, url: "https://oer.example.edu/sites/course/files/syllabus.pdf" }, { path: theme/theme.css }] } }]
+          notContains: [custom.es6.js]
+- id: importer-haxcms-002
+  title: "only the named site is reachable"
+  given: "a site.json whose page locations point at another host"
+  when: "convert"
+  then: "the outside page is refused by egress and comes back empty"
+  run:
+    fetch:
+      "https://example.org/s/site.json": { status: 200, body: { title: S, items: [{ id: a, title: A, slug: a, location: pages/a/index.html }] } }
+      "https://example.org/s/pages/a/index.html": { status: 200, body: "<p>ok</p>" }
+      other.example.net: { status: 200, body: "<p>should not be read</p>" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-haxcms, input: { url: "https://example.org/s/" } }
+        expect: { body: [{ result: { items: [{ content: "<p>ok</p>" }] } }], fetch: { notContains: [other.example.net] } }

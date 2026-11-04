@@ -1,0 +1,10 @@
+- id: minify-html-001
+  title: "comments and whitespace between tags go; script, style and pre contents stay"
+  hook: render.after
+  given: "a page with comments, indentation, a pre block and an inline script"
+  when: "rendered"
+  then: "smaller document with the protected contents unchanged"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "<p>a</p>\n   <!-- hi -->\n<pre>  keep\n  this</pre>\n<script>var  x = 1;</script>" } }
+        expect: { contains: ["<p>a</p><pre>  keep\n  this</pre><script>var  x = 1;</script>"], notContains: ["<!-- hi -->"] }

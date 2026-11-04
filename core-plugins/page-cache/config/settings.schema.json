@@ -1,0 +1,1 @@
+{ "configure": [ { "property": "ttl", "title": "Keep pages for (seconds)", "description": "0 keeps them until something changes", "inputMethod": "number" } ] }

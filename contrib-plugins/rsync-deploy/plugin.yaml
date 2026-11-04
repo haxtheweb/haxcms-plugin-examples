@@ -1,0 +1,28 @@
+# rsync deploy (fake community plugin). Exercises: exec (one declared command), a secret setting (an SSH key that
+# never leaves the server), a detached after hook on a hook another plugin defines (git.after.commit), and the
+# dependency-vs-suggests choice: manual deploys work without git, so git is only suggested. Node only.
+specVersion: "0.1.0"
+id: rsync-deploy
+uuid: 5e6f7081-92a3-44b5-86c7-d8e9fa0b1c2d
+title: rsync deploy
+description: Copies the published site to your own server with rsync, by hand or after every commit.
+version: 0.1.0
+category: publishing
+icon: icons:cloud-upload
+tags: [deploy, rsync, ssh]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+openapi: config/openapi.yaml
+suggests: [git]                    # deploy-on-commit needs git; deploy-now does not
+staticCapable: false
+capabilities: ["exec:run", "settings:secret", "site:read"]
+exec: [rsync]
+hooks:
+  - name: config.before.save
+  - name: git.after.commit
+    detached: true                 # never hold up a save for a network copy

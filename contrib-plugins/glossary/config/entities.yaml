@@ -1,0 +1,12 @@
+entities:
+  glossaryTerm:
+    description: A term and its definition
+    primaryKey: uuid
+    scope: site
+    store: terms
+    requiredFields: [uuid, term, definition]
+    fields:
+      uuid: { type: string }
+      term: { type: string }
+      definition: { type: string }
+      aliases: { type: array, note: "other spellings that link to the same definition" }

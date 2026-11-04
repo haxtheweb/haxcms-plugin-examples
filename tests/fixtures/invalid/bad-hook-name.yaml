@@ -1,0 +1,8 @@
+specVersion: "0.1.0"
+id: bad
+title: Bad
+description: x
+version: 0.1.0
+runtimes: [nodejs]
+entry: { nodejs: a.js }
+hooks: [{ name: Entity-Maybe }]

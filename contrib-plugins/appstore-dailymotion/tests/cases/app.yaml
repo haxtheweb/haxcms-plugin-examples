@@ -1,0 +1,13 @@
+- id: appstore-dailymotion-001
+  title: "enabled: the app is in the editor; disabled: it is not"
+  given: "the pack enabled"
+  when: "rebuild, disable, rebuild"
+  then: "Dailymotion listed, then not"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { body: { apps: ["Dailymotion"] } }
+      - disable: appstore-dailymotion
+        expect: { status: 200 }
+      - rebuild: {}
+        expect: { body: { apps: [] } }
