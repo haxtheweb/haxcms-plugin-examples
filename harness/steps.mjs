@@ -21,6 +21,8 @@ export async function step(backend, raw, vars = {}) {
   else if (s.save) { const r = await backend.saveEntity(s.save.type, s.save.record); Object.assign(out, { subject: r.record, veto: r.veto || null, warnings: r.warnings || [] }); }
   else if (s.delete) { const r = await backend.deleteEntity(s.delete.type, s.delete.id); Object.assign(out, { body: { deleted: r.deleted }, veto: r.veto || null }); }
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
+  else if (s.advertised) Object.assign(out, { status: 200, body: backend.advertisedContracts() });
+  else if (s.siteFile) { const { existsSync } = await import("node:fs"); const { join } = await import("node:path"); Object.assign(out, { body: { exists: existsSync(join(backend.site.path, s.siteFile)) } }); }
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
   else if (s.contract) { try { Object.assign(out, { status: 200, body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) }); } catch (e) { Object.assign(out, { status: 400, body: { error: e.message } }); } }
   else if (s.schedule) Object.assign(out, await backend.runSchedule(s.schedule.plugin, s.schedule.id));

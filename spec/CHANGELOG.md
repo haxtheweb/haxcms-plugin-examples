@@ -43,3 +43,8 @@ Entry format:
 - Change: new contract `import.file` (`dispatch: accepts`); `implements` entries may be objects `{ name, accepts }`.
 - Upgrade recipe: a file importer that implemented `import.platform` with a file input switches to `import.file` and lists its extensions in `accepts`.
 - Fixture: `core-plugins/import-markdown`.
+
+### Additions from the Insights plan (0.1.0 draft)
+- Change: admin contributions take `surface: dashboard | site`; site placements `siteMenu` and `slot` with slots `site-settings.panel`, `insights.section`, `insights.action`; `order`; action kind `run`; `GET /x/api/v1/plugins/contributions`; reserved plugin id `contributions`. Core contracts gain `dispatch: provides`, `implements` entries `{ name, provides }`, and `advertise: true`, listed as `contracts` in both contributions responses; new core contract `insights.check`. Transactions gain opt-in `atomic` (`x-hax-transaction: atomic`, `ctx.transaction.run(fn, { atomic: true })`). Shared front-end/backend logic goes in `src/shared/`.
+- Upgrade recipe: nothing to change for existing plugins: `surface` defaults to `dashboard`, and transactions stay non-atomic unless asked. A plugin named `contributions` must be renamed. A plugin that rolled back its own partial writes by hand can declare `x-hax-transaction: atomic` on the operation and delete that code.
+- Fixture: `conformance/cases/hooks.yaml` (hook-100 to hook-103, `conformance/fixtures/fx-atomic`), `contrib-plugins/link-checker` (link-checker-002), `examples/example/registries/dashboard/explosions-insights.yaml`.

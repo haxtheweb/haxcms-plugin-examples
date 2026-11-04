@@ -3,7 +3,11 @@
 # e.g. import.platform convert -> importPlatformConvert($ctx, $input).
 # dispatch: `all` calls every active implementer; `chosen` calls only the one the caller picked (the import screen lists
 # implementers by plugin title and description), so two importers never both convert the same upload; `accepts` calls the
-# implementer whose `implements` entry lists the input file's extension ({ name: import.file, accepts: [.docx] }).
+# implementer whose `implements` entry lists the input file's extension ({ name: import.file, accepts: [.docx] });
+# `provides` calls the implementers whose `implements` entry names one of the results the caller asked for
+# (input.provides), or every implementer when none are named ({ name: insights.check, provides: [link.status] }).
+# advertise: true lists the contract in the front-end contributions responses (spec/07) as its name and the result
+# names active implementers provide, so a core screen can turn a feature on without naming a plugin.
 contracts:
   import.platform:
     description: Turn content from another platform into pages for a new site
@@ -37,3 +41,16 @@ contracts:
     description: Erase what a plugin keeps about a user outside personalData stores
     dispatch: all
     operations: [delete]    # input { userId } -> { removed }
+  insights.check:
+    description: Add checks to the Insights screen that core cannot make from stored content alone
+    dispatch: provides
+    advertise: true
+    # Core's own Insights checks are static and run without any implementer. An implementer adds results that need
+    # the network, a secret, history or a clock: outside link status, video captions and length, change history.
+    # input { provides?: [names], pages?: [ids] (omit for the whole site), fresh?: true (ignore saved results) } ->
+    #   { results: { "<name>": { status: ok | partial | unavailable, checkedAt, findings: [{ pageId?, target?,
+    #     severity: error | warning | info, message, data? }], summary?: { ... } } } }
+    # Result names are dotted and owned by the area they describe (link.status, media.captions, media.duration,
+    # history.edits); the Insights screen shows a result it knows by name and lists unknown ones under the provider's
+    # title. An implementer keeps its own saved results (siteData store) and returns them unless input.fresh is set.
+    operations: [check]

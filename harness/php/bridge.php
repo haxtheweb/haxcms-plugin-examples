@@ -204,7 +204,13 @@ class HarnessCtx {
   // PHP spelling of ctx.transaction.run(): opens (or joins) a transaction in the harness for the duration of $fn
   public function runTransaction($fn, $opts = []) {
     harness_rpc('tx.begin', [(object) ($opts + ['origin' => 'plugin', 'bulk' => true])]);
-    try { return $fn($this->transaction); } finally { harness_rpc('tx.end', []); }
+    // atomic: a throw or a returned veto tells the engine to put back what the transaction wrote
+    if (empty($opts['atomic'])) { try { return $fn($this->transaction); } finally { harness_rpc('tx.end', []); } }
+    try { $r = $fn($this->transaction); } catch (\Throwable $e) { harness_rpc('tx.end', [['failed' => $e->getMessage(), 'status' => 500]]); throw $e; }
+    if (is_array($r) && !empty($r['__veto'])) { harness_rpc('tx.end', [['failed' => $r['message'], 'status' => $r['status'] ?? 409]]); throw new \RuntimeException($r['message'], $r['status'] ?? 409); }
+    $end = harness_rpc('tx.end', []);
+    if (is_array($end) && !empty($end['rolledBack'])) { throw new \RuntimeException($end['error'], 409); }
+    return $r;
   }
   public function veto($message, $status = 409) { return ['__veto' => true, 'message' => $message, 'status' => $status]; }
   public function warn($message, $severity = 'warning') { $this->warnings[] = ['message' => $message, 'severity' => $severity]; }

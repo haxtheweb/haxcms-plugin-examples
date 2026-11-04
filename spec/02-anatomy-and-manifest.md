@@ -58,7 +58,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `runtimes` | `nodejs`, `php`. Core required plugins must list both. First-party contrib plugins should (the audit warns when they do not). Other plugins may list one, for example a HAXiam-specific plugin with no Node variation |
 | `entry` | per-runtime entry file |
 | `openapi`, `entities`, `contracts`, `datastores`, `settings`, `admin` | pointers into `config/` |
-| `implements` | provider contracts this plugin implements |
+| `implements` | provider contracts this plugin implements: a name, `{ name, accepts: [.ext] }` for contracts dispatched by file type, or `{ name, provides: [area.result] }` for contracts dispatched by named result (spec/06) |
 | `hooks` | hook subscriptions with optional `priority` (default 0) and entity filters |
 | `registries` | generated summary of `registries/` (written by `hax plugin build`) |
 | `assets` | generated list of web-reachable files with hash, size, type, optional `redistribution` per asset |

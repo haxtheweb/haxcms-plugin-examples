@@ -149,6 +149,9 @@ function validatePlugin(manifestPath) {
     const api = readAny(join(dir, m.openapi));
     const scopes = [api["x-hax-scope"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-scope"]))].filter((x) => x !== undefined);
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
+    // x-hax-transaction: atomic runs the whole operation in one atomic transaction (spec/06, Transactions)
+    const txModes = [api["x-hax-transaction"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-transaction"]))].filter((x) => x !== undefined);
+    for (const t of txModes) if (t !== "atomic") err(`${m.openapi}`, `x-hax-transaction must be atomic (got "${t}"); leave it out for the default`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && typeof op === "object" && op.operationId && op["x-hax-public"] !== true && !op.security && !api.security) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" declares no security; add security or x-hax-public: true (fail-closed)`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) { const sec = op && typeof op === "object" && (op.security || api.security); if (op && op.operationId && Array.isArray(sec) && sec.length && sec.every((r) => !r || !Object.keys(r).length)) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" lists only the optional requirement {}; pair it with a real one (bearerAuth) or mark it x-hax-public: true`); }
     // x-hax-proxy: core answers the operation from the declaration (GET only, egress-listed host, settings templates)
@@ -286,12 +289,15 @@ function validatePlugin(manifestPath) {
     for (const [name, e] of Object.entries(ents.entities)) if (e.store && !ids.has(e.store)) err(`${m.entities}/entities/${name}/store`, `unknown store "${e.store}" (not in ${m.datastores})`);
   }
   const opIds = new Set();
-  if (m.openapi && existsSync(join(dir, m.openapi))) for (const ops of Object.values(readAny(join(dir, m.openapi)).paths || {})) for (const op of Object.values(ops)) if (op && op.operationId) opIds.add(op.operationId);
+  const opScope = {};
+  if (m.openapi && existsSync(join(dir, m.openapi))) { const api = readAny(join(dir, m.openapi)); for (const ops of Object.values(api.paths || {})) for (const op of Object.values(ops)) if (op && op.operationId) { opIds.add(op.operationId); opScope[op.operationId] = op["x-hax-scope"] || api["x-hax-scope"] || "site"; } }
   for (const f of listFiles(join(dir, "registries/dashboard"), [".yaml", ".yml", ".json"])) {
     const d = readAny(f);
     if (!validators.dashboard(d)) { fmt(validators.dashboard.errors).forEach((e) => err(`${rel(f)}${e.path === "/" ? "" : e.path}`, e.message)); continue; }
-    const used = [d.badge && d.badge.operation, ...(d.action.sections || []).map((x) => x.operation)].filter(Boolean);
+    const used = [d.badge && d.badge.operation, d.action.kind === "run" ? d.action.operation : null, ...(d.action.sections || []).map((x) => x.operation)].filter(Boolean);
     for (const o of used) if (!opIds.has(o)) err(rel(f), `operation "${o}" is not in ${m.openapi || "the plugin's openapi"}`);
+    // a site-surface contribution runs for one site, so it calls that site's operations
+    if (d.surface === "site") for (const o of used) if (opIds.has(o) && opScope[o] !== "site") err(rel(f), `operation "${o}" is system scope; a site-surface contribution calls site-scope operations`);
   }
   const cmds = new Set();
   for (const f of listFiles(join(dir, "registries/cli"), [".yaml", ".yml", ".json"])) {
@@ -355,6 +361,8 @@ function validatePlugin(manifestPath) {
     const def = coreContracts[n];
     if (def && def.dispatch === "accepts" && !(e && e.accepts)) err(`/implements/${i}`, `${n} dispatches by file type: list the extensions you convert ({ name: ${n}, accepts: [.ext] })`);
     if (e && e.accepts && def && def.dispatch !== "accepts") err(`/implements/${i}/accepts`, `${n} does not dispatch by file type`);
+    if (def && def.dispatch === "provides" && !(e && e.provides)) err(`/implements/${i}`, `${n} dispatches by named result: list what you provide ({ name: ${n}, provides: [area.result] })`);
+    if (e && e.provides && def && def.dispatch !== "provides") err(`/implements/${i}/provides`, `${n} does not dispatch by named result`);
   }
   for (const c of implNames) {
     const def = coreContracts[c];

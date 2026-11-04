@@ -15,3 +15,29 @@
         expect: { status: 200, body: { result: { checked: 4, broken: 3 } }, fetch: { count: 3, notContains: ["169.254.169.254"] } }
       - call: { operation: linkCheckerReport }
         expect: { body: { checkedAt: "2026-05-04T03:17:00.000Z", broken: [{ url: "http://169.254.169.254/latest", status: refused, pages: [b] }, { url: "https://gone.example.org/y", status: 404, pages: [a] }, { url: "https://nowhere.example.net/", status: unreachable, pages: [b] }] } }
+- id: link-checker-002
+  title: "the Insights screen gets link.status from the saved report, and a fresh check on request"
+  given: "a saved report with one broken link on page a; the outside host now answers 404 on page b too"
+  when: "insights.check is called for link.status, then again with fresh: true, then for page a only"
+  then: "the front end is told link.status exists without the plugin id; saved findings come back, a fresh call checks again, the page filter keeps only page a, and a request for another result skips the plugin"
+  run:
+    now: "2026-05-04T03:17:00Z"
+    fetch: { gone.example.org: { status: 404, body: "" } }
+    stores: { report: { checkedAt: "2026-04-27T03:17:00.000Z", checked: 1, broken: [{ url: "https://gone.example.org/y", status: 404, pages: [a] }] } }
+    records:
+      page:
+        - { id: a, title: A, content: '<a href="https://gone.example.org/y">gone</a>' }
+        - { id: b, title: B, content: '<a href="https://gone.example.org/z">also gone</a>' }
+    steps:
+      - implementers: insights.check
+        expect: { body: [{ id: link-checker, provides: [link.status] }] }
+      - advertised: true
+        expect: { body: { insights.check: { provides: [link.status], providers: [{ title: Link checker, provides: [link.status] }] } }, absent: [id, plugin] }
+      - contract: { name: insights.check, op: check, input: { provides: [link.status] } }
+        expect: { status: 200, body: [{ plugin: link-checker, result: { results: { link.status: { status: ok, checkedAt: "2026-04-27T03:17:00.000Z", findings: [{ pageId: a, target: "https://gone.example.org/y", severity: error, message: "Answers 404" }], summary: { checked: 1, broken: 1 } } } } }], fetch: { count: 0 } }
+      - contract: { name: insights.check, op: check, input: { provides: [link.status], fresh: true } }
+        expect: { body: [{ result: { results: { link.status: { checkedAt: "2026-05-04T03:17:00.000Z", summary: { checked: 2, broken: 2 } } } } }], fetch: { count: 2 } }
+      - contract: { name: insights.check, op: check, input: { pages: [a] } }
+        expect: { body: [{ result: { results: { link.status: { findings: [{ pageId: a }] } } } }] }
+      - contract: { name: insights.check, op: check, input: { provides: [media.captions] } }
+        expect: { status: 200, body: { length: 0 } }

@@ -163,7 +163,7 @@ export class MemoryBackend {
         const api = readAny(join(p.dir, m.openapi));
         for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
           if (!op || !op.operationId) continue;
-          p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null };
+          p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, atomic: (op["x-hax-transaction"] || api["x-hax-transaction"]) === "atomic", security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null };
         }
       }
       if (m.datastores) for (const s of readAny(join(p.dir, m.datastores)).stores) p.stores[s.id] = s;
@@ -282,7 +282,19 @@ export class MemoryBackend {
     return { status: 200, body: { plugin: r.plugin, title, items, ...(r.result.files ? { files: r.result.files.map((f) => f.path) } : {}) } };
   }
   // what an import screen (or any chooser) lists for a contract
-  contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description, ...(implEntry(x.manifest, name).accepts ? { accepts: implEntry(x.manifest, name).accepts } : {}) })); }
+  contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description, ...(implEntry(x.manifest, name).accepts ? { accepts: implEntry(x.manifest, name).accepts } : {}), ...(implEntry(x.manifest, name).provides ? { provides: implEntry(x.manifest, name).provides } : {}) })); }
+  // what the front end is told (spec/07, Front-end extension points): contract name -> the named results active
+  // implementers provide; plugin titles only for display, so core screens key on contract and result names
+  advertisedContracts() {
+    const out = {};
+    for (const [name, def] of Object.entries(CORE_CONTRACTS)) {
+      if (!def.advertise) continue;
+      const impl = this.contractImplementers(name);
+      if (!impl.length) continue;
+      out[name] = { provides: [...new Set(impl.flatMap((x) => x.provides || []))].sort(), providers: impl.map((x) => ({ title: x.title, provides: x.provides || [] })) };
+    }
+    return out;
+  }
   isListed(pg) {
     const m = pg.metadata || {};
     const no = (v) => v === false || v === 0 || ["false", "0", "no", "off"].includes(String(v).toLowerCase());
@@ -660,13 +672,19 @@ export class MemoryBackend {
   putSiteFile(p, path, data) {
     this.requireCap(p, "file", "write");
     const full = this.sitePath(p, path);
+    this.rememberFile(full);
     mkdirSync(dirname(full), { recursive: true });
     writeFileSync(full, Buffer.isBuffer(data) ? data : Buffer.from(String(data), "base64"));
     return { path };
   }
+  rememberFile(full) {
+    const snap = this.currentTx && this.currentTx.__snap;
+    if (snap && !snap.files.has(full)) snap.files.set(full, existsSync(full) ? readFileSync(full) : null);
+  }
   removeSiteFile(p, path) {
     this.requireCap(p, "file", "write");
     const full = this.sitePath(p, path);
+    this.rememberFile(full);
     try { rmSync(full); return { removed: true }; } catch { return { removed: false }; }
   }
   // operations of active plugins, for discovery (the MCP plugin lists those with x-hax-mcp)
@@ -842,15 +860,36 @@ export class MemoryBackend {
   }
 
   // ---- transactions (spec/06): nested ones join the outer one ----
-  async transaction(fn, { bulk = true, origin = "harness" } = {}) {
-    if (this.currentTx) return fn(this.currentTx);
-    const tx = { id: `t${this.log.length}-${Date.now()}`, origin, bulk, operations: [], marks: {} };
+  // atomic (opt-in): every record, store and site file the transaction wrote is put back if it fails, and no commit is
+  // made; the default stays as before (writes that happened stay), which is what the outline editor relies on
+  async transaction(fn, { bulk = true, origin = "harness", atomic = false } = {}) {
+    if (this.currentTx) {
+      if (atomic && !this.currentTx.atomic) throw new Error(`an atomic transaction cannot join the open non-atomic one (${this.currentTx.origin})`);
+      return fn(this.currentTx);
+    }
+    const tx = { id: `t${this.log.length}-${Date.now()}`, origin, bulk, atomic, operations: [], marks: {} };
+    const snap = atomic ? { records: structuredClone(this.records), memory: new Map([...this.memory].map(([k, v]) => [k, structuredClone(v)])), revs: new Map(this.revs), managed: new Map(this.managed), files: new Map() } : null;
+    Object.defineProperty(tx, "__snap", { value: snap, enumerable: false });
     this.currentTx = tx;
+    const rollBack = async (message, status) => {
+      // restored in place: ctx objects made earlier hold references to these
+      for (const k of Object.keys(this.records)) delete this.records[k];
+      Object.assign(this.records, snap.records);
+      for (const [m, from] of [[this.memory, snap.memory], [this.revs, snap.revs], [this.managed, snap.managed]]) { m.clear(); for (const [k, v] of from) m.set(k, v); }
+      for (const [full, before] of snap.files) { if (before === null) rmSync(full, { force: true }); else { mkdirSync(dirname(full), { recursive: true }); writeFileSync(full, before); } }
+      tx.ok = false; tx.failed = { message, status };
+      tx.marks = {}; // marked work (a commit, a reindex) is dropped with the writes
+      await this.fire("transaction.after.end", tx, { transaction: tx });
+      const e = new Error(message); e.rolledBack = true; e.status = status; throw e;
+    };
     try {
       await this.fire("transaction.before.start", tx, { transaction: tx });
       await this.fire("transaction.after.start", tx, { transaction: tx });
-      const result = await fn(tx);
+      let result;
+      try { result = await fn(tx); } catch (e) { if (atomic && !e.rolledBack) return await rollBack(String(e && e.message), e && e.status ? e.status : 500); throw e; }
+      if (atomic && result && result.__veto) return await rollBack(result.message, result.status || 409);
       const end = await this.fire("transaction.before.end", tx, { transaction: tx });
+      if (atomic && end.veto) return await rollBack(end.veto.message, end.veto.status || 409);
       tx.ok = !end.veto;
       await this.fire("transaction.after.end", tx, { transaction: tx });
       return result;
@@ -920,12 +959,14 @@ export class MemoryBackend {
             // open (or join) a transaction and hold it until tx.end
             let release; const held = new Promise((r) => { release = r; });
             let started; const ready = new Promise((r) => { started = r; });
-            const done = this.transaction(async () => { started(); await held; }, { bulk: a && a.bulk !== false, origin: (a && a.origin) || "plugin" });
+            let failure = null;
+            const done = this.transaction(async () => { started(); await held; if (failure) { const e = new Error(failure.message); e.status = failure.status; throw e; } }, { bulk: a && a.bulk !== false, origin: (a && a.origin) || "plugin", atomic: !!(a && a.atomic) });
+            done.catch(() => {});
             await Promise.race([ready, done]);
-            txEnds.push({ release, done });
+            txEnds.push({ release, done, fail: (m) => { failure = m; } });
             return true;
           }
-          case "tx.end": { const t = txEnds.pop(); if (t) { t.release(); await t.done; } return true; }
+          case "tx.end": { const t = txEnds.pop(); if (t) { if (a && a.failed) t.fail({ message: a.failed, status: a.status || 500 }); t.release(); try { await t.done; } catch (e) { if (!e.rolledBack) throw e; return { rolledBack: true, error: e.message }; } } return true; }
           default: throw new Error(`unknown rpc ${msg.rpc}`);
         }
       };
@@ -968,7 +1009,10 @@ export class MemoryBackend {
       if (!p) throw new Error(`no active ${name} implementer accepts ${ext || "files without an extension"}`);
       only = p.id;
     }
-    for (const p of this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name) && (!only || x.id === only))) {
+    // provides: call only the implementers that produce one of the named results asked for (input.provides);
+    // none named calls every implementer, like dispatch all
+    const wanted = def.dispatch === "provides" && input && Array.isArray(input.provides) && input.provides.length ? input.provides : null;
+    for (const p of this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name) && (!only || x.id === only) && (!wanted || (implEntry(x.manifest, name).provides || []).some((v) => wanted.includes(v))))) {
       const ctx = this.makeCtx(p, { subject: input });
       // deployment host aliases (HAXiam: iam. sites are served from oer.) are applied to input.url by core, so
       // importers stay deployment-neutral; then egress { input: url } opens that host for this call only
@@ -1021,10 +1065,13 @@ export class MemoryBackend {
       const after = await this.fire("rest.after.request", { status: res.status, headers: {}, body: res.body });
       return { ...res, ...after.subject };
     }
-    const ctx = this.makeCtx(p, { request: req });
-    if (credentials === "none") ctx.user = null; // no credentials, no user, even on a public route
+    const makeOpCtx = () => { const c = this.makeCtx(p, { request: req }); if (credentials === "none") c.user = null; return c; }; // no credentials, no user, even on a public route
+    let ctx = op.atomic ? null : makeOpCtx();
     try {
-      const r = await this.invoke(p, "operation", operationId, ctx, [req]);
+      // x-hax-transaction: atomic wraps the whole operation; a veto it returns or a throw rolls everything back
+      const r = op.atomic
+        ? await this.transaction(async () => { ctx = makeOpCtx(); const out = await this.invoke(p, "operation", operationId, ctx, [req]); return out.value && out.value.__veto ? out.value : out; }, { bulk: true, atomic: true, origin: `operation:${operationId}` })
+        : await this.invoke(p, "operation", operationId, ctx, [req]);
       if (r.missing) return { status: 501, body: { error: `operation ${operationId} is not implemented in ${this.runtime}` } };
       const v = r.value;
       // a response envelope has a numeric status and only status/headers/body keys (spec/13); anything else is a body,
@@ -1036,7 +1083,9 @@ export class MemoryBackend {
       return { ...res, ...after.subject, warnings: ctx.__warnings };
     } catch (e) {
       this.log.push({ level: "error", plugin: p.id, message: String(e && e.message) });
-      return { status: 500, body: { error: "internal error" } };
+      // a rolled-back atomic operation: a veto keeps its status and message, anything else stays a generic 500
+      if (e && e.rolledBack && e.status && e.status !== 500) return { status: e.status, body: { error: e.message, rolledBack: true } };
+      return { status: 500, body: { error: "internal error", ...(e && e.rolledBack ? { rolledBack: true } : {}) } };
     }
   }
 
