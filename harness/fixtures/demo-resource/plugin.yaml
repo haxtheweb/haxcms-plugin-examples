@@ -1,0 +1,20 @@
+# Test fixture: an oauth.resource with one read and one write operation, so the oauth plugin's cases do not depend on
+# any real resource (mcp needs a configured server URL).
+specVersion: "0.1.0"
+id: demo-resource
+uuid: ba4e0eee-a627-4460-8bd4-05e5a23f0650
+title: Demo resource (test fixture)
+description: Accepts OAuth tokens for https://resource.example/api. Exists only for the harness tests.
+version: 0.1.0
+category: developer
+icon: icons:extension
+hidden: true
+untested: true                    # exercised by core-plugins/oauth cases
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+dependencies: [oauth]
+implements: [oauth.resource]
+staticCapable: false

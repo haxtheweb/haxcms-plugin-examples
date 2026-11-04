@@ -46,6 +46,12 @@ export async function step(backend, raw, vars = {}) {
   out.log = backend.log;
   if (backend.execCalls && backend.execCalls.length > execFrom) out.exec = backend.execCalls.slice(execFrom);
   if (backend.fetchCalls && backend.fetchCalls.length > fetchFrom) out.fetch = backend.fetchCalls.slice(fetchFrom);
-  for (const [name, path] of Object.entries(s.capture || {})) vars[name] = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), out);
+  // `capture: { code: "body.redirect ~ code=([^&]+)" }` keeps the first group of a regular expression over the value
+  for (const [name, spec] of Object.entries(s.capture || {})) {
+    const [path, re] = String(spec).split(" ~ ");
+    const value = path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), out);
+    const m = re !== undefined && value != null ? new RegExp(re).exec(String(value)) : null;
+    vars[name] = re === undefined ? value : m ? m[1] : undefined;
+  }
   return { out, errors: check(out, s.expect || {}) };
 }

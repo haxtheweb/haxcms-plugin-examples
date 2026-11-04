@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info: { title: Demo resource, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /things:
+    get:
+      operationId: demoResourceRead
+      summary: A read the demo:read scope allows
+      x-hax-public: true             # the oauth plugin checks the token and asks this plugin
+      responses: { "200": { description: OK } }
+    post:
+      operationId: demoResourceWrite
+      summary: A write that needs demo:write
+      x-hax-public: true
+      responses: { "200": { description: OK } }

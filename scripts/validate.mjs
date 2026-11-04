@@ -151,6 +151,17 @@ function validatePlugin(manifestPath) {
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) if (op && typeof op === "object" && op.operationId && op["x-hax-public"] !== true && !op.security && !api.security) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" declares no security; add security or x-hax-public: true (fail-closed)`);
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) { const sec = op && typeof op === "object" && (op.security || api.security); if (op && op.operationId && Array.isArray(sec) && sec.length && sec.every((r) => !r || !Object.keys(r).length)) err(`${m.openapi}/paths/${path}/${verb}`, `operation "${op.operationId}" lists only the optional requirement {}; pair it with a real one (bearerAuth) or mark it x-hax-public: true`); }
+    // x-hax-well-known: core also serves this operation at /.well-known/<name>. Only names core reserves (the root of the
+    // origin is core's), only public GETs at system scope; the loader refuses a second plugin claiming the same name
+    const WELL_KNOWN = ["oauth-authorization-server", "oauth-protected-resource", "openid-configuration"];
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) {
+      if (!op || typeof op !== "object" || op["x-hax-well-known"] === undefined) continue;
+      const where = `${m.openapi}/paths/${path}/${verb}`;
+      const wk = op["x-hax-well-known"];
+      if (!WELL_KNOWN.includes(wk)) err(where, `x-hax-well-known must be one of ${WELL_KNOWN.join(", ")} (got "${wk}")`);
+      if (verb !== "get" || op["x-hax-public"] !== true) err(where, "x-hax-well-known is for public GET operations (x-hax-public: true)");
+      if ((op["x-hax-scope"] || api["x-hax-scope"] || "site") !== "system") err(where, "x-hax-well-known operations must be x-hax-scope: system");
+    }
     // x-hax-proxy: core answers the operation from the declaration (GET only, egress-listed host, settings templates)
     const fields = m.settings && existsSync(join(dir, m.settings)) ? new Set((readJson(join(dir, m.settings)).configure || []).map((f) => f.property)) : new Set();
     for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops)) {

@@ -14,6 +14,11 @@ Entry format:
 ## 0.1.0 (draft)
 - Initial draft. No upgrade recipes needed yet.
 
+### OAuth and MCP during the 0.1.0 draft
+- Change: new optional core plugin `oauth` (OAuth 2.1 authorization server) defining the `oauth.resource` contract; `mcp` now depends on it and implements `oauth.resource` instead of issuing its own tokens (`mcpTokenCreate`, `mcpTokenList`, `mcpTokenRevoke` and the `X-HAX-MCP-Token` header are gone). `ctx.plugins.list()` entries gain `implements`. New OpenAPI key `x-hax-well-known`.
+- Upgrade recipe: a plugin that accepted MCP tokens directly does nothing; one that wants tokens for its own audience implements `oauth.resource` (`describe`, `check`) and lists `oauth` in `dependencies`. Read the verified grant from the `x-hax-oauth-grant` header, never from a client.
+- Fixture: `core-plugins/oauth/tests/cases` with `harness/fixtures/demo-resource`; `core-plugins/mcp/tests/cases`.
+
 ### Renames during the 0.1.0 draft (for anyone who wrote against an earlier draft)
 - Upgrade recipe: rename hook subscriptions and implementations: `rest.request` → `rest.before.request`; `rest.response` → `rest.after.request`; `plugin.requirements` → `plugin.before.requirements`; `register.routes|entities|contracts|prompts` → `register.before.*`; `render.head` → `render.before.head`; `render.content` → `render.before.content`; `render.body.start` → `render.before.body`; `render.body.end` → `render.after.body`; `schedule.run` → a `schedules` entry plus `schedule.before.run` / `schedule.after.run`; `output.alterHead` / `output.alterPage` → `render.before.head` / `render.after`. Remove `defaultEnabled`. Return `ctx.veto(message)` instead of `{ veto, message }`.
 - Fixture: `examples/example` (regenerated from `schema/hook-contracts.json`).

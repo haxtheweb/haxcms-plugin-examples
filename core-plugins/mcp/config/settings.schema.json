@@ -1,1 +1,4 @@
-{ "configure": [ { "property": "readOnlyDefault", "title": "New tokens are read-only", "description": "Default for new tokens; each token can still be read-write", "inputMethod": "boolean" } ] }
+{ "configure": [
+  { "property": "serverUrl", "title": "MCP server URL", "description": "The public URL of your haxcms-mcp server. Tokens are issued for this address only", "inputMethod": "textfield", "required": true },
+  { "property": "readOnly", "title": "Agents may only read", "description": "On by default. Turn off to let agents you approve change, create and delete content, each one only if you approve that too", "inputMethod": "boolean" }
+] }

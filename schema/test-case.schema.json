@@ -90,6 +90,10 @@
                 "type": "object"
               },
               "body": {},
+              "headers": {
+                "type": "object",
+                "description": "Request headers (lower-case names), such as authorization for a plugin-issued token."
+              },
               "credentials": {
                 "enum": [
                   "none",

@@ -1,13 +1,16 @@
-# MCP: core, optional, enabled per deployment; HAXiam blocks it for now (deployment config `blocked`).
-# Today haxcms-mcp (https://github.com/haxtheweb/haxcms-mcp) is a separate server driving HAXcms over HTTP, and core
-# has mcp.enabled / mcp.readOnly config. This plugin gives that server what it needs from inside HAXcms: scoped,
-# revocable tokens, a discovery route listing every plugin operation marked x-hax-mcp plus every plugin's prompts,
-# and a guard that keeps calls made with a token inside that token's scope.
+# MCP: core, optional, opt-in like every non-required plugin; HAXiam blocks it for now (deployment config `blocked`).
+# haxcms-mcp (https://github.com/haxtheweb/haxcms-mcp) is a separate MCP server that drives HAXcms over HTTP. This
+# plugin is what HAXcms knows about it:
+#  - it replaces core's config.mcp: the plugin being enabled is mcp.enabled, its readOnly setting is mcp.readOnly,
+#    and core keeps publishing both as data.mcp on GET /system/api/v1, which haxcms-mcp already obeys;
+#  - it is an oauth.resource: the oauth plugin issues tokens for the haxcms-mcp URL (the audience), and this plugin
+#    decides what such a token may call;
+#  - it lists the plugin operations marked x-hax-mcp and every plugin's prompts for the server (mcpDiscovery).
 specVersion: "0.1.0"
 id: mcp
 uuid: 3e5a7c9e-1b3d-4e5a-7c9e-1b3d5f7a9c1e
 title: MCP access
-description: Lets AI agents use this HAXcms through MCP with scoped tokens you can revoke.
+description: Lets AI agents you approve use this HAXcms through MCP, read-only unless you allow changes.
 version: 0.1.0
 category: integration
 icon: icons:settings-ethernet
@@ -21,11 +24,12 @@ entry:
   php: src/php/Plugin.php
 openapi: config/openapi.yaml
 settings: config/settings.schema.json
-datastores: config/datastores.yaml
+dependencies: [oauth]             # tokens, consent, revocation: MCP leverages OAuth rather than issuing its own
+implements: [oauth.resource]
 staticCapable: false
-capabilities: []   # core moves mcp.readOnly out of the core config (legacy.settings)
+# Its own code touches no content, so it requests no capabilities. What it lets approved agents do (act as the person
+# who approved them, read-only unless allowed) is a delegation the manifest cannot declare yet: spec/GAPS.md 1s.
+capabilities: []
 legacy:
   settings:
-    readOnlyDefault: config:mcp.readOnly
-hooks:
-  - name: rest.before.request    # calls carrying an MCP token stay inside the token's scope
+    readOnly: config:mcp.readOnly   # core's instance-wide switch moves here on the first enable

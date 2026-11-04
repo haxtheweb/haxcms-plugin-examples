@@ -698,7 +698,8 @@ export class MemoryBackend {
     return list;
   }
   activeList() {
-    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: this.effectivePrivacy(x), capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [] }));
+    // implements: contract names only (an entry may be { name, accepts }), so a contract's definer can list its implementers
+    return this.plugins.filter((x) => x.status === "active").map((x) => ({ id: x.id, version: x.manifest.version, privacy: this.effectivePrivacy(x), capabilities: x.manifest.capabilities || [], skills: x.manifest.skills || [], implements: (x.manifest.implements || []).map((i) => (typeof i === "string" ? i : i.name)) }));
   }
   assetUrl(p, path) {
     if (!/^frontend\/dist\/[A-Za-z0-9._\/-]+$/.test(path) || path.includes("..")) throw new Error(`${p.id}: assets.url only serves files under frontend/dist`);
