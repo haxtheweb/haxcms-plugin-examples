@@ -1,0 +1,23 @@
+openapi: 3.1.0
+info: { title: Answer guard, version: 0.1.0 }
+paths:
+  /check:
+    post:
+      operationId: answerGuardCheck
+      summary: Check the signed-in learner's choices for one guarded question; says correct or not, never which option is
+      security: [{ bearerAuth: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [pageId, key, choices], properties: { pageId: { type: string }, key: { type: string, maxLength: 200 }, choices: { type: array, maxItems: 50, items: { type: string, maxLength: 2000 } } } } } } }
+      responses: { "200": { description: Checked }, "404": { description: Not a guarded question }, "429": { description: Checked again too soon } }
+  /signals:
+    post:
+      operationId: answerGuardSignal
+      summary: Record what the monitor saw while the learner answered one question; stored only when something is flagged
+      security: [{ bearerAuth: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [pageId, key], properties: { pageId: { type: string }, key: { type: string, maxLength: 200 }, untrusted: { type: integer, minimum: 0 }, msToFirstInput: { type: integer, minimum: 0 }, inputKind: { enum: [pointer, keyboard, none] }, automation: { type: boolean } } } } } }
+      responses: { "200": { description: Recorded or nothing to record } }
+  /report:
+    get:
+      operationId: answerGuardReport
+      summary: Flags and checks per learner on this site (editors and admins)
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: OK }, "403": { description: Not an instructor } }

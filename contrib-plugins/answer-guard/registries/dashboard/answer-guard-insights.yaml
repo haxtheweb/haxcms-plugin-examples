@@ -1,0 +1,16 @@
+# Adds an "Answer integrity" section to the Insights screen of every site the plugin is enabled for (site surface,
+# insights.section slot). Core renders it; the plugin ships no admin front-end code.
+id: answer-guard-insights
+surface: site
+placement: slot
+slot: insights.section
+icon: icons:verified-user
+label: Answer integrity
+action:
+  kind: modal
+  title: Answer integrity on this site
+  sections:
+    - title: Learners with flags
+      operation: answerGuardReport
+      items: items
+      card: { title: name, description: summary, anchor: id }

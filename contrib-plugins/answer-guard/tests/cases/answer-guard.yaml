@@ -1,0 +1,119 @@
+- id: answer-guard-001
+  title: "a learner's page has no answer key, the question is marked, and the monitor is added"
+  hook: render.before.content
+  given: "a private site (no license) and a saved page with a multiple-choice question"
+  when: "the page is rendered live"
+  then: "data-correct and choice feedback are gone, labels stay, the block carries its key, the monitor singleton follows"
+  run:
+    settings: { protect: auto, elements: multiple-choice, blockUntrusted: true, minAnswerMs: 1500, honorPrompt: "I am answering myself." }
+    steps:
+      - save: { type: page, record: { id: p1, title: Quiz, content: '<p>Intro</p><multiple-choice id="q1" title="Capital"><p slot="question">Capital of France?</p><input type="checkbox" value="Paris" data-correct="true" data-selected="Yes, Paris."><input type="checkbox" value="Lyon" data-unselected="Fine."></multiple-choice>' } }
+      - render: { page: { id: p1, content: '<p>Intro</p><multiple-choice id="q1" title="Capital"><p slot="question">Capital of France?</p><input type="checkbox" value="Paris" data-correct="true" data-selected="Yes, Paris."><input type="checkbox" value="Lyon" data-unselected="Fine."></multiple-choice>' } }
+        expect:
+          contains:
+            - '<multiple-choice id="q1" title="Capital" data-answer-guard-key="q1"><p slot="question">Capital of France?</p><input type="checkbox" value="Paris"><input type="checkbox" value="Lyon"></multiple-choice>'
+            - '<answer-guard-monitor page="p1" endpoint="x/api/v1/plugins/answer-guard/" min-answer-ms="1500" block-untrusted honor-prompt="I am answering myself."></answer-guard-monitor>'
+            - 'answer-guard-monitor.js'
+          notContains: [data-correct, "Yes, Paris.", data-selected, data-unselected]
+- id: answer-guard-002
+  title: "the server grades choices, says only right or wrong, and slows repeated checks"
+  given: "q1 indexed with Paris correct; 2 s between checks"
+  when: "a learner checks Lyon, checks again at once, then checks Paris after waiting"
+  then: "Lyon is wrong with its feedback, the immediate retry gets 429, Paris is right on the second counted attempt"
+  run:
+    settings: { minCheckIntervalMs: 2000 }
+    now: "2023-11-14T22:13:20Z"
+    steps:
+      - save: { type: page, record: { id: p1, title: Quiz, content: '<multiple-choice id="q1"><input type="checkbox" value="Paris" data-correct="true" data-selected="Yes, Paris."><input type="checkbox" value="Lyon" data-selected="Lyon is not the capital."></multiple-choice>' } }
+      - asUser: { id: u2, name: learner, displayName: Learner, roles: [viewer], avatar: null }
+      - call: { operation: answerGuardCheck, body: { pageId: p1, key: q1, choices: [Lyon] } }
+        expect: { status: 200, body: { correct: false, attempts: 1, feedback: ["Lyon is not the capital."] }, notContains: ['"Paris"'] }
+      - call: { operation: answerGuardCheck, body: { pageId: p1, key: q1, choices: [Paris] } }
+        expect: { status: 429, body: { error: "wait before checking again", retryAfterMs: 2000 } }
+      - clock: "2023-11-14T22:13:23Z"
+      - call: { operation: answerGuardCheck, body: { pageId: p1, key: q1, choices: [" Paris "] } }
+        expect: { status: 200, body: { correct: true, attempts: 2, feedback: ["Yes, Paris."] } }
+      - call: { operation: answerGuardCheck, body: { pageId: p1, key: nope, choices: [Paris] } }
+        expect: { status: 404 }
+- id: answer-guard-003
+  title: "auto leaves OER sites alone; always protects them anyway; static publishes are never changed"
+  given: "a site licensed by-sa"
+  when: "rendered live with protect auto, then always, then published with always"
+  then: "auto: authored HTML and no monitor; always: redacted; publish: authored HTML"
+  run:
+    settings: { protect: auto }
+    records: { site: { license: by-sa, metadata: { plugins: {} } } }
+    steps:
+      - render: { page: { id: p1, content: '<multiple-choice id="q1"><input value="A" data-correct="true"><input value="B"></multiple-choice>' } }
+        expect: { contains: ['<input value="A" data-correct="true">'], notContains: [answer-guard-monitor, data-answer-guard-key] }
+      - config: { plugin: answer-guard, values: { protect: always } }
+      - render: { page: { id: p1, content: '<multiple-choice id="q1"><input value="A" data-correct="true"><input value="B"></multiple-choice>' } }
+        expect: { contains: ['<input value="A"><input value="B">', 'data-answer-guard-key="q1"'], notContains: [data-correct] }
+      - render: { page: { id: p1, content: '<multiple-choice id="q1"><input value="A" data-correct="true"><input value="B"></multiple-choice>' }, mode: publish }
+        expect: { contains: ['<input value="A" data-correct="true">'], notContains: [answer-guard-monitor] }
+- id: answer-guard-004
+  title: "page content from the API is redacted for learners and left whole for editors"
+  hook: entity.after.read
+  given: "a private site; a page with a legacy bare `correct` answer and no id (fingerprint key)"
+  when: "a learner, then an admin, reads the page"
+  then: "the learner gets no correct attribute and a fingerprint key; the admin gets the authored content"
+  run:
+    steps:
+      - asUser: { id: u2, name: learner, displayName: Learner, roles: [viewer], avatar: null }
+      - fire: { hook: entity.after.read, entity: page, subject: { id: p1, content: '<multiple-choice><p>Pick one</p><input value="Yes" correct><input value="No"></multiple-choice>' } }
+        expect: { subject: { content: '<multiple-choice data-answer-guard-key="fp-a26f1cd2b6b3bfd8"><p>Pick one</p><input value="Yes"><input value="No"></multiple-choice>' }, notContains: [" correct>"] }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - fire: { hook: entity.after.read, entity: page, subject: { id: p1, content: '<multiple-choice><p>Pick one</p><input value="Yes" correct><input value="No"></multiple-choice>' } }
+        expect: { subject: { content: '<multiple-choice><p>Pick one</p><input value="Yes" correct><input value="No"></multiple-choice>' }, notContains: [data-answer-guard-key] }
+- id: answer-guard-005
+  title: "only flagged answers are kept, keyboard answers are not flagged, and instructors see a summary"
+  given: "q1 indexed; fast answers are under 1500 ms"
+  when: "a learner sends a normal keyboard answer, then a scripted fast one; a learner and an admin open the report"
+  then: "the first stores nothing; the second is flagged scripted-input and fast-answer; the learner is refused; the admin sees one learner with one flagged answer"
+  run:
+    settings: { minAnswerMs: 1500, minCheckIntervalMs: 0 }
+    steps:
+      - save: { type: page, record: { id: p1, title: Quiz, content: '<multiple-choice id="q1"><input value="A" data-correct="true"><input value="B"></multiple-choice>' } }
+      - asUser: { id: u2, name: learner, displayName: Learner Two, roles: [viewer], avatar: null }
+      - call: { operation: answerGuardSignal, body: { pageId: p1, key: q1, untrusted: 0, msToFirstInput: 9000, inputKind: keyboard, automation: false } }
+        expect: { status: 200, body: { flagged: [] } }
+      - call: { operation: answerGuardSignal, body: { pageId: p1, key: q1, untrusted: 3, msToFirstInput: 120, inputKind: pointer, automation: false } }
+        expect: { status: 200, body: { flagged: [scripted-input, fast-answer] } }
+      - call: { operation: answerGuardCheck, body: { pageId: p1, key: q1, choices: [A] } }
+      - call: { operation: answerGuardReport }
+        expect: { status: 403 }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: answerGuardReport }
+        expect: { status: 200, body: { items: [{ id: u2, name: Learner Two, flags: 1, checks: 1, summary: "1 flagged answer (fast-answer x1, scripted-input x1); 1 checks" }] } }
+- id: answer-guard-006
+  title: "enabling indexes existing pages; deleting a page drops its keys"
+  given: "a page with a question saved before the plugin indexed it"
+  when: "the plugin is enabled, the question is checked, the page is deleted and checked again"
+  then: "the check works after enable and returns 404 after the delete"
+  run:
+    settings: { minCheckIntervalMs: 0 }
+    records: { page: [{ id: p9, title: Old, content: '<multiple-choice id="old"><input value="A" data-correct="true"><input value="B"></multiple-choice>' }] }
+    steps:
+      - enable: answer-guard
+        expect: { log: { contains: ["indexed guarded questions on 1 pages"] } }
+      - call: { operation: answerGuardCheck, body: { pageId: p9, key: old, choices: [A] } }
+        expect: { status: 200, body: { correct: true } }
+      - delete: { type: page, id: p9 }
+      - call: { operation: answerGuardCheck, body: { pageId: p9, key: old, choices: [A] } }
+        expect: { status: 404 }
+- id: answer-guard-007
+  title: "a learner's checks and flags are exported and erased by core"
+  given: "u2 has one check and one flag; u3 has one check"
+  when: "export then erase u2"
+  then: "export lists u2's records only; erase removes 2; a second export is empty"
+  run:
+    stores:
+      attempts: [{ userId: u2, pageId: p1, key: q1, at: 1, correct: false }, { userId: u3, pageId: p1, key: q1, at: 2, correct: true }]
+      signals: [{ userId: u2, name: Learner, pageId: p1, key: q1, reasons: [automation], at: 1 }]
+    steps:
+      - exportUser: u2
+        expect: { body: { answer-guard.attempts: [{ userId: u2 }], answer-guard.signals: [{ reasons: [automation] }] }, notContains: [u3] }
+      - eraseUser: u2
+        expect: { body: { removed: 2 } }
+      - exportUser: u2
+        expect: { body: {} }

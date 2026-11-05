@@ -1,0 +1,5 @@
+# role: injected means the plugin places it itself (render.after.body) on pages that have guarded questions; authors
+# never insert it, so no haxProperties.
+tag: answer-guard-monitor
+path: frontend/dist/answer-guard-monitor.js
+role: injected
