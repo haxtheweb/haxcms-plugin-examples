@@ -1,0 +1,1 @@
+{ "protect": "auto", "elements": "multiple-choice", "blockUntrusted": true, "minAnswerMs": 1500, "minCheckIntervalMs": 2000, "honorPrompt": "I'm answering these questions myself. Unusual activity is shared with your instructor." }
