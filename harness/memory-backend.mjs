@@ -24,6 +24,12 @@ const CORE_CONTRACTS = parse(readFileSync(join(root, "schema/core-contracts.yaml
 // titled after the file, so nothing is lost.
 const slugify = (t) => String(t).toLowerCase().replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "page";
 const textOf = (h) => String(h).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+// request headers as a plain object with lower-case names, whether given as an object, a Map/Headers or pairs
+const headerMap = (h) => {
+  if (!h) return {};
+  const pairs = typeof h.entries === "function" && !Array.isArray(h) ? [...h.entries()] : Array.isArray(h) ? h : Object.entries(h);
+  return Object.fromEntries(pairs.map(([k, v]) => [String(k).toLowerCase(), String(v)]));
+};
 export function outlineFromHtml(html, { method = "site", parentId = null, titleValue = "import" } = {}) {
   const items = [];
   const add = (title, content, parent, slug, indent = 0) => { const it = { id: `item-${items.length + 1}`, title, slug, parent, order: items.filter((x) => x.parent === parent).length, indent, content: content.trim() || "<p></p>" }; items.push(it); return it; };
@@ -377,7 +383,9 @@ export class MemoryBackend {
       const hosts = this.egressHosts(p);
       if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith(".internal") || host.endsWith(".local")) throw new Error(`fetch to ${host} not allowed (private address)`);
       if (!(p.manifest.capabilities || []).includes("network:egress") || !(hosts.includes("*") || hosts.includes(host))) throw new Error(`fetch to ${host} not allowed${hop ? " (redirected)" : ""}`);
-      this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url: current });
+      this.secretGuard(p, host, current, init, hop);
+      // header names are recorded so cases can see where a key travelled; values never are
+      this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url: current, headers: Object.keys(headerMap(init.headers)).sort() });
       // fakes match the exact URL first, then the URL without its query, then the host
       const fakes = this.fetchFakes || {};
       const fake = fakes[current] || fakes[current.split("?")[0]] || fakes[host];
@@ -393,8 +401,27 @@ export class MemoryBackend {
 
   // egress: fixed hosts, plus hosts of the URLs in any setting named by { setting } (spec/08)
   egressHosts(p) {
+    return this.hostsFrom(p, p.manifest.egress || []);
+  }
+  // hosts named by a list of egress-shaped entries (egress itself, or a secret field's x-secret-egress)
+  hostsFrom(p, entries) {
     const eff = this.effectiveSettings(p);
-    return (p.manifest.egress || []).flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : e.input ? (p.inputHost ? [p.inputHost] : []) : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
+    return entries.flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : e.input ? (p.inputHost ? [p.inputHost] : []) : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
+  }
+  // x-secret-egress (spec/07): a secret setting's value may only travel (URL, header or body; plain, URL-encoded or
+  // base64) to the hosts its field names. A secret field without x-secret-egress may go to any egress host.
+  secretGuard(p, host, url, init, hop) {
+    const eff = this.effectiveSettings(p);
+    const carriers = [String(url), ...Object.values(headerMap(init.headers)).map(String), typeof init.body === "string" ? init.body : ""];
+    for (const f of p.form) {
+      if (!f["x-secret"] || !Array.isArray(f["x-secret-egress"])) continue;
+      const v = eff[f.property];
+      if (typeof v !== "string" || v.length < 4) continue;
+      const forms = [v, encodeURIComponent(v), Buffer.from(v).toString("base64")];
+      if (!carriers.some((c) => forms.some((x) => c.includes(x)))) continue;
+      const allowed = this.hostsFrom(p, f["x-secret-egress"]);
+      if (!(allowed.includes("*") || allowed.includes(host))) throw new Error(`secret setting "${f.property}" may not be sent to ${host}${hop ? " (redirected)" : ""}`);
+    }
   }
   // x-hax-proxy (spec/05): a GET operation answered by core from the declaration, with no plugin code. Templates may
   // read settings ({{settings.apiKey}}) and only the listed query parameters pass through from the caller.

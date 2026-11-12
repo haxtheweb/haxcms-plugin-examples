@@ -1,0 +1,140 @@
+- id: pokeapi-001
+  title: "searching reads the PokeAPI list once, then finds names inside it, numbers, and spaced names"
+  given: "the default PokeAPI address; pokeapi.co lists bulbasaur, pikachu, raichu, mr-mime, pichu and a nameless entry"
+  when: "search chu, then Mr Mime, then 025, then nothing"
+  then: "the list is fetched once (limit and offset only, no key header) and every later search uses the stored copy"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    fetch:
+      pokeapi.co: { status: 200, body: { count: 6, results: [{ name: bulbasaur, url: "https://pokeapi.co/api/v2/pokemon/1/" }, { name: pikachu, url: "https://pokeapi.co/api/v2/pokemon/25/" }, { name: raichu, url: "https://pokeapi.co/api/v2/pokemon/26/" }, { name: mr-mime, url: "https://pokeapi.co/api/v2/pokemon/122/" }, { name: pichu, url: "https://pokeapi.co/api/v2/pokemon/172/" }, { name: "", url: "https://pokeapi.co/api/v2/pokemon/9999/" }] } }
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: chu } }
+        expect:
+          status: 200
+          body:
+            items:
+              - { id: 25, name: pikachu, title: Pikachu, details: "#25", image: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" }
+              - { id: 26, name: raichu, title: Raichu }
+              - { id: 172, name: pichu, title: Pichu }
+            page: 1
+            total_pages: 1
+            total: 3
+          fetch: { count: 1, contains: ["https://pokeapi.co/api/v2/pokemon?limit=100000&offset=0", '"headers":[]'] }
+      - call: { operation: pokeapiSearch, query: { query: "Mr Mime" } }
+        expect: { body: { items: [{ id: 122, name: mr-mime, title: Mr Mime }], total: 1 }, fetch: { count: 0 } }
+      - call: { operation: pokeapiSearch, query: { query: "025" } }
+        expect: { body: { items: [{ id: 25, name: pikachu }], total: 1 }, fetch: { count: 0 } }
+      - call: { operation: pokeapiSearch, query: {} }
+        expect: { body: { total: 5, total_pages: 1 }, notContains: ['"id":9999'], fetch: { count: 0 } }
+- id: pokeapi-002
+  title: "names that start with the search come first, and results page by twenty"
+  given: "a stored list of 25 Pokémon named pi-1 ... pi-24 plus api"
+  when: "search pi, page 1 and page 2"
+  then: "pi-1 first and api (pi inside the name) last; page 2 has the remaining five"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    stores:
+      index:
+        base: "https://pokeapi.co/api/v2"
+        fetchedAt: 1794481200000
+        results: [{ name: api, url: "https://pokeapi.co/api/v2/pokemon/1/" }, { name: pi-1, url: "https://pokeapi.co/api/v2/pokemon/2/" }, { name: pi-2, url: "https://pokeapi.co/api/v2/pokemon/3/" }, { name: pi-3, url: "https://pokeapi.co/api/v2/pokemon/4/" }, { name: pi-4, url: "https://pokeapi.co/api/v2/pokemon/5/" }, { name: pi-5, url: "https://pokeapi.co/api/v2/pokemon/6/" }, { name: pi-6, url: "https://pokeapi.co/api/v2/pokemon/7/" }, { name: pi-7, url: "https://pokeapi.co/api/v2/pokemon/8/" }, { name: pi-8, url: "https://pokeapi.co/api/v2/pokemon/9/" }, { name: pi-9, url: "https://pokeapi.co/api/v2/pokemon/10/" }, { name: pi-10, url: "https://pokeapi.co/api/v2/pokemon/11/" }, { name: pi-11, url: "https://pokeapi.co/api/v2/pokemon/12/" }, { name: pi-12, url: "https://pokeapi.co/api/v2/pokemon/13/" }, { name: pi-13, url: "https://pokeapi.co/api/v2/pokemon/14/" }, { name: pi-14, url: "https://pokeapi.co/api/v2/pokemon/15/" }, { name: pi-15, url: "https://pokeapi.co/api/v2/pokemon/16/" }, { name: pi-16, url: "https://pokeapi.co/api/v2/pokemon/17/" }, { name: pi-17, url: "https://pokeapi.co/api/v2/pokemon/18/" }, { name: pi-18, url: "https://pokeapi.co/api/v2/pokemon/19/" }, { name: pi-19, url: "https://pokeapi.co/api/v2/pokemon/20/" }, { name: pi-20, url: "https://pokeapi.co/api/v2/pokemon/21/" }, { name: pi-21, url: "https://pokeapi.co/api/v2/pokemon/22/" }, { name: pi-22, url: "https://pokeapi.co/api/v2/pokemon/23/" }, { name: pi-23, url: "https://pokeapi.co/api/v2/pokemon/24/" }, { name: pi-24, url: "https://pokeapi.co/api/v2/pokemon/25/" }]
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: pi } }
+        expect: { body: { page: 1, total: 25, total_pages: 2, items: [{ name: pi-1 }] }, notContains: ['"name":"api"'], fetch: { count: 0 } }
+      - call: { operation: pokeapiSearch, query: { query: pi, page: "2" } }
+        expect: { body: { page: 2, items: [{ name: pi-21 }, { name: pi-22 }, { name: pi-23 }, { name: pi-24 }, { name: api }] }, fetch: { count: 0 } }
+      - call: { operation: pokeapiSearch, query: { query: pi, page: "nope" } }
+        expect: { body: { page: 1 } }
+- id: pokeapi-003
+  title: "an old list is refreshed after cacheHours; a failed refresh keeps using the old one"
+  given: "a list stored 25 hours ago (cacheHours 24); pokeapi.co is unreachable"
+  when: "search pikachu"
+  then: "one refresh attempt, a log warning, and results from the stored list"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    stores:
+      index: { base: "https://pokeapi.co/api/v2", fetchedAt: 1794394800000, results: [{ name: pikachu, url: "https://pokeapi.co/api/v2/pokemon/25/" }] }
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: pikachu } }
+        expect: { status: 200, body: { items: [{ id: 25 }] }, fetch: { count: 1 }, log: { contains: ["PokeAPI list refresh failed"] } }
+- id: pokeapi-004
+  title: "PokeAPI down with nothing stored is a 502, not a crash"
+  given: "no stored list and no network"
+  when: "search"
+  then: "502 with a log warning"
+  run:
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: x } }
+        expect: { status: 502, body: { error: PokeAPI could not be reached }, log: { contains: ["PokeAPI list could not be loaded", "network is disabled in the harness"] } }
+- id: pokeapi-005
+  title: "a mirror gets the key in its header; the key never reaches the response"
+  given: "apiBase is a self-hosted mirror that asks for a key in x-api-key"
+  when: "search"
+  then: "the list comes from the mirror with the key header; the list stored for pokeapi.co is not reused"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    settings: { apiBase: "https://pokemon.mirror.example.edu/api/v2/", apiKey: test-key-pokeapi }
+    stores:
+      index: { base: "https://pokeapi.co/api/v2", fetchedAt: 1794481200000, results: [{ name: bulbasaur, url: "https://pokeapi.co/api/v2/pokemon/1/" }] }
+    fetch:
+      pokemon.mirror.example.edu: { status: 200, body: { results: [{ name: pikachu, url: "https://pokemon.mirror.example.edu/api/v2/pokemon/25/" }] } }
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: pika } }
+        expect:
+          status: 200
+          body: { items: [{ id: 25, name: pikachu }] }
+          fetch: { count: 1, contains: ["https://pokemon.mirror.example.edu/api/v2/pokemon?limit=100000", '"headers":["x-api-key"]'] }
+          notContains: [test-key-pokeapi, bulbasaur]
+- id: pokeapi-006
+  title: "a key never goes to the public PokeAPI, even if one is stored"
+  given: "a key in settings while apiBase is still pokeapi.co (set around the settings form)"
+  when: "search"
+  then: "the request to pokeapi.co carries no key header"
+  run:
+    settings: { apiKey: test-key-pokeapi }
+    fetch:
+      pokeapi.co: { status: 200, body: { results: [{ name: pikachu, url: "https://pokeapi.co/api/v2/pokemon/25/" }] } }
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: pikachu } }
+        expect: { status: 200, fetch: { count: 1, contains: ['"headers":[]'] }, notContains: [test-key-pokeapi] }
+- id: pokeapi-007
+  title: "the settings form refuses a key for the public API, a key over http, and an address that is not a URL"
+  given: "the default settings"
+  when: "save a key with pokeapi.co; a key with an http mirror; a bad address; then a key with an https mirror"
+  then: "three 422s with the reason; the last save succeeds"
+  run:
+    steps:
+      - config: { plugin: pokeapi, values: { apiKey: test-key-pokeapi } }
+        expect: { status: 422, contains: ["PokeAPI itself needs no key"] }
+      - config: { plugin: pokeapi, values: { apiBase: "http://pokemon.mirror.example.edu/api/v2", apiKey: test-key-pokeapi } }
+        expect: { status: 422, contains: ["only be sent over https"] }
+      - config: { plugin: pokeapi, values: { apiBase: "pokemon mirror" } }
+        expect: { status: 422, contains: ["must be a web address"] }
+      - config: { plugin: pokeapi, values: { apiBase: "https://pokemon.mirror.example.edu/api/v2", apiKey: test-key-pokeapi } }
+        expect: { status: 200 }
+- id: pokeapi-008
+  title: "the editor gets a PokeAPI app that searches this plugin's route and inserts pokeapi-card"
+  given: "the plugin enabled"
+  when: "rebuild"
+  then: "PokeAPI is in the appstore, and pokeapi-card is a block served from this plugin's assets"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { body: { apps: ["PokeAPI"], blocks: [pokeapi-card], registry: { pokeapi-card: x/api/v1/plugins/pokeapi/assets/pokeapi-card.js } } }
+- id: pokeapi-009
+  title: "a mirror that redirects to pokeapi.co cannot take the key along (x-secret-egress)"
+  given: "a key for the mirror; the mirror answers with a redirect to pokeapi.co, a host egress allows"
+  when: "search"
+  then: "the redirected hop is refused because the key may only go to the mirror; nothing reaches pokeapi.co; 502"
+  run:
+    settings: { apiBase: "https://pokemon.mirror.example.edu/api/v2", apiKey: test-key-pokeapi }
+    fetch:
+      pokemon.mirror.example.edu: { status: 302, headers: { location: "https://pokeapi.co/api/v2/pokemon?limit=100000&offset=0" } }
+      pokeapi.co: { status: 200, body: { results: [{ name: pikachu, url: "https://pokeapi.co/api/v2/pokemon/25/" }] } }
+    steps:
+      - call: { operation: pokeapiSearch, query: { query: pika } }
+        expect:
+          status: 502
+          fetch: { count: 1, contains: [pokemon.mirror.example.edu], notContains: ["https://pokeapi.co"] }
+          log: { contains: ["may not be sent to pokeapi.co (redirected)", apiKey] }
+          notContains: [test-key-pokeapi]
