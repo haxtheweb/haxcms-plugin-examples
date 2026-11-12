@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info: { title: fx-secret-host, version: 0.1.0 }
+paths:
+  /send:
+    get:
+      operationId: fxSecretHostSend
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: host, in: query, schema: { type: string } }
+        - { name: withKey, in: query, schema: { type: string } }
+      responses: { "200": { description: OK } }
+  /proxy:
+    get:
+      operationId: fxSecretHostProxy
+      security: [{ bearerAuth: [] }]
+      x-hax-proxy: { url: "https://cdn.example.org/v1/search", query: { key: "{{settings.key}}" }, pass: [q] }
+      responses: { "200": { description: OK } }

@@ -128,3 +128,44 @@
     steps:
       - call: { operation: fxListedPublic }
         expect: { body: [a, d] }
+- id: plat-011
+  title: "a secret setting travels only to the hosts its x-secret-egress names, even among allowed egress hosts"
+  spec: spec/07-registries-settings-assets.md
+  given: "fx-secret-host: egress api.example.org and cdn.example.org; its key may only go to api.example.org"
+  when: "send the key to api.example.org, the key to cdn.example.org, then no key to cdn.example.org"
+  then: "the first and last are sent; the key to cdn.example.org is refused before any request"
+  run:
+    plugins: [fx-secret-host]
+    load: { settings: { fx-secret-host: { key: secret-k1 } } }
+    fetch: { api.example.org: { status: 200, body: {} }, cdn.example.org: { status: 200, body: {} } }
+    steps:
+      - call: { operation: fxSecretHostSend, query: { host: api.example.org, withKey: "1" } }
+        expect: { body: { answered: 200 }, fetch: { count: 1, contains: ['"headers":["authorization"]'] } }
+      - call: { operation: fxSecretHostSend, query: { host: cdn.example.org, withKey: "1" } }
+        expect: { status: 502, body: { error: 'secret setting "key" may not be sent to cdn.example.org' }, fetch: { count: 0 }, notContains: [secret-k1] }
+      - call: { operation: fxSecretHostSend, query: { host: cdn.example.org } }
+        expect: { body: { answered: 200 }, fetch: { count: 1 } }
+- id: plat-012
+  title: "a redirect cannot carry a bound secret to another allowed host, and a proxy template cannot either"
+  spec: spec/07-registries-settings-assets.md
+  given: "api.example.org redirects to cdn.example.org; an x-hax-proxy puts the key in a cdn.example.org query"
+  when: "send the key to api.example.org; call the proxy"
+  then: "the redirected hop is refused; the proxy answers 502 without calling cdn.example.org"
+  run:
+    plugins: [fx-secret-host]
+    load: { settings: { fx-secret-host: { key: secret-k1 } } }
+    fetch: { api.example.org: { status: 307, headers: { location: "https://cdn.example.org/x" } }, cdn.example.org: { status: 200, body: {} } }
+    steps:
+      - call: { operation: fxSecretHostSend, query: { host: api.example.org, withKey: "1" } }
+        expect: { status: 502, body: { error: 'secret setting "key" may not be sent to cdn.example.org (redirected)' }, fetch: { count: 1, notContains: [cdn.example.org] } }
+      - call: { operation: fxSecretHostProxy, query: { q: cats } }
+        expect: { status: 502, fetch: { count: 0 }, notContains: [secret-k1], log: { contains: ['may not be sent to cdn.example.org'] } }
+- id: plat-013
+  title: "x-secret-egress must name hosts from egress, and only on secret fields"
+  spec: spec/07-registries-settings-assets.md
+  given: "a secret bound to a host outside egress; x-secret-egress on a plain field"
+  when: "validate"
+  then: "two errors"
+  run:
+    validate: fx-secret-bad
+    expect: { errors: ["not in the manifest's egress", "is not x-secret"] }

@@ -14,6 +14,11 @@ Entry format:
 ## 0.1.0 (draft)
 - Initial draft. No upgrade recipes needed yet.
 
+### Secrets bound to hosts, from the pokeapi plugin (0.1.0 draft)
+- Change: settings fields may carry `x-secret-egress` (a list of `egress` entries: hosts or `{ setting }`). `ctx.fetch` and `x-hax-proxy` refuse a request that carries a bound secret's value (URL, headers or body; as written, URL-encoded or base64) to any other host, on every redirect hop. The validator refuses entries not in `egress` and the key on non-secret fields, and warns when a secret could reach more than one egress host without it. The harness records request header names (never values) with each fetch, so cases can check where a key travelled. Shared front-end/back-end logic now lives under `frontend/dist/` instead of `src/shared/`, because only assets reach the browser. spec/05 names the three kinds of appstore provider (pack, proxy plugin, plugin with an operation).
+- Upgrade recipe: nothing breaks; secrets without the key behave as before. For a plugin with a secret and more than one egress entry, add `"x-secret-egress": [<the entry the secret belongs to>]` to that field in `config/settings.schema.json`, copied exactly from `egress`, and run `hax plugin validate`. A plugin that kept a shared module in `src/shared/` moves it to `frontend/dist/` and imports it from the Node entry as `../../frontend/dist/<module>.js`.
+- Fixture: `conformance/fixtures/fx-secret-host` (plat-011, plat-012) and `conformance/fixtures/fx-secret-bad` (plat-013); `contrib-plugins/pokeapi/tests/cases` (pokeapi-009: a mirror redirecting to an allowed host cannot take its key along).
+
 ### OAuth and MCP during the 0.1.0 draft
 - Change: new optional core plugin `oauth` (OAuth 2.1 authorization server) defining the `oauth.resource` contract; `mcp` now depends on it and implements `oauth.resource` instead of issuing its own tokens (`mcpTokenCreate`, `mcpTokenList`, `mcpTokenRevoke` and the `X-HAX-MCP-Token` header are gone). `ctx.plugins.list()` entries gain `implements`. New OpenAPI key `x-hax-well-known`.
 - Upgrade recipe: a plugin that accepted MCP tokens directly does nothing; one that wants tokens for its own audience implements `oauth.resource` (`describe`, `check`) and lists `oauth` in `dependencies`. Read the verified grant from the `x-hax-oauth-grant` header, never from a client.

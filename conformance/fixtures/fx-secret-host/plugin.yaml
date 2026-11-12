@@ -1,0 +1,13 @@
+specVersion: "0.1.0"
+id: fx-secret-host
+uuid: e61bd5a2-5953-503a-90fb-42e447dfea49
+title: fx-secret-host (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: openapi.yaml
+settings: settings.schema.json
+capabilities: ["network:egress", "settings:secret"]
+egress: [api.example.org, cdn.example.org]

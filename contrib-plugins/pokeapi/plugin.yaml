@@ -1,0 +1,37 @@
+# PokeAPI (community plugin). Search Pokémon from the editor's appstore and insert them as interactive cards.
+# Exercises a provider that needs code even without a key: PokeAPI's list has no search and no images, so the plugin
+# keeps the full index in a system store (fair use asks clients to cache) and answers searches itself. Its settings
+# (CMI) let a deployment point at a self-hosted mirror, with an optional secret key that may only travel to that mirror
+# (x-secret-egress). The card element ships in frontend/dist and shares its data module with the Node entry.
+specVersion: "0.1.0"
+id: pokeapi
+uuid: 96522c56-30fc-5757-bdcf-c1b903c55eba
+title: PokeAPI
+description: Search Pokémon from the editor and insert them as interactive cards with stats, abilities and cries.
+version: 0.1.0
+category: media
+icon: icons:style
+tags: [appstore, games, education]
+siteTypes: [course, portfolio]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+settingsScope: system              # one PokeAPI address for the deployment; sites enable the plugin, not the mirror
+datastores: config/datastores.yaml
+tagPrefix: pokeapi-
+staticCapable: false               # searching needs the server; inserted cards fetch PokeAPI from the browser and work anywhere
+capabilities: ["network:egress", "settings:secret"]
+egress:
+  - pokeapi.co
+  - setting: apiBase               # a self-hosted mirror, when an admin sets one
+privacy:
+  tracking: false
+  # cards load data from PokeAPI and artwork and cries from PokeAPI's GitHub-hosted files, in the reader's browser
+  recipients: [pokeapi.co, raw.githubusercontent.com]
+hooks:
+  - name: config.before.save        # refuses a key the public API would only leak

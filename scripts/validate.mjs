@@ -442,6 +442,22 @@ function validatePlugin(manifestPath) {
     if (!f) err(`/egress/${i}`, `egress setting "${e.setting}" is not a field in the settings form`);
     else warn(`/egress/${i}`, `destinations come from the "${e.setting}" setting: admins choose where data goes, and deployments may forbid that`);
   }
+  // x-secret-egress (spec/07): which egress hosts a secret field's value may travel to
+  if (m.settings && existsSync(join(dir, m.settings))) {
+    const egress = m.egress || [];
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const broad = egress.length > 1 || egress.some((e) => typeof e === "object" && (e.any || e.input));
+    for (const [i, f] of (readJson(join(dir, m.settings)).configure || []).entries()) {
+      const where = `${m.settings}/configure/${i}`;
+      if (f["x-secret-egress"] !== undefined) {
+        if (!f["x-secret"]) err(where, `"${f.property}" has x-secret-egress but is not x-secret`);
+        else if (!Array.isArray(f["x-secret-egress"]) || !f["x-secret-egress"].length) err(where, `x-secret-egress on "${f.property}" must be a non-empty list of egress entries`);
+        else for (const e of f["x-secret-egress"]) if (!egress.some((x) => same(x, e))) err(where, `x-secret-egress on "${f.property}" names ${JSON.stringify(e)}, which is not in the manifest's egress`);
+      } else if (f["x-secret"] && broad) {
+        warn(where, `secret "${f.property}" may be sent to any of the plugin's egress hosts; name the one it belongs to with x-secret-egress`);
+      }
+    }
+  }
   if (m.entities && existsSync(join(dir, m.entities))) for (const [type, meta] of Object.entries(readAny(join(dir, m.entities)).metadata || {})) {
     for (const [i, f] of (meta.form || []).entries()) if (!(meta.fields || {})[f.property]) err(`${m.entities}/metadata/${type}/form/${i}`, `"${f.property}" is not a declared ${type} metadata field`);
   }

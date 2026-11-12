@@ -1,0 +1,4 @@
+stores:
+  # the full PokeAPI list ({ base, fetchedAt, results }), shared by every site; public data, rebuilt when it expires
+  # or the PokeAPI address changes
+  - { id: index, scope: system, file: index.json }

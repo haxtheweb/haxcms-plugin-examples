@@ -1,0 +1,5 @@
+# The card the appstore inserts (gizmo type "pokemon"); also placeable from the block list.
+tag: pokeapi-card
+path: frontend/dist/pokeapi-card.js
+role: block
+haxProperties: frontend/dist/pokeapi-card.haxProperties.json

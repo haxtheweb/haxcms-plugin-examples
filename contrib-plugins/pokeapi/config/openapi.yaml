@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info: { title: PokeAPI, version: 0.1.0 }
+paths:
+  /search:
+    get:
+      operationId: pokeapiSearch
+      summary: Search Pokémon by name or number for the editor's appstore (from the cached PokeAPI list)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: query, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: page, in: query, schema: { type: string, maxLength: 6 } }
+      responses:
+        "200":
+          description: One page of matches
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, page, total_pages, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, title, details, image]
+                      properties: { id: { type: integer }, name: { type: string }, title: { type: string }, details: { type: string }, image: { type: string } }
+                  page: { type: integer }
+                  total_pages: { type: integer }
+                  total: { type: integer }
+        "502": { description: PokeAPI could not be reached and no stored list was available }
