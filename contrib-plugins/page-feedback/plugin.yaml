@@ -1,0 +1,47 @@
+# Page feedback (community plugin). A "Was this page helpful?" prompt at the end of a page that sends a rating,
+# optional reasons and an optional comment to the people who maintain the site. Exercises: a public write
+# (x-hax-public, rate limited) that stores no identity by default, a block that also works with no backend, a
+# per-page opt-out kept in page metadata, hooks other plugins can use to hold or forward feedback, a webhook whose
+# address admins choose with a secret bound to it (x-secret-egress), retention, and an Insights section.
+specVersion: "0.1.0"
+id: page-feedback
+uuid: eda0f246-c8d3-4f78-9fce-99b8aba1a412
+title: Page feedback
+description: Asks readers whether a page helped and sends the rating, reasons and an optional comment to the site team.
+version: 0.1.0
+category: content
+icon: icons:thumbs-up-down
+tags: [feedback, ratings, insights]
+siteTypes: [course, documentation, blog]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+settingsScope: site                 # each site has its own question, reasons and destinations
+datastores: config/datastores.yaml
+entities: config/entities.yaml      # the per-page opt-out (metadata.plugins.page-feedback.hide)
+hookDefinitions: config/hooks.yaml  # page-feedback.before.submit / page-feedback.after.submit for other plugins
+tagPrefix: page-
+staticCapable: true
+staticFallback: Static copies still show the prompt, thank the reader and fire its events for the host page; sending feedback to the site team needs the server.
+capabilities: ["items:read", "userData:read", "userData:write", "output:inject", "network:egress", "settings:secret"]
+egress:
+  - setting: webhookUrl             # the one address an admin enters; nothing is sent anywhere else
+privacy:
+  tracking: false
+  categories: [functional]
+  requiresConsent: []
+  cookies: []
+  recipients: [{ setting: webhookUrl }]
+schedules:
+  - id: prune                       # deletes feedback older than retentionDays
+    cron: "17 3 * * *"
+    handler: prune
+hooks:
+  - name: config.before.save        # refuses settings that would break the prompt or leak the webhook secret
+  - name: render.after.content      # hands site settings to placed blocks; adds the prompt to every page when asked
+  - name: page.after.delete         # a deleted page's feedback goes with it
