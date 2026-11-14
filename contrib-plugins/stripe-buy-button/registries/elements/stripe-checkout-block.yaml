@@ -1,0 +1,5 @@
+# The Stripe buy button block; placeable from the block list.
+tag: stripe-checkout-block
+path: frontend/dist/stripe-checkout-block.js
+role: block
+haxProperties: frontend/dist/stripe-checkout-block.haxProperties.json

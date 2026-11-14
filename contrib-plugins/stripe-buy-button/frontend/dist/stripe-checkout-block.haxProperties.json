@@ -1,0 +1,64 @@
+{
+  "api": "1",
+  "type": "element",
+  "canScale": false,
+  "canEditSource": true,
+  "contentEditable": false,
+  "hideDefaultSettings": false,
+  "gizmo": {
+    "title": "Stripe buy button",
+    "description": "Sell a product or take a donation with a Stripe Buy Button. Stripe hosts the checkout.",
+    "icon": "icons:shopping-cart",
+    "color": "purple",
+    "tags": ["Integrations", "payments", "stripe", "commerce", "donate"],
+    "handles": [],
+    "meta": {
+      "author": "HAXTheWeb"
+    }
+  },
+  "settings": {
+    "configure": [
+      {
+        "attribute": "buy-button-id",
+        "title": "Buy button ID",
+        "description": "From the Stripe dashboard: Payment Links, then Buy button. Starts with buy_btn_",
+        "inputMethod": "textfield",
+        "required": true
+      },
+      {
+        "attribute": "publishable-key",
+        "title": "Publishable key",
+        "description": "Starts with pk_live_ or pk_test_. Never paste a secret key (sk_) here",
+        "inputMethod": "textfield",
+        "required": true
+      },
+      {
+        "attribute": "payment-link",
+        "title": "Payment Link (fallback)",
+        "description": "The https://buy.stripe.com/ link for the same product. Shown when the button can't load, and works anywhere the page goes",
+        "inputMethod": "textfield",
+        "required": false
+      },
+      {
+        "attribute": "label",
+        "title": "Fallback link text",
+        "description": "What the fallback link says",
+        "inputMethod": "textfield",
+        "required": false
+      }
+    ],
+    "advanced": []
+  },
+  "demoSchema": [
+    {
+      "tag": "stripe-checkout-block",
+      "properties": {
+        "buy-button-id": "buy_btn_1Example",
+        "publishable-key": "pk_test_Example",
+        "payment-link": "https://buy.stripe.com/test_example",
+        "label": "Buy the workbook"
+      },
+      "content": ""
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# Stripe buy button (community element pack, haxtheweb/issues#2090). A block that places a Stripe Buy Button: Stripe
+# hosts checkout, so HAXcms never sees card data, holds no secret and runs no server code. Exercises: a third-party
+# integration that loads a vendor script only on the pages that use it, a block that keeps working outside HAXcms
+# (a plain Payment Link fallback), refusing secrets in authored content, and privacy recipients for a payment vendor.
+# Off by default; payments are a site owner's choice, never part of core.
+specVersion: "0.1.0"
+id: stripe-buy-button
+uuid: 5c7e9a1b-3d5f-4a7b-8c9d-0e1f2a3b4c5d
+title: Stripe buy button
+description: A block that sells a product or takes a donation with a Stripe Buy Button; Stripe hosts the checkout.
+version: 0.1.0
+kind: pack
+category: integrations
+icon: icons:shopping-cart
+tags: [payments, commerce, stripe]
+siteTypes: [portfolio, blog]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+tagPrefix: stripe-checkout-        # not stripe-buy-: Stripe's own script defines stripe-buy-button
+staticCapable: true                 # plain front end: works on static hosts and when the block leaves HAXcms
+privacy:
+  tracking: false                    # the block itself tracks nothing; Stripe's checkout sets its own cookies
+  # the reader's browser loads Stripe's script and checkout frame, and only on pages with this block
+  recipients: [js.stripe.com, checkout.stripe.com, buy.stripe.com]
