@@ -1,0 +1,34 @@
+# LTI 1.3 tool (community draft, Node first). A running HAXcms acts as an LTI 1.3 tool: an LMS (Canvas, Moodle,
+# D2L Brightspace, Sakai, Schoology, Blackboard) starts an OIDC login, posts a signed launch, and the person lands on
+# a HAXcms site or lesson. It verifies who the LMS says the person is; it does not sign anyone in by itself (core has
+# no API for that yet, spec/GAPS.md item 1w), so it hands core a single-use launch ticket instead.
+# It signs people in on behalf of an outside system, so the highest-order-context rule for auth applies (spec/03):
+# system scope only. Deep linking and grade passback are a later plugin (https://github.com/haxtheweb/issues/issues/3346).
+specVersion: "0.1.0"
+id: lti
+uuid: c671763b-8156-4546-bc9d-7308e2ef3865
+title: LTI 1.3 tool
+description: Lets an LMS open a HAXcms site or lesson for its teachers and students, signed in by the LMS.
+version: 0.1.0
+category: integration
+icon: icons:school
+tags: [lti, lms, launch]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+lifecycle: experimental
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+datastores: config/datastores.yaml
+staticCapable: false
+capabilities: ["userData:read", "userData:write", "network:egress"]   # launch tickets name a person; it fetches each LMS's public keys
+egress:
+  - setting: keysetUrls         # the hosts of the key set URLs of the LMSs an admin registered, and nothing else
+privacy:
+  tracking: false
+  categories: [functional]
+  requiresConsent: []
+  cookies: []
+  recipients: []                # it receives identity from the LMS; it sends nothing about people out

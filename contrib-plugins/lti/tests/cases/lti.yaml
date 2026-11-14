@@ -1,0 +1,92 @@
+# Cases that need no signed token run here. The signed launch itself (state, nonce, RS256, every claim, the ticket)
+# is in tests/nodejs/lti.test.mjs, which makes a key pair and signs tokens the way an LMS does.
+- id: lti-001
+  title: "the addresses to paste into the LMS come from the Tool URL"
+  operation: ltiToolConfiguration
+  given: "a Tool URL with a trailing slash"
+  when: "an admin reads the configuration"
+  then: "login, redirect and key set addresses under /system/api/v1/plugins/lti"
+  run:
+    settings: { toolUrl: "https://cms.example.edu/" }
+    call: { operation: ltiToolConfiguration }
+    expect:
+      status: 200
+      body:
+        loginUrl: "https://cms.example.edu/system/api/v1/plugins/lti/login"
+        redirectUrl: "https://cms.example.edu/system/api/v1/plugins/lti/launch"
+        jwksUrl: "https://cms.example.edu/system/api/v1/plugins/lti/jwks"
+        targetLinkUri: "https://cms.example.edu/"
+- id: lti-002
+  title: "registrations are for admins, need https endpoints and are unique per issuer and client id"
+  operation: ltiPlatformSave
+  given: "no registrations"
+  when: "save anonymously, with an http key set URL, properly, then the same issuer and client id again"
+  then: "401, 400, saved, 400; the list shows one"
+  run:
+    settings: { toolUrl: "https://cms.example.edu" }
+    steps:
+      - call: { operation: ltiPlatformSave, credentials: none, body: { issuer: "https://canvas.example.edu", clientId: "10000000000001", deploymentIds: ["1:abc"], authUrl: "https://canvas.example.edu/api/lti/authorize_redirect", jwksUrl: "https://canvas.example.edu/api/lti/security/jwks" } }
+        expect: { status: 401 }
+      - call: { operation: ltiPlatformSave, body: { issuer: "https://canvas.example.edu", clientId: "10000000000001", deploymentIds: ["1:abc"], authUrl: "https://canvas.example.edu/api/lti/authorize_redirect", jwksUrl: "http://canvas.example.edu/api/lti/security/jwks" } }
+        expect: { status: 400, body: { error: invalid_request, error_description: "jwksUrl must be an https URL" } }
+      - call: { operation: ltiPlatformSave, body: { title: Canvas, issuer: "https://canvas.example.edu", clientId: "10000000000001", deploymentIds: ["1:abc"], authUrl: "https://canvas.example.edu/api/lti/authorize_redirect", jwksUrl: "https://canvas.example.edu/api/lti/security/jwks" } }
+        expect: { status: 200, body: { title: Canvas, clientId: "10000000000001", deploymentIds: ["1:abc"] } }
+      - call: { operation: ltiPlatformSave, body: { issuer: "https://canvas.example.edu", clientId: "10000000000001", deploymentIds: ["2:def"], authUrl: "https://canvas.example.edu/api/lti/authorize_redirect", jwksUrl: "https://canvas.example.edu/api/lti/security/jwks" } }
+        expect: { status: 400, body: { error_description: "that issuer and client id are already registered" } }
+      - call: { operation: ltiPlatformList }
+        expect: { status: 200, body: { items: [{ title: Canvas, issuer: "https://canvas.example.edu" }] }, notContains: ["2:def"] }
+- id: lti-003
+  title: "a login from a registered LMS is sent to its authorization endpoint with a state and nonce"
+  operation: ltiLogin
+  given: "Canvas is registered"
+  when: "Canvas starts a login as a form POST, and again as a GET"
+  then: "302 both times (what the redirect carries is checked in tests/nodejs/lti.test.mjs)"
+  run:
+    settings: { toolUrl: "https://cms.example.edu" }
+    stores:
+      platforms: [{ id: plat-canvas, title: Canvas, issuer: "https://canvas.example.edu", clientId: "10000000000001", deploymentIds: ["1:abc"], authUrl: "https://canvas.example.edu/api/lti/authorize_redirect", jwksUrl: "https://canvas.example.edu/api/lti/security/jwks" }]
+    steps:
+      - call: { operation: ltiLogin, credentials: none, body: { iss: "https://canvas.example.edu", login_hint: "user-7", target_link_uri: "https://cms.example.edu/sites/bio101/lesson-1", lti_message_hint: "hint-9", client_id: "10000000000001", lti_deployment_id: "1:abc" } }
+        expect: { status: 302 }
+      - call: { operation: ltiLoginGet, credentials: none, query: { iss: "https://canvas.example.edu", login_hint: "user-7", target_link_uri: "https://cms.example.edu/sites/bio101/lesson-1" } }
+        expect: { status: 302 }
+- id: lti-004
+  title: "logins the tool cannot place are refused"
+  operation: ltiLogin
+  given: "Canvas is registered with one deployment"
+  when: "an unknown issuer, a missing login_hint, and an unregistered deployment start a login"
+  then: "400 each time, and nothing is sent to any LMS"
+  run:
+    settings: { toolUrl: "https://cms.example.edu" }
+    stores:
+      platforms: [{ id: plat-canvas, title: Canvas, issuer: "https://canvas.example.edu", clientId: "10000000000001", deploymentIds: ["1:abc"], authUrl: "https://canvas.example.edu/api/lti/authorize_redirect", jwksUrl: "https://canvas.example.edu/api/lti/security/jwks" }]
+    steps:
+      - call: { operation: ltiLogin, credentials: none, body: { iss: "https://evil.example", login_hint: u, target_link_uri: "https://cms.example.edu/" } }
+        expect: { status: 400, body: { error_description: "this LMS is not registered with this tool" } }
+      - call: { operation: ltiLogin, credentials: none, body: { iss: "https://canvas.example.edu", target_link_uri: "https://cms.example.edu/" } }
+        expect: { status: 400, body: { error_description: "iss, login_hint and target_link_uri are required" } }
+      - call: { operation: ltiLogin, credentials: none, body: { iss: "https://canvas.example.edu", login_hint: u, target_link_uri: "https://cms.example.edu/", lti_deployment_id: "9:zzz" } }
+        expect: { status: 400, body: { error_description: "lti_deployment_id is not registered for this LMS" } }
+- id: lti-005
+  title: "a launch without a login in progress, and a ticket nobody issued, are refused"
+  operation: ltiLaunch
+  given: "no login in progress"
+  when: "a launch is posted with a made-up state; a made-up ticket is claimed"
+  then: "400 for both; no key set is fetched"
+  run:
+    settings: { toolUrl: "https://cms.example.edu" }
+    steps:
+      - call: { operation: ltiLaunch, credentials: none, body: { id_token: "a.b.c", state: "hax_ls_made-up" } }
+        expect: { status: 400, body: { error: invalid_request }, fetch: { count: 0 } }
+      - call: { operation: ltiLaunchClaim, credentials: none, body: { ticket: "hax_lt_made-up" } }
+        expect: { status: 400, body: { error: invalid_grant } }
+- id: lti-006
+  title: "the key set shows public keys only"
+  operation: ltiJwks
+  given: "no key pair yet"
+  when: "the key set is read anonymously"
+  then: "one RSA signing key with a kid, and no private parts"
+  run:
+    settings: { toolUrl: "https://cms.example.edu" }
+    call: { operation: ltiJwks, credentials: none }
+    expect: { status: 200, body: { keys: [{ kty: RSA, alg: RS256, use: sig, e: AQAB }] }, absent: [d, p, q, dp, dq, qi] }
