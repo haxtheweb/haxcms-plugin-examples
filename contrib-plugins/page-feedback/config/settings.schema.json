@@ -1,0 +1,45 @@
+{
+  "configure": [
+    { "property": "question", "title": "Question", "description": "Shown above the two buttons", "inputMethod": "textfield", "required": true },
+    { "property": "yesLabel", "title": "Yes button", "inputMethod": "textfield", "required": true },
+    { "property": "noLabel", "title": "No button", "inputMethod": "textfield", "required": true },
+    {
+      "property": "reasons",
+      "title": "Reasons offered after No",
+      "description": "Readers may pick any number. Leave empty to offer none",
+      "inputMethod": "array",
+      "itemLabel": "label",
+      "properties": [
+        { "property": "id", "title": "Id", "description": "Lower-case letters, numbers and dashes. Keep it once responses use it", "inputMethod": "textfield", "required": true },
+        { "property": "label", "title": "Label", "inputMethod": "textfield", "required": true }
+      ]
+    },
+    { "property": "allowComments", "title": "Offer a comment box", "inputMethod": "boolean" },
+    { "property": "commentMaxLength", "title": "Longest comment (characters)", "description": "1 to 5000", "inputMethod": "number" },
+    { "property": "anonymous", "title": "Keep feedback anonymous", "description": "On: nothing about the sender is kept. Off: feedback from signed-in people is stored with their name; visitors stay anonymous", "inputMethod": "boolean" },
+    { "property": "showOnEveryPage", "title": "Show at the end of every page", "description": "Off: only where an author places the Page feedback block. Each page's settings can hide it", "inputMethod": "boolean" },
+    { "property": "inbox", "title": "Keep feedback in the site's Insights", "description": "Stored with the site's data on this server and listed under Insights for editors", "inputMethod": "boolean" },
+    { "property": "webhookEnabled", "title": "Send each response to a webhook", "inputMethod": "boolean" },
+    { "property": "webhookUrl", "title": "Webhook address", "description": "An https address that receives a JSON summary of each response", "inputMethod": "textfield" },
+    {
+      "property": "webhookSecret",
+      "title": "Webhook secret",
+      "description": "Optional. Sent in the header below so the receiver can tell the message came from this site. Stored on the server, sent only to the webhook address",
+      "inputMethod": "textfield",
+      "x-secret": true,
+      "x-secret-egress": [{ "setting": "webhookUrl" }]
+    },
+    { "property": "webhookSecretHeader", "title": "Webhook secret header", "description": "The request header that carries the secret", "inputMethod": "textfield" },
+    { "property": "webhookIncludeComment", "title": "Include the comment text in the webhook", "description": "Off: the webhook only says whether a comment was left", "inputMethod": "boolean" },
+    {
+      "property": "notifyOn",
+      "title": "Which responses are sent on",
+      "description": "Applies to the webhook and to plugins that notify people. Insights always keeps every response",
+      "inputMethod": "select",
+      "options": { "all": "Every response", "negative": "Only No answers", "comments": "Only responses with a comment" }
+    },
+    { "property": "notifyRoles", "title": "Who is notified", "description": "Roles, separated by commas. Passed to plugins that notify people (page-feedback.after.submit); this plugin sends no email itself", "inputMethod": "textfield" },
+    { "property": "retentionDays", "title": "Delete feedback after (days)", "description": "0 keeps feedback until someone deletes it", "inputMethod": "number" },
+    { "property": "maxPerHour", "title": "Most responses per hour", "description": "A flood guard for the whole site, counted without recording who sent what. 0 turns it off", "inputMethod": "number" }
+  ]
+}
