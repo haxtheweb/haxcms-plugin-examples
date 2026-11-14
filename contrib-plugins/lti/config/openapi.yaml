@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info: { title: LTI 1.3 tool, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /login:
+    get:
+      operationId: ltiLoginGet
+      summary: OIDC third-party initiated login (the LMS may send it as GET)
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 60, per: minute }
+      parameters:
+        - { name: iss, in: query, required: true, schema: { type: string } }
+        - { name: login_hint, in: query, required: true, schema: { type: string } }
+        - { name: target_link_uri, in: query, required: true, schema: { type: string } }
+        - { name: client_id, in: query, schema: { type: string } }
+        - { name: lti_deployment_id, in: query, schema: { type: string } }
+        - { name: lti_message_hint, in: query, schema: { type: string } }
+      responses: { "302": { description: Redirect to the LMS's authorization endpoint }, "400": { description: "{ error, error_description }" } }
+    post:
+      operationId: ltiLogin
+      summary: OIDC third-party initiated login (the LMS may send it as a form POST)
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 60, per: minute }
+      requestBody: { content: { application/x-www-form-urlencoded: { schema: { type: object, required: [iss, login_hint, target_link_uri], properties: { iss: { type: string }, login_hint: { type: string }, target_link_uri: { type: string }, client_id: { type: string }, lti_deployment_id: { type: string }, lti_message_hint: { type: string } } } } } }
+      responses: { "302": { description: Redirect to the LMS's authorization endpoint }, "400": { description: "{ error, error_description }" } }
+  /launch:
+    post:
+      operationId: ltiLaunch
+      summary: The LMS posts the signed launch here (the registered redirect URI)
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 60, per: minute }
+      requestBody: { content: { application/x-www-form-urlencoded: { schema: { type: object, required: [id_token, state], properties: { id_token: { type: string }, state: { type: string } } } } } }
+      responses: { "303": { description: "Redirect to the launched address with a single-use ticket in the fragment" }, "400": { description: "{ error, error_description }" } }
+  /launches/claim:
+    post:
+      operationId: ltiLaunchClaim
+      summary: Exchange a launch ticket, once, for who the LMS said the person is
+      description: >-
+        Stands in for a core sign-in API (spec/GAPS.md item 1w). The ticket is a single-use secret that expires in 60
+        seconds; whoever starts the person's session calls this once.
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 30, per: minute }
+      requestBody: { content: { application/json: { schema: { type: object, required: [ticket], properties: { ticket: { type: string } } } } } }
+      responses: { "200": { description: "{ user, role, platform, context, resourceLink, target, site }" }, "400": { description: "{ error, error_description }" } }
+  /jwks:
+    get:
+      operationId: ltiJwks
+      summary: This tool's public keys (JWKS); registered with each LMS
+      x-hax-public: true
+      responses: { "200": { description: "{ keys }" } }
+  /configuration:
+    get:
+      operationId: ltiToolConfiguration
+      summary: The addresses to paste into the LMS when registering this tool
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      responses: { "200": { description: "{ loginUrl, redirectUrl, jwksUrl, targetLinkUri }" } }
+  /platforms:
+    get:
+      operationId: ltiPlatformList
+      summary: The LMSs registered with this tool
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      responses: { "200": { description: "{ items }" } }
+    post:
+      operationId: ltiPlatformSave
+      summary: Add or change an LMS registration
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [issuer, clientId, deploymentIds, authUrl, jwksUrl], properties: { id: { type: string }, title: { type: string }, issuer: { type: string }, clientId: { type: string }, deploymentIds: { type: array, items: { type: string } }, authUrl: { type: string }, jwksUrl: { type: string } } } } } }
+      responses: { "200": { description: The registration }, "400": { description: "{ error, error_description }" } }
+  /platforms/{id}:
+    delete:
+      operationId: ltiPlatformDelete
+      summary: Remove an LMS registration (its launches stop working at once)
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Removed }, "404": { description: Not found } }

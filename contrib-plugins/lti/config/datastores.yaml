@@ -1,0 +1,6 @@
+stores:
+  - { id: platforms, scope: system, file: platforms.json }   # LMS registrations: issuer, client id, deployment ids, endpoints
+  - { id: states, scope: system, file: states.json }         # OIDC logins in progress: state hash, nonce, target; single use, 5 min
+  - { id: keysets, scope: system, file: keysets.json }       # each LMS's public keys, cached for 10 min
+  - { id: keys, scope: system, file: keys.json }             # this tool's own RSA key pair (the private half never leaves the server)
+  - { id: launches, scope: system, file: launches.json, personalData: true, userKey: userId }   # verified launches waiting to be claimed: ticket hash, who, role; single use, 60 s
