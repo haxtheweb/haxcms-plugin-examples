@@ -17,7 +17,6 @@ const CALLOUTS = {
   warning: { status: "warning", title: "Warning" },
   caution: { status: "warning", title: "Caution" },
 };
-const DIAGRAM_ENGINES = ["mermaid", "dot"];
 const SHORTCODE = /\{\{<\s*([A-Za-z0-9_-]+)\s*([\s\S]*?)\s*>\}\}/g;
 
 // ---- small helpers (each has a twin in Plugin.php) ----

@@ -1,0 +1,95 @@
+name: plugin-check
+# hax-plugin-check (harness/check) on every plugin in this repository: the same
+# kinds of checks haxcms-nodejs, haxcms-php and webcomponents run, on whichever
+# parts each plugin has. Blocking. Layers:
+#   manifest  is it a valid plugin (scripts/validate.mjs, the CLI's validator)
+#   cases     executable cases in Node and PHP, with parity
+#   node      ESLint (haxcms-nodejs rules), node --test, parity runners
+#   php       php -l + PHPStan level 5 (new errors block; harness/check/phpstan-baseline.neon)
+#   frontend  ESLint (webcomponents rules) + Chrome: load, axe AA light/dark,
+#             dark mode, reduced motion
+#   live      a real haxcms-nodejs server with the plugin installed: plugin
+#             list, contributions, its GET routes, a real page save
+#
+# The live job runs against haxcms-nodejs's plugin platform branch
+# (HAXCMS_NODEJS_REF; today draft/plugin-platform, haxcms-nodejs#138), with
+# this checkout installed as its @haxtheweb/haxcms-plugin-spec, so a change
+# here is tested in the server that will run it. No haxcms-php live job yet:
+# haxcms-php has no plugin host (haxtheweb/issues#3176).
+on:
+  push:
+    branches: [main]
+  # No branch filter: stacked PRs (base is another feature branch) must run too.
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: plugin-check-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  HAXCMS_NODEJS_REF: draft/plugin-platform
+jobs:
+  check:
+    name: "hax-plugin-check (manifest, cases, node, php, frontend)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Set up PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - name: Cache PHPStan phar
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/haxcms-phpstan
+          key: phpstan-${{ hashFiles('harness/check/phpstan.sh') }}
+      - name: Install (no lifecycle scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Self-test (every gate catches its broken fixture)
+        run: node harness/check/self-test.mjs
+      - name: Check every plugin
+        run: node harness/check/run.mjs
+
+  live:
+    name: "hax-plugin-check live (real haxcms-nodejs)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: spec
+      - name: Checkout haxcms-nodejs (plugin platform)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: haxtheweb/haxcms-nodejs
+          ref: ${{ env.HAXCMS_NODEJS_REF }}
+          path: haxcms-nodejs
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install this checkout
+        working-directory: spec
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install haxcms-nodejs, with this checkout as its plugin spec
+        working-directory: haxcms-nodejs
+        run: |
+          yarn install --frozen-lockfile --ignore-scripts --non-interactive
+          rm -rf node_modules/@haxtheweb/haxcms-plugin-spec
+          ln -s "$GITHUB_WORKSPACE/spec" node_modules/@haxtheweb/haxcms-plugin-spec
+      - name: Live check every plugin
+        working-directory: spec
+        run: node harness/check/run.mjs --only live --haxcms ../haxcms-nodejs

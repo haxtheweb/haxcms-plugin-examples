@@ -3,7 +3,9 @@
   "type": "module",
   "description": "Spec, schema, conformance fixtures and example plugins for HAXcms plugins",
   "scripts": {
-    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node scripts/plugin-docs.mjs --check && node tests/check-plugin-tests.mjs && node conformance/run.mjs"
+    "test": "node tests/validate-manifests.mjs && node tests/check-examples.mjs && node tests/check-conformance-cases.mjs && node scripts/hook-table.mjs --check && node scripts/plugin-docs.mjs --check && node tests/check-plugin-tests.mjs && node conformance/run.mjs && node harness/check/self-test.mjs",
+    "check": "node harness/check/run.mjs",
+    "lint": "eslint ."
   },
   "version": "0.1.0",
   "license": "Apache-2.0",
@@ -16,7 +18,8 @@
   },
   "bin": {
     "hax-plugin-validate": "scripts/validate.mjs",
-    "hax-plugin-test": "harness/run-cases.mjs"
+    "hax-plugin-test": "harness/run-cases.mjs",
+    "hax-plugin-check": "harness/check/run.mjs"
   },
   "files": [
     "schema/",
@@ -46,17 +49,23 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@haxtheweb/appstore-spec": "github:haxtheweb/appstore-spec#292689a41304689eb391b09d6c8e15837b77a7c2",
     "@haxtheweb/hax-element-schema": "github:haxtheweb/hax-element-schema#45712aead49ba8c1de0e7eb6f43600d8b14956c0",
     "@haxtheweb/hax-schema": "github:haxtheweb/hax-schema#269988cecf63c0f64ec89a4367492852b22c4f86",
     "@haxtheweb/json-outline-schema-spec": "github:haxtheweb/json-outline-schema#e06cfbdf264b12d292158a4fec935b65f495a45d",
-    "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e"
+    "@haxtheweb/merlin-schema": "github:haxtheweb/merlin-schema#bd2b18515dcdf5f836ae49a50474b5f389b3e96e",
+    "axe-core": "4.14.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-n": "18.5.0",
+    "globals": "17.13.0",
+    "puppeteer-core": "25.17.0"
   },
   "peerDependencies": {
+    "@haxtheweb/appstore-spec": "*",
     "@haxtheweb/hax-schema": "*",
     "@haxtheweb/json-outline-schema-spec": "*",
-    "@haxtheweb/merlin-schema": "*",
-    "@haxtheweb/appstore-spec": "*"
+    "@haxtheweb/merlin-schema": "*"
   },
   "peerDependenciesMeta": {
     "@haxtheweb/hax-schema": {
