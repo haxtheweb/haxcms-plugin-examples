@@ -363,6 +363,10 @@
         expect: { subject: null }
       - siteFile: files/alt-review.txt
         expect: { body: { exists: false } }
+      # what the backend stores durably (site.json, page files) was put back too, not only its in-memory copy
+      - reload: true
+      - record: { type: page, id: p1 }
+        expect: { subject: null }
       - call: { operation: fxAtomicSaveAll, body: { pages: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }, { id: p3, title: Three, content: "" }] } }
         expect: { status: 200, body: { saved: 3 }, log: { contains: ["fx-tx reindex 3 pages once"] } }
       - record: { type: page, id: p3 }
@@ -413,3 +417,12 @@
               expect: { status: 409, body: { error: "an atomic transaction cannot join the open non-atomic one (outline)" } }
       - record: { type: page, id: p9 }
         expect: { subject: null }
+- id: hook-104
+  title: "every subscribed hook has a handler in every runtime the plugin ships"
+  spec: spec/13-backend-platform-contract.md
+  given: "a plugin for nodejs and php subscribed to page.after.save whose PHP class has no pageAfterSave"
+  when: "validate"
+  then: "rejected naming the missing method; a backend would otherwise skip the hook in one runtime only, silently"
+  run:
+    validate: fx-no-handler
+    expect: { errors: ["subscribes to page.after.save but src/php/Plugin.php has no method pageAfterSave"] }

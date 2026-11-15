@@ -4,9 +4,10 @@ uuid: 26e5e250-f8f8-576b-ae94-9729d111d175
 title: fx-suggester (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 suggests: [fx-definer]
 hooks:
   - name: fx-definer.after.ping

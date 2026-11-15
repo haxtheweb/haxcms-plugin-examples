@@ -251,7 +251,13 @@ if (!method_exists($plugin, $in['method'])) { echo json_encode(['missing' => tru
 $ctx = new HarnessCtx($in);
 $ctx->execSpec = $in['exec'] ?? ['allowed' => [], 'fakes' => []];
 $ctx->fetchSpec = $in['fetch'] ?? ['egress' => [], 'fakes' => []];
-$result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
+// a throw is the plugin's error, not the bridge's: report its message so the engine logs it as Node would
+try {
+  $result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
+} catch (\Throwable $e) {
+  echo json_encode(['thrown' => $e->getMessage(), 'logs' => $ctx->log->entries, 'execCalls' => $ctx->execCalls], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+  exit(0);
+}
 echo json_encode([
   'result' => $result,
   'logs' => $ctx->log->entries,

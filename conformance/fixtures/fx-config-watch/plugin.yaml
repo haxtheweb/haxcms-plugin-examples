@@ -4,9 +4,10 @@ uuid: 7330e6b2-9636-596c-be68-4606a88da4e8
 title: fx-config-watch (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 hooks:
   - name: config.after.save
   - name: config.after.save

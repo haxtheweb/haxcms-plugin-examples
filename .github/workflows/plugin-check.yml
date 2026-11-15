@@ -32,6 +32,8 @@ concurrency:
   cancel-in-progress: true
 env:
   HAXCMS_NODEJS_REF: draft/plugin-platform
+  # haxcms-php with the native plugin engine (its draft PR for haxtheweb/issues#3356)
+  HAXCMS_PHP_REF: draft/plugin-platform
 jobs:
   check:
     name: "hax-plugin-check (manifest, cases, node, php, frontend)"
@@ -101,6 +103,8 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check the PHP side of every plugin
         run: node harness/check/run.mjs --only cases,php
+      - name: Conformance cases with the fixtures' PHP code (reference engine, PHP bridge)
+        run: node conformance/run.mjs --runtime php
 
   live:
     name: "hax-plugin-check live (real haxcms-nodejs)"
@@ -135,3 +139,42 @@ jobs:
       - name: Live check every plugin
         working-directory: spec
         run: node harness/check/run.mjs --only live --haxcms ../haxcms-nodejs
+
+  live-php:
+    # haxcms-php's native PHP engine (haxtheweb/issues#3356): every conformance case and every plugin's PHP cases on a
+    # real HAXcms site, then each plugin's cases compared step by step with the reference engine running the same
+    # PHP code. A difference is a bug in one engine or a gap in this spec.
+    name: "haxcms-php native engine (conformance, cases, parity)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: spec
+      - name: Checkout haxcms-php (plugin platform)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: haxtheweb/haxcms-php
+          ref: ${{ env.HAXCMS_PHP_REF }}
+          path: haxcms-php
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Set up PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, dom, zip, curl, zlib
+          coverage: none
+      - name: Install this checkout
+        working-directory: spec
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Conformance, every plugin's PHP cases, and parity with the reference engine
+        working-directory: haxcms-php
+        env:
+          HAXCMS_PLUGIN_SPEC_DIR: ${{ github.workspace }}/spec
+        run: node test/plugins/run-all.mjs

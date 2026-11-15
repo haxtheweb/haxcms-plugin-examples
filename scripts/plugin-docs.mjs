@@ -27,7 +27,7 @@ const END = "<!-- implements:end -->";
 
 /** Every "Implements ..." docblock in a runtime's source: key -> first sentence of its description. */
 // the code right after a docblock must be the thing it documents, so a block left behind after a refactor fails
-const camelHook = (n) => n.split(".").map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("");
+const camelHook = (n) => n.split(/[.-]/).map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("");
 function placedOn(key, next, handlers) {
   const [kind, rest] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
   if (kind === "hook") return next.includes(`"${rest}"`) || next.includes(`'${rest}'`) || new RegExp(`function\\s+${camelHook(rest)}\\s*\\(`).test(next);

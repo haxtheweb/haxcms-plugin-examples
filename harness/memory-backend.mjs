@@ -81,7 +81,7 @@ export function readZip(b64, { match = ".*", maxEntries = 5000, maxBytes = 100 *
 }
 // implements entries are a name or { name, accepts }
 const implEntry = (m, name) => (m.implements || []).map((e) => (typeof e === "string" ? { name: e } : e)).find((e) => e.name === name) || null;
-const contractMethod = (name, op) => name.split(".").map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join("") + op[0].toUpperCase() + op.slice(1);
+const contractMethod = (name, op) => camelHook(name) + op[0].toUpperCase() + op.slice(1);
 const CORE_HOOKS = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8"));
 const SPEC_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 const USER_TOKEN_REQUIRED = "X-HAXCMS-User-Token header is required for this endpoint";
@@ -91,7 +91,9 @@ addFormats(ajv);
 const validateManifest = ajv.compile(JSON.parse(readFileSync(join(root, "schema/plugin.schema.json"), "utf8")));
 
 const studly = (id) => id.split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("") + "Plugin";
-const camelHook = (name) => name.split(".").map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join("");
+// PHP method names (spec/13): camel case across both "." and "-", so a hook a dashed plugin defines
+// (fx-definer.after.ping) still names a valid method (fxDefinerAfterPing)
+function camelHook(name) { return name.split(/[.-]/).map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join(""); }
 const getPath = (obj, path) => path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
 const cmpVersion = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0) ? -1 : 1; } return 0; };
 const LIMITED_USER = ["id", "name", "displayName", "roles", "avatar"];
@@ -772,7 +774,7 @@ export class MemoryBackend {
     const metaWarnings = this.checkPluginMetadata(type, before.subject);
     store[id] = structuredClone(before.subject);
     this.bump(type, id);
-    this.writeToDisk(type, store[id]);
+    await this.writeToDisk(type, store[id]); // a host may write asynchronously
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
     // before-hook warnings travel back to whoever saved (the editor shows them; spec/06)
     return { record: after.subject, warnings: [...(before.warnings || []), ...metaWarnings] };
@@ -925,6 +927,11 @@ export class MemoryBackend {
     };
     const out = await this.runPhp(input, p, ctx);
     if (out.missing) return { missing: true };
+    if (out.thrown !== undefined) {
+      for (const call of out.execCalls || []) this.execCalls.push({ plugin: p.id, ...call });
+      for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
+      throw new Error(out.thrown);
+    }
     for (const [path, b64] of Object.entries(out.sitePuts || {})) this.putSiteFile(p, path, b64);
     for (const path of out.siteRemoves || []) this.removeSiteFile(p, path);
     for (const values of out.configSaves || []) await this.saveConfig(p.id, values);

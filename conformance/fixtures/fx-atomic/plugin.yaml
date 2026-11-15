@@ -4,8 +4,9 @@ uuid: c12d2959-93c2-4621-8db3-c96b13cb8a1a
 title: fx-atomic (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 openapi: config/openapi.yaml
 capabilities: ["items:read", "items:write", "files:write"]
