@@ -6,6 +6,7 @@ name: plugin-check
 #   cases     executable cases in Node and PHP, with parity
 #   node      ESLint (haxcms-nodejs rules), node --test, parity runners
 #   php       php -l + PHPStan level 5 (new errors block; harness/check/phpstan-baseline.neon)
+#             + the plugin's PHPUnit tests (tests/php, PluginTestCase in harness/php)
 #   frontend  ESLint (webcomponents rules) + Chrome: load, axe AA light/dark,
 #             dark mode, reduced motion
 #   live      a real haxcms-nodejs server with the plugin installed: plugin
@@ -15,7 +16,9 @@ name: plugin-check
 # (HAXCMS_NODEJS_REF; today draft/plugin-platform, haxcms-nodejs#138), with
 # this checkout installed as its @haxtheweb/haxcms-plugin-spec, so a change
 # here is tested in the server that will run it. No haxcms-php live job yet:
-# haxcms-php has no plugin host (haxtheweb/issues#3176).
+# haxcms-php has no plugin host (haxtheweb/issues#3176); until it does, the
+# PHP side is covered by the php job (cases, parity, PHPStan, PHPUnit on
+# PHP 8.3 to 8.6).
 on:
   push:
     branches: [main]
@@ -48,6 +51,7 @@ jobs:
         with:
           php-version: "8.3"
           coverage: none
+          tools: phpunit:11.5
       - name: Cache PHPStan phar
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -59,6 +63,44 @@ jobs:
         run: node harness/check/self-test.mjs
       - name: Check every plugin
         run: node harness/check/run.mjs
+
+  php:
+    # The PHP side of every plugin on the other PHP versions haxcms-php supports: the executable cases in the
+    # PHP runtime with Node/PHP parity, php -l, PHPStan and the plugins' PHPUnit tests. 8.3 runs in the check
+    # job above. 8.6 reaches GA on 2026-11-19; until then it shows failures without failing the check (same
+    # rule as haxcms-php).
+    name: "hax-plugin-check PHP ${{ matrix.php-version }} (cases, php)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.4", "8.5", "8.6"]
+    continue-on-error: ${{ matrix.php-version == '8.6' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Set up PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+          tools: phpunit:11.5
+      - name: Cache PHPStan phar
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/haxcms-phpstan
+          key: phpstan-${{ hashFiles('harness/check/phpstan.sh') }}
+      - name: Install (no lifecycle scripts)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check the PHP side of every plugin
+        run: node harness/check/run.mjs --only cases,php
 
   live:
     name: "hax-plugin-check live (real haxcms-nodejs)"

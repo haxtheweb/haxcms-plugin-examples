@@ -14,7 +14,9 @@
 //   node      ESLint with haxcms-nodejs's rules, its node --test files, and its
 //             Node/PHP parity runners when it has them
 //   php       php -l and PHPStan level 5, like haxcms-php (new errors block;
-//             known ones are in harness/check/phpstan-baseline.neon)
+//             known ones are in harness/check/phpstan-baseline.neon), and its
+//             PHPUnit tests (tests/php/*Test.php, base class PluginTestCase in
+//             harness/php) the way haxcms-php runs its own
 //   frontend  its web components in Chrome: load, axe (WCAG 2.0/2.1 AA, incl.
 //             contrast) in light and dark, dark mode, reduced motion, with
 //             ESLint's webcomponents rules (harness/check/frontend.mjs)
@@ -57,6 +59,15 @@ if (!targets.length) {
 for (const t of targets) if (!existsSync(join(t, "plugin.yaml"))) usage(`${t} has no plugin.yaml`);
 
 const hasPhp = spawnSync("php", ["-v"]).status === 0;
+// PHPUnit: PHPUNIT (a phpunit binary or phar), else phpunit on the PATH. CI installs it (setup-php tools).
+const phpunit = (() => {
+  const candidates = process.env.PHPUNIT ? [process.env.PHPUNIT] : ["phpunit"];
+  for (const c of candidates) {
+    const cmd = c.endsWith(".phar") ? ["php", [c]] : [c, []];
+    if (spawnSync(cmd[0], [...cmd[1], "--version"], { encoding: "utf8" }).status === 0) return cmd;
+  }
+  return null;
+})();
 const chrome = process.env.CHROME_PATH || ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"].find((p) => existsSync(p));
 const wanted = (layer) => (only ? only.includes(layer) : layer !== "live" || !!haxcms);
 
@@ -172,7 +183,19 @@ const checks = {
       for (const [f, v] of Object.entries(report.files || {})) for (const m of v.messages) errors.push(`PHPStan ${relative(dir, f)}:${m.line} ${m.message}`);
       for (const e of report.errors || []) errors.push(`PHPStan: ${e}`);
     }
-    return { status: errors.length ? "fail" : "pass", errors, notes: [`php -l and PHPStan level 5: ${code.length} file(s)`] };
+    const notes = [`php -l and PHPStan level 5: ${code.length} file(s)`];
+    const tests = files(join(dir, "tests", "php"), (n) => n.endsWith("Test.php"));
+    if (tests.length) {
+      if (!phpunit) notes.push(`PHPUnit not installed here (set PHPUNIT): ${tests.length} test file(s) not run`);
+      else {
+        const t = spawnSync(phpunit[0], [...phpunit[1], "--bootstrap", join(root, "harness/php/phpunit-bootstrap.php"), "--colors=never", join(dir, "tests", "php")], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+        const out = String(t.stdout || "") + String(t.stderr || "");
+        const summary = out.trim().split("\n").filter((l) => /^(OK|Tests:|FAILURES!|ERRORS!)/.test(l)).join(" ");
+        if (t.status !== 0) errors.push(`PHPUnit failed: ${summary || "no summary"}`, ...out.split("\n").filter((l) => /^\d+\) |Failed asserting|Error: /.test(l)).slice(0, 20));
+        notes.push(`PHPUnit: ${summary || tests.length + " file(s)"}`);
+      }
+    }
+    return { status: errors.length ? "fail" : "pass", errors, notes };
   },
 
   async frontend(dir) {

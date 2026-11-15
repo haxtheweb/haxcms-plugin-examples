@@ -11,6 +11,11 @@
 //              customElements has the tag
 //   axe        no axe-core violations in the WCAG 2.0/2.1 A and AA rule sets
 //              (includes color-contrast), in light AND in dark color scheme
+//   aria refs  every id reference (aria-describedby, aria-labelledby,
+//              aria-controls, aria-owns, aria-activedescendant,
+//              aria-errormessage, aria-details, label for) resolves inside the
+//              same root: an id cannot be referenced across a shadow boundary,
+//              and axe does not look inside shadow roots for this
 //   dark       an element that sets colors of its own changes them under
 //              prefers-color-scheme: dark (or is a theme that declares a single
 //              colorSchemes entry); same rule as webcomponents dark-motion-check
@@ -220,6 +225,7 @@ async function checkElement(dir, el) {
         AXE_TAGS,
       );
       for (const v of violations) errors.push(`[${scheme}] axe ${v.id}: ${v.help}${v.nodes ? ` (${v.nodes} node${v.nodes > 1 ? "s" : ""})` : ""}`);
+      if (scheme === "light") for (const b of await page.evaluate(brokenIdRefs, el.tag)) errors.push(`aria refs: ${b}`);
       snapshots[scheme] = await page.evaluate(colorSnapshot, el.tag);
       if (scheme === "light") {
         const running = await page.evaluate(motionAfterInteraction, el.tag);
@@ -237,6 +243,30 @@ async function checkElement(dir, el) {
     if (!singleScheme) errors.push("ignores dark mode: it sets its own colors and they are identical under prefers-color-scheme: dark");
   }
   return errors;
+}
+
+// id references in the element's light and shadow tree that do not resolve in their own root
+function brokenIdRefs(tag) {
+  const host = document.querySelector(tag);
+  if (!host) return [];
+  const attrs = ["aria-describedby", "aria-labelledby", "aria-controls", "aria-owns", "aria-activedescendant", "aria-errormessage", "aria-details", "for"];
+  const out = [];
+  const walk = (n, where) => {
+    if (n.nodeType !== 1) return;
+    const root = n.getRootNode();
+    for (const a of attrs) {
+      if (a === "for" && n.localName !== "label") continue;
+      const v = n.getAttribute(a);
+      if (!v) continue;
+      for (const id of v.trim().split(/\s+/)) {
+        if (!root.getElementById(id)) out.push(`${where}<${n.localName}> ${a}="${id}" points at no element in its own ${root === document ? "document" : "shadow root"}`);
+      }
+    }
+    if (n.shadowRoot) for (const c of n.shadowRoot.children) walk(c, `${where}${n.localName} >> `);
+    for (const c of n.children) walk(c, where);
+  };
+  walk(host, "");
+  return out;
 }
 
 // the colors the element sets itself, in its light and shadow tree: a text color

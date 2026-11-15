@@ -15,8 +15,8 @@ const report = JSON.parse(r.stdout)[0];
 const expected = {
   manifest: ["not-the-folder-name"],
   node: ["Optional chaining", "'unused' is assigned"],
-  php: ["broken_plugin_no_such_function"],
-  frontend: ["broken-low-contrast: [light] axe color-contrast", "broken-dark-ignored: ignores dark mode", "broken-spinning: [reduced motion]", "broken-throws: [light] uncaught error"],
+  php: ["broken_plugin_no_such_function", "PHPUnit failed"],
+  frontend: ["broken-low-contrast: [light] axe color-contrast", "broken-dark-ignored: ignores dark mode", "broken-spinning: [reduced motion]", "broken-throws: [light] uncaught error", "broken-aria-ref: aria refs"],
 };
 let failed = 0;
 if (r.status !== 1 || report.ok) {
