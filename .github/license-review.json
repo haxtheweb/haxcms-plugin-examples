@@ -1,15 +1,4 @@
 {
-  "about": "Dependencies a maintainer reviewed and accepted although scripts/license-check.mjs flags their license. Each entry: {\"name\": \"<npm package>\", \"license\": \"<exact license string the check reports>\", \"reason\": \"<why it is acceptable>\"}. See haxtheweb/issues#3262.",
-  "reviewed": [
-    {
-      "name": "axe-core",
-      "license": "MPL-2.0",
-      "reason": "Development only: the accessibility engine hax-plugin-check (harness/check) injects into a test page to audit plugins' web components, the same engine webcomponents tests with. Used unmodified as a separate package; not a runtime dependency of any plugin or of the spec package."
-    },
-    {
-      "name": "argparse",
-      "license": "PSF-2.0",
-      "reason": "Development only: pulled in by ESLint (through js-yaml) for hax-plugin-check's lint layer. PSF-2.0 is a permissive license compatible with Apache-2.0; not a runtime dependency."
-    }
-  ]
+  "about": "Dependencies a maintainer reviewed and accepted although scripts/license-check.mjs flags their license. Each entry: {\"name\": \"<npm package>\", \"license\": \"<exact license string the check reports>\", \"reason\": \"<why it is acceptable>\"}. Development-only packages never need an entry: they are not shipped, so the check only notes them. See haxtheweb/issues#3262.",
+  "reviewed": []
 }

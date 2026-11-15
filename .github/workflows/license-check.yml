@@ -6,9 +6,11 @@ name: license-check
 # dependency (direct or transitive) that is NEW in package-lock.json compared
 # with the base branch has a license that is incompatible with Apache-2.0
 # (GPL, AGPL, SSPL, BUSL, Commons Clause), unknown / unlicensed, or needs
-# review (LGPL, MPL). When the base branch has no lockfile yet, the whole
-# tree is checked. The rules live in scripts/license-check.mjs; reviewed and
-# accepted packages go in .github/license-review.json.
+# review (LGPL, MPL). Only what ships counts: development-only packages (test,
+# lint and build tooling, never bundled) are listed as notices and never fail.
+# When the base branch has no lockfile yet, the whole tree is checked. The
+# rules live in scripts/license-check.mjs; reviewed and accepted runtime
+# packages go in .github/license-review.json.
 #
 # schedule (weekly, Sunday): sweeps the whole dependency tree and checks that
 # LICENSE.md is still Apache-2.0. Findings go to the job summary and fail the

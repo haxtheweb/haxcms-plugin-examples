@@ -26,6 +26,13 @@
  *   unknown       no license, UNLICENSED, "SEE LICENSE IN ...", or any
  *                 license not on the lists above (fails)
  *
+ * Only what ships counts. A package that is in the tree only as a
+ * devDependency (lockfile "dev": true: test, lint and build tooling such as
+ * ESLint, axe-core or puppeteer-core) is never bundled with the spec package
+ * or a plugin, and using a tool to validate code is not distributing it, so
+ * its findings are listed as notices and never fail the check. A package that
+ * is a runtime dependency, even through one path, is checked as before.
+ *
  * A package a maintainer has reviewed and accepted is listed in
  * .github/license-review.json as {"name": "...", "license": "...",
  * "reason": "..."}. The entry only matches while the package still reports
@@ -309,9 +316,24 @@ function checkDependencies(mode, baseLockFile) {
   if (accepted > 0) {
     lines.push(`${accepted} accepted via .github/license-review.json.`);
   }
-  if (findings.length === 0) {
-    console.log("All licenses are compatible with Apache-2.0.");
-    lines.push("", "All licenses are compatible with Apache-2.0.");
+  const devOnly = findings.filter((f) => f.dev);
+  const shipped = findings.filter((f) => !f.dev);
+  if (devOnly.length > 0) {
+    lines.push(
+      "",
+      `${devOnly.length} development-only package(s) carry a license outside the allow list. They are test and build tooling, never bundled with what ships, so they do not fail the check:`,
+      "",
+    );
+    for (const f of devOnly) {
+      console.log(
+        `::notice title=Dependency license (dev only)::${f.name}@${f.version}: ${f.license}: tooling only, not shipped`,
+      );
+      lines.push(`- \`${f.name}\` ${f.version}: \`${f.license}\``);
+    }
+  }
+  if (shipped.length === 0) {
+    console.log("All shipped licenses are compatible with Apache-2.0.");
+    lines.push("", "All shipped licenses are compatible with Apache-2.0.");
     summary(lines.join("\n"));
     return true;
   }
@@ -320,8 +342,8 @@ function checkDependencies(mode, baseLockFile) {
     "| Package | Version | Scope | License | Source | Result |",
     "| --- | --- | --- | --- | --- | --- |",
   );
-  for (const f of findings) {
-    const scope = f.dev ? "dev" : "production";
+  for (const f of shipped) {
+    const scope = "production";
     const msg = `${f.name}@${f.version} (${scope}): ${f.license}: ${MESSAGES[f.result]}`;
     console.log(`::error title=Dependency license::${msg}`);
     lines.push(
