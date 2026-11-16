@@ -24,6 +24,12 @@ class PluginTestStorage {
     if (isset($this->packageStores[$id])) { throw new Exception("store \"$id\" is read-only (package scope)"); }
     $this->state[$id] = $value; $this->written[$id] = $value;
   }
+  /** Read, change and write one store as a single step (spec/04). $fn gets the stored value and returns the new one. */
+  public function update($id, callable $fn) {
+    $next = $fn($this->read($id));
+    if ($next !== null) { $this->write($id, $next); }
+    return $next === null ? $this->read($id) : $next;
+  }
 }
 
 class PluginTestPackage {
