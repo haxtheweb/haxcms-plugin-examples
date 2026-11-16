@@ -129,6 +129,7 @@ export const REGISTRY_REFUSALS = Object.freeze({
   blocked: "blocked by deployment config",
   locked: "locked by deployment config",
   systemEnabled: "enabled for the whole system; a site cannot turn it off",
+  settingsScope: "these settings are not saved in this scope",
 });
 
 export class MemoryBackend {
