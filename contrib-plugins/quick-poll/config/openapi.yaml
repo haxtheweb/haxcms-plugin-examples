@@ -24,9 +24,9 @@ paths:
                 previous: { type: string, maxLength: 20, description: "Sent by the block on a changed vote; ignored: the server knows the earlier vote" }
       responses:
         "200": { description: "{ vote, counts }, or { vote, counts: {}, hidden: true } when results are not shown to this caller yet" }
-        "403": { description: Sent from another site, or the site needs voters to sign in }
-        "404": { description: No such page, or the poll is not on it }
-        "409": { description: The poll is closed, or the vote is already in and the poll does not allow changing it }
+        "403": { description: "Sent from another site, or the site needs voters to sign in" }
+        "404": { description: "No such page, or the poll is not on it" }
+        "409": { description: "The poll is closed, or the vote is already in and the poll does not allow changing it" }
         "422": { description: The option or the voter key is not acceptable }
         "429": { description: Too many votes this hour }
     get:
@@ -39,7 +39,7 @@ paths:
         - { name: activityId, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 2000 } }
       responses:
         "200": { description: "{ counts }, or { counts: {}, hidden: true }" }
-        "404": { description: No such page, or the poll is not on it }
+        "404": { description: "No such page, or the poll is not on it" }
         "422": { description: pageId or activityId missing }
   /polls:
     get:

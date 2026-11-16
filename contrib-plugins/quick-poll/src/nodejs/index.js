@@ -12,7 +12,7 @@ const ROUTE = "x/api/v1/plugins/quick-poll/votes";
 const MODES = ["after", "closed", "never"];
 const POLL_RE = /<quick-poll\b([^>]*)>([\s\S]*?)<\/quick-poll\s*>/gi;
 const OPEN_RE = /<quick-poll\b([^>]*)>/gi;
-const ATTR_RE = /([^\s="'<>\/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+const ATTR_RE = /([^\s="'<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 const INPUT_RE = /<input\b([^>]*)>/gi;
 const ENTITY_RE = /&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|amp|lt|gt|quot|apos|nbsp);/g;
 const SPACE_RE = /[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+/g;
@@ -34,7 +34,7 @@ function int(v, fallback) {
 
 /** The host part of an Origin header or of the site address, lower case, or "". */
 function originHost(url) {
-  const m = /^[a-z][a-z0-9+.-]*:\/\/([^\/?#]*)/i.exec(String(url));
+  const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(String(url));
   return m ? m[1].toLowerCase() : "";
 }
 
