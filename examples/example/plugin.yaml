@@ -26,7 +26,7 @@ docs:
   readme: README.md          # for people
   agents: AGENTS.md          # for agents: purpose, layout, rules, how to test and diagnose
   prompts: docs/prompts.yaml # copyable prompts on the plugin screen; also served through MCP when that plugin is on
-  help: https://github.com/haxtheweb/haxcms-plugin-examples
+  help: https://github.com/haxtheweb/haxcms-plugins
 skills:                      # agent skills under skills/<name>/SKILL.md; names start with the plugin id
   - name: example-authoring
     audience: site           # published into a site's .well-known/agent-skills while enabled there

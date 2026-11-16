@@ -4,8 +4,9 @@ uuid: dd38980d-6e31-5a28-83e5-178936011cce
 title: fx-tracker (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 privacy:
   tracking: true

@@ -1,0 +1,2 @@
+stores:
+  - { id: notes, scope: siteData, file: notes.json, personalData: true, userKey: authorId }

@@ -28,7 +28,7 @@ dependencies: [oauth]             # tokens, consent, revocation: MCP leverages O
 implements: [oauth.resource]
 staticCapable: false
 # Its own code touches no content, so it requests no capabilities. What it lets approved agents do (act as the person
-# who approved them, read-only unless allowed) is a delegation the manifest cannot declare yet: spec/GAPS.md 1s.
+# who approved them, read-only unless allowed) is a delegation the manifest cannot declare yet: spec/GAPS.md 1t.
 capabilities: []
 legacy:
   settings:

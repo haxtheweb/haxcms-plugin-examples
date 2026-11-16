@@ -81,3 +81,27 @@ Element packs enabled per site and chosen by skeletons (spec/07): instructional 
 4. **Bulk extractions and contrib:** importers, exporters, remaining appstore providers, `pwa`, `seo-plus`, deploy targets, contrib ideas.
 
 Every hook in spec/06 has at least one candidate here; a hook no candidate needs would be a reason to drop it.
+
+## Design notes: OAuth and MCP
+
+Moved here from spec/05: these describe two candidate plugins (`oauth`, `mcp`), not the contract every plugin follows.
+
+### OAuth
+
+OAuth 2.1 is an optional core plugin (`oauth`), opt-in like every non-required plugin, with no dependencies. HAXcms becomes the authorization server (ADR-0004 in haxcms-mcp, https://github.com/haxtheweb/haxcms-mcp/blob/main/docs/adr/0004-haxcms-is-the-oauth-authorization-server.md): authorization code with PKCE (S256 only), short access tokens, rotating refresh tokens (reuse revokes the approval), audience binding with the `resource` parameter (RFC 8707), revocation (RFC 7009), dynamic client registration (RFC 7591, off by default), and personal tokens for headless clients. Tokens and codes are stored as hashes only; clients are public.
+
+- **Resources.** The plugin knows nothing about any one resource. It defines the provider contract `oauth.resource`: an implementer `describe`s its audience URL and the scopes it accepts (what the consent screen shows; write scopes flagged), and `check`s each call made with one of its tokens. The oauth plugin finds resources through `ctx.plugins.list()` (`implements`) and calls only the one a grant belongs to. A resource plugin `depends` on `oauth`.
+- **Per request.** For a request carrying one of its tokens, the plugin's `rest.before.request` hook (priority 100) verifies the token, asks the resource's `check`, and passes the verified grant on in the `x-hax-oauth-grant` request header, which it always strips from incoming requests first. A bad token is refused with 401, a call the resource refuses with 403.
+- **People stay in control.** Consent shows the app, the resource and the scopes; each person lists and revokes their own approvals, and revoking one stops every token from it.
+- **Not "auth" in the sense of spec/03.** It delegates what an already signed-in person can do; it does not sign anyone in, so the highest-order-context rule for auth providers does not apply to it. HAXiam blocks `mcp` (and can block `oauth`) through deployment config.
+
+### MCP
+
+MCP support is an optional core plugin (`mcp`): installed at system level, opt-in, never required, and blockable by deployment config (HAXiam blocks it for now). It builds on https://github.com/haxtheweb/haxcms-mcp, a separate Python MCP server that is an HTTP client of a running HAXcms and targets the current default branch of each backend. It **requires `oauth`**: MCP issues no tokens of its own.
+
+- **The instance switch.** The plugin replaces core's `config.mcp`: the plugin being enabled is `mcp.enabled`, and its `readOnly` setting (default `true`, moved from `config:mcp.readOnly` by `legacy.settings`) is `mcp.readOnly`. Stock HAXcms already ships with MCP off. Core keeps publishing `data.mcp: { enabled, readOnly }` on the open `GET /system/api/v1` route, computed from the plugin's state (`{ enabled: false, readOnly: true }` while it is off, blocked or absent); haxcms-mcp obeys that field, so this shape is a base contract.
+- **An OAuth resource.** Its required `serverUrl` setting (the haxcms-mcp public URL) is the audience OAuth tokens are issued for. It offers `mcp:read`, and `mcp:write` only while `readOnly` is off. Its `check` allows reads with `mcp:read`; writes only with `mcp:write` while `readOnly` is off (the instance switch wins over any token); plugin operations only when marked `x-hax-mcp`; and keeps a token approved for one site on that site. Headless clients (stdio) use an OAuth personal token for that URL.
+- **Separation.** haxcms-mcp stays a stand-alone server and serves its own protected-resource metadata, naming this HAXcms as the authorization server. The plugin provides the switch, the resource and discovery; it does not serve MCP itself.
+- **Core tools.** The existing hand-written core tools stay in haxcms-mcp for now; marking core's own operations `x-hax-mcp: true` so core and plugin tools come from one place is a later migration.
+- **Tools.** Only plugin operations with `x-hax-mcp: true` are offered. `mcpDiscovery` lists, for the calling token, the opted-in operations within its read-only state and the prompts from `register.before.prompts`, so the MCP server can add plugin tools without a release.
+- **Logging.** Every MCP call is written to the unified log with the grant id.

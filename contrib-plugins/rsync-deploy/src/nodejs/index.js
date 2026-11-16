@@ -1,7 +1,7 @@
 // rsync deploy (Node only). Runs exactly one command, rsync, through ctx.exec: an argument list (no shell), refused
 // unless the command is in the exec list. The SSH key reaches rsync as a private temp file that ctx.exec writes
 // into {tmp} for the length of the run and removes afterwards; the key itself is never logged or returned.
-const TARGET = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~\/-]+$/;
+const TARGET = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+$/;
 
 export function rsyncArgs(settings, sitePath) {
   const ssh = `ssh -p ${Number(settings.port) || 22} -i {tmp}/id -o BatchMode=yes -o StrictHostKeyChecking=accept-new`;

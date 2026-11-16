@@ -4,8 +4,9 @@ uuid: 5a0a4b34-c869-574d-ae6c-cb8c0e664f47
 title: fx-ssr (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 hooks:
   - name: render.before.content

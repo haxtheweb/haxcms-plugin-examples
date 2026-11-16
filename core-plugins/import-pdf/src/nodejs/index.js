@@ -15,7 +15,7 @@ function literal(s) {
 function runs(stream) {
   const out = [];
   let size = 12, scale = 1, y = 0, leading = 0;
-  const re = /\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>|\[[^\]]*\]|\/[^\s/\[\]()<>]+|-?\d*\.?\d+|[A-Za-z'"*]+/g;
+  const re = /\((?:\\.|[^\\)])*\)|<[0-9A-Fa-f\s]*>|\[[^\]]*\]|\/[^\s/[\]()<>]+|-?\d*\.?\d+|[A-Za-z'"*]+/g;
   const stack = [];
   for (const m of stream.matchAll(re)) {
     const t = m[0];

@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-no-handler
+uuid: 2b7c6a1e-93d4-4f0a-8e5b-61c2d7f4a9b3
+title: fx-no-handler (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+hooks:
+  - name: page.after.save
