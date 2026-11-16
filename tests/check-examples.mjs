@@ -1,6 +1,6 @@
 // Validates examples/* with the plugin validator and enforces hook coverage in the comprehensive example.
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -12,7 +12,7 @@ const check = (ok, label, detail = "") => { if (!ok) failures++; console.log(`${
 const run = (dir) => spawnSync(process.execPath, [validator, "--json", dir], { encoding: "utf8" });
 
 // 1. every example validates cleanly
-const examples = [...readdirSync(join(root, "examples")).map((n) => `examples/${n}`), ...readdirSync(join(root, "core-plugins")).map((n) => `core-plugins/${n}`), ...readdirSync(join(root, "contrib-plugins")).map((n) => `contrib-plugins/${n}`)];
+const examples = ["examples", "core-plugins", "contrib-plugins"].filter((g) => existsSync(join(root, g))).flatMap((g) => readdirSync(join(root, g)).map((n) => `${g}/${n}`));
 for (const name of examples) {
   const r = run(join(root, name));
   const report = JSON.parse(r.stdout)[0];
