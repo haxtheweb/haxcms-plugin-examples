@@ -143,7 +143,7 @@ function validatePlugin(manifestPath) {
   if (m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") {
     const other = ["nodejs", "php"].filter((r) => !m.runtimes.includes(r)).join(" and ");
     if (m.core) err("/runtimes", `core plugins must provide both nodejs and php (missing ${other})`);
-    else warn("/runtimes", `single runtime: this plugin will not load on ${other} backends`);
+    else warn("/runtimes", `single runtime: ${other} backends refuse this plugin (no ${other} implementation)`);
   }
   if (m.openapi && existsSync(join(dir, m.openapi))) {
     const api = readAny(join(dir, m.openapi));

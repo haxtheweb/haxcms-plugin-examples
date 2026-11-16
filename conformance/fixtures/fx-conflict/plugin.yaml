@@ -4,7 +4,8 @@ uuid: 5c6e8b88-0f18-5194-8e26-cf6ba63e1109
 title: fx-conflict (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 conflicts: [fx-probe-a]

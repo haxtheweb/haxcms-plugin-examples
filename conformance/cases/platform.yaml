@@ -128,3 +128,19 @@
     steps:
       - call: { operation: fxListedPublic }
         expect: { body: [a, d] }
+- id: plat-011
+  title: "the system engine: system stores and routes work with no site; site stores, records, rendering and rebuilds refuse"
+  spec: spec/13-backend-platform-contract.md
+  given: "the system engine (no site) with fx-system: a system store counts, a site store perSite"
+  when: "count twice, write perSite, render, rebuild"
+  then: "count 1 then 2 with ctx.site null; perSite, render and rebuild are refused with \"needs a site; this is the system engine\""
+  run:
+    system: true
+    plugins: [fx-system]
+    steps:
+      - call: { operation: fxSystemCount }
+        expect: { status: 200, body: { count: 1, site: null } }
+      - call: { operation: fxSystemCount }
+        expect: { body: { count: 2 } }
+      - call: { operation: fxSystemPerSite }
+        expect: { status: 500, log: { contains: ["needs a site; this is the system engine"] } }
