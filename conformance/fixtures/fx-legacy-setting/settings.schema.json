@@ -1,0 +1,15 @@
+{
+ "configure": [
+  {
+   "property": "token",
+   "title": "Token",
+   "inputMethod": "textfield",
+   "required": true
+  },
+  {
+   "property": "enabled",
+   "title": "On",
+   "inputMethod": "boolean"
+  }
+ ]
+}

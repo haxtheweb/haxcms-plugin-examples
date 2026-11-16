@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: { title: fx-routes, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /secret:
+    get: { operationId: fxRoutesSecret, security: [{ bearerAuth: [], userTokenHeader: [] }], responses: { "200": { description: OK } } }
+  /jwt:
+    get: { operationId: fxRoutesJwt, security: [{ bearerAuth: [] }], responses: { "200": { description: OK } } }
+  /public:
+    get: { operationId: fxRoutesPublic, x-hax-public: true, x-hax-rate-limit: { requests: 10, per: minute }, responses: { "200": { description: OK } } }

@@ -1,0 +1,49 @@
+- id: entities-001
+  title: "an extension that removes a parent field is rejected"
+  spec: spec/04-entities-data-upgrades.md
+  given: "awesomeFile extends file without field uuid"
+  when: "load"
+  then: "plugin disabled with reason"
+- id: entities-002
+  title: "hooks on the parent entity also fire for extending entities, parent first"
+  spec: spec/04-entities-data-upgrades.md
+  given: "hooks on file and awesomeFile"
+  when: "create awesomeFile"
+  then: "file hook then awesomeFile hook; concrete type in context"
+  run:
+    plugins: [fx-notes, fx-inherit]
+    steps:
+      - fire: { hook: entity.before.create, entity: specialNote, subject: { title: Hi } }
+        expect: { log: { count: { "fx-inherit:entity.before.create": 2 } } }
+- id: entities-003
+  title: "annotations are never stored and are ignored on write"
+  spec: spec/04-entities-data-upgrades.md
+  given: "annotation ext.awesome.explosions"
+  when: "update with that field"
+  then: "stored record lacks it"
+- id: entities-004
+  title: "siteData stores are keyed by site UUID; a rename keeps the data"
+  spec: spec/04-entities-data-upgrades.md
+  given: "rename site"
+  when: "read store"
+  then: "data still found"
+- id: entities-005
+  title: "cloning a site creates a new UUID and copies no siteData"
+  spec: spec/04-entities-data-upgrades.md
+  given: "clone site"
+  when: "read clone's siteData"
+  then: "empty"
+- id: entities-006
+  title: "personalData stores support export and erase by user id"
+  spec: spec/04-entities-data-upgrades.md
+  given: "notes store with personalData"
+  when: "erase user u1"
+  then: "u1's records gone, others kept"
+  run:
+    plugins: [examples/data-store]
+    load: { stores: { data-store: { notes: [{ uuid: n1, userId: u1, body: a }, { uuid: n2, userId: u2, body: b }] } } }
+    steps:
+      - exportUser: u1
+        expect: { body: { data-store.notes: [{ uuid: n1 }] }, notContains: ['"n2"'] }
+      - eraseUser: u1
+        expect: { body: { removed: 1 } }

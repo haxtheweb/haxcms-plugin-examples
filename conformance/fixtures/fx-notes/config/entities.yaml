@@ -1,0 +1,8 @@
+entities:
+  note:
+    store: notes
+    requiredFields: [title]
+    fields:
+      title: { type: string }
+  specialNote:
+    extends: note

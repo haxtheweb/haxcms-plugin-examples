@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: { title: fx-atomic, version: 0.1.0 }
+security: [{ bearerAuth: [] }]
+paths:
+  /atomic:
+    post: { operationId: fxAtomicSaveAll, x-hax-transaction: atomic, responses: { "200": { description: OK } } }
+  /plain:
+    post: { operationId: fxAtomicPlain, responses: { "200": { description: OK } } }
+  /run:
+    post: { operationId: fxAtomicRun, responses: { "200": { description: OK } } }

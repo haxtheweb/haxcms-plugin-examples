@@ -1,0 +1,1 @@
+export default { hooks: { "render.after.body": async (ctx) => { ctx.subject.body.end.push(`<fx-badge greeting="${String(ctx.settings.greeting || "").replace(/[<>"&]/g, "")}"></fx-badge>`); return ctx.subject; } } };

@@ -1,0 +1,9 @@
+# A CLI command contributed by the plugin: `hax example explosions [--search text] [--json]`.
+command: explosions
+summary: List recent explosions
+operation: exampleListExplosions
+options:
+  - { flag: --search, param: q }
+output:
+  items: items
+  line: "{{name}} ({{intensity}})"

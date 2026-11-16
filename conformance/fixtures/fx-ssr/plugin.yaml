@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-ssr
+uuid: 5a0a4b34-c869-574d-ae6c-cb8c0e664f47
+title: fx-ssr (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: render.before.content

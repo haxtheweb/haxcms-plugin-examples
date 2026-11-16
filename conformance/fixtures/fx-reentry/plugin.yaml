@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-reentry
+uuid: c611dff2-45fb-5577-8ed1-1b1532fb548d
+title: fx-reentry (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+capabilities: ["items:read", "items:write"]
+hooks:
+  - name: page.after.save

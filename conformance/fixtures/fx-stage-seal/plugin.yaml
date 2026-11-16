@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-stage-seal
+uuid: a5cd8d75-a3fd-55c2-81ed-c1b7b56faa5c
+title: fx-stage-seal (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: render.after
+    stage: seal

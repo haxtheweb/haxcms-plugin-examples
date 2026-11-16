@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-meta
+uuid: f1c18be0-de2b-5080-aa61-d470a2410583
+title: fx-meta (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+entities: entities.yaml

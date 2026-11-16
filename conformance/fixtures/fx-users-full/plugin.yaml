@@ -1,0 +1,13 @@
+specVersion: "0.1.0"
+id: fx-users-full
+uuid: 24f48217-d919-5104-ad2e-e72e204a3a06
+title: fx-users-full (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+capabilities: ["users:full"]
+implements: [privacy.export, privacy.delete]
+hooks:
+  - name: user.after.login

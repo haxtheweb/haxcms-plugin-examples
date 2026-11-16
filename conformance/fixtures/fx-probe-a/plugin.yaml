@@ -1,0 +1,23 @@
+specVersion: "0.1.0"
+id: fx-probe-a
+uuid: 406e7e1c-ad20-506e-b655-5801b1115f32
+title: fx-probe-a (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+hooks:
+  - name: entity.before.create
+    entities: [note]
+  - name: entity.after.create
+    entities: [note]
+  - name: entity.before.update
+    entities: [note]
+  - name: page.before.save
+  - name: page.after.save
+  - name: theme.before.change
+  - name: user.after.login
+  - name: transaction.before.start
+  - name: transaction.before.end
+  - name: transaction.after.end

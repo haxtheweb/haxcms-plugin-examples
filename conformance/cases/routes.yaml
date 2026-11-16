@@ -1,0 +1,73 @@
+- id: routes-001
+  title: "every plugin path is mounted under /v1/plugins/<id>/"
+  spec: spec/05-routes-and-security.md
+  given: "plugin declares /explosions"
+  when: "request /system/api/v1/plugins/example/explosions"
+  then: "200 with credentials"
+- id: routes-002
+  title: "a plugin cannot place a route outside its prefix"
+  spec: spec/05-routes-and-security.md
+  given: "openapi declares /v1/sites"
+  when: "load"
+  then: "plugin rejected"
+- id: routes-003
+  title: "an operation without explicit security is rejected"
+  spec: spec/05-routes-and-security.md
+  given: "operation lacks security and x-hax-public"
+  when: "load"
+  then: "plugin rejected"
+  run:
+    validate: fx-no-security
+    expect: { errors: ["declares no security"] }
+- id: routes-004
+  title: "a disabled plugin's paths return 404"
+  spec: spec/05-routes-and-security.md
+  given: "plugin disabled"
+  when: "request any path"
+  then: "404"
+  run:
+    plugins: [fx-routes]
+    load: { disabled: [fx-routes] }
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 404 }
+- id: routes-005
+  title: "x-hax-public operations work without credentials and are rate limited"
+  spec: spec/05-routes-and-security.md
+  given: "example /public/ping"
+  when: "31 requests in a minute"
+  then: "first 30 ok, then 429"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 200, body: { ok: true } }
+      - call: { operation: fxRoutesJwt, credentials: none }
+        expect: { status: 401 }
+- id: routes-006
+  title: "no response outside doubly authenticated callers contains the HAXcms version"
+  spec: spec/05-routes-and-security.md
+  given: "JWT only"
+  when: "list plugins and entities"
+  then: "no version field"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesSecret, credentials: none }
+        expect: { status: 401, notContains: ["26.10.1"] }
+      - call: { operation: fxRoutesSecret, credentials: jwt }
+        expect: { status: 401, notContains: ["26.10.1"], message: "X-HAXCMS-User-Token header is required" }
+      - call: { operation: fxRoutesSecret, credentials: both }
+        expect: { status: 200, body: { version: "26.10.1" } }
+- id: routes-007
+  title: "unauthenticated /x/api/v1/entities lists only site-scope descriptors"
+  spec: spec/05-routes-and-security.md
+  given: "no credentials, ?scope=system"
+  when: "GET entities"
+  then: "no plugin or system descriptors"
+- id: route-090
+  title: "only x-hax-mcp operations become MCP tools"
+  spec: spec/05-routes-and-security.md
+  given: "MCP plugin enabled; plugin with one x-hax-mcp operation and one without"
+  when: "MCP client lists tools"
+  then: "only the opted-in operation is listed; calling it applies the caller's permissions"

@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/merlin-declaration.schema.json",
+  "title": "Merlin declaration (registries/merlin/*.yaml)",
+  "description": "Plugin-side wrapper around a Merlin option. `option` is a MerlinOption exactly as documented in https://github.com/haxtheweb/merlin-schema (validated against merlin-option.schema.json after the host fills value.program for programs). Only options expressible as data are declarable: eventName super-daemon-run-program, hax-super-daemon-insert-tag, execute-keyboard-shortcut, disabled, or a custom event name whose detail is JSON. Options that need live references (super-daemon-element-method and -click targets) must be registered from a plugin element/module instead. For run-program options, `program` says how the host builds value.program.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "option"
+  ],
+  "properties": {
+    "option": {
+      "type": "object",
+      "description": "A MerlinOption. For eventName super-daemon-run-program omit value.program; the host supplies it."
+    },
+    "program": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "static",
+            "api",
+            "module"
+          ]
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "title",
+              "eventName",
+              "value"
+            ]
+          },
+          "description": "static: MerlinOption rows."
+        },
+        "operation": {
+          "type": "string",
+          "description": "api: operation id from this plugin's own contract."
+        },
+        "row": {
+          "type": "object",
+          "description": "api: per-item template; {{path}} reads fields of each item. Same fields as a MerlinOption row (title, description, icon, tags, path, eventName, value).",
+          "required": [
+            "title",
+            "eventName"
+          ],
+          "additionalProperties": true
+        },
+        "module": {
+          "type": "string",
+          "description": "module: path under frontend/dist exporting a createXProgram(context) factory."
+        },
+        "factory": {
+          "type": "string",
+          "description": "module: export name of the factory."
+        },
+        "query": {
+          "type": "object",
+          "description": "api: query parameters for the operation; {{input}} is the current search text.",
+          "additionalProperties": true
+        },
+        "items": {
+          "type": "string",
+          "description": "api: dot path to the array of results in the response."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "static"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "results"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "operation"
+                  ]
+                },
+                {
+                  "required": [
+                    "module"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "api"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "operation",
+              "items",
+              "row"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "results"
+                  ]
+                },
+                {
+                  "required": [
+                    "module"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "module"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "module",
+              "factory"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "results"
+                  ]
+                },
+                {
+                  "required": [
+                    "operation"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "option": {
+            "required": [
+              "eventName"
+            ],
+            "properties": {
+              "eventName": {
+                "const": "super-daemon-run-program"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "program"
+        ],
+        "properties": {
+          "option": {
+            "properties": {
+              "value": {
+                "required": [
+                  "name",
+                  "machineName"
+                ],
+                "not": {
+                  "required": [
+                    "program"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "else": {
+        "not": {
+          "required": [
+            "program"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "configure": [
+    {
+      "property": "trackingId",
+      "title": "Tracking id",
+      "description": "Measurement id, for example G-XXXXXXX.",
+      "inputMethod": "textfield",
+      "required": true
+    },
+    {
+      "property": "anonymizeIp",
+      "title": "Anonymize IP",
+      "inputMethod": "boolean"
+    }
+  ]
+}

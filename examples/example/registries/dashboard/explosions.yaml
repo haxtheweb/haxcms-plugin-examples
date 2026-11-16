@@ -1,0 +1,14 @@
+# A dashboard contribution: UI declared as data and rendered by app-hax with elements it already has, so the
+# plugin ships no dashboard code. This one adds a user-menu entry that opens a modal listing explosions.
+id: explosions
+placement: userMenu
+icon: icons:flare
+label: Recent explosions
+action:
+  kind: modal
+  title: Recent explosions
+  sections:
+    - title: Explosions
+      operation: exampleListExplosions
+      items: items
+      card: { title: name, description: summary, anchor: id }
