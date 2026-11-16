@@ -115,6 +115,16 @@ async function withTimeout(promise, ms, label) {
 // store scopes that live with one site; the system engine (site: null) has none of them
 const SITE_SCOPES = ["site", "siteData", "manifest"];
 
+// What a backend answers when the registry (spec/03) refuses an enable or disable before the engine is asked. They
+// live here, with the engine's own answers ("not installed", "required plugins cannot be disabled"), so every backend
+// says the same thing and the message catalog has one place to cover.
+export const REGISTRY_REFUSALS = Object.freeze({
+  notInstalled: "not installed",
+  blocked: "blocked by deployment config",
+  locked: "locked by deployment config",
+  systemEnabled: "enabled for the whole system; a site cannot turn it off",
+});
+
 export class MemoryBackend {
   constructor({ haxcmsVersion = "26.10.1", runtime = "nodejs", site = { id: "00000000-0000-4000-8000-000000000001", name: "test-site", path: "/sites/test-site" }, user = { id: "u1", name: "admin", displayName: "Admin", roles: ["admin"], avatar: null, email: "admin@example.invalid", passwordHash: "never-exposed" }, hookTimeout = 5000, target = "server" } = {}) {
     // where this backend runs (spec/14): a hosted server, the desktop app or the browser. It decides which plugins can
