@@ -259,7 +259,7 @@ function demoMarkup(dir, el) {
 
 function pageHtml(moduleUrl, body) {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>plugin check</title>
-<style>:root{color-scheme:light dark}body{font-family:system-ui,sans-serif;margin:16px}</style></head>
+<style>:root{color-scheme:light dark}body{font-family:system-ui,sans-serif;margin:16px;background:Canvas;color:CanvasText}</style></head>
 <body><main><h1>Plugin check</h1>${body}</main><script type="module" src="${moduleUrl}"></script></body></html>`;
 }
 
