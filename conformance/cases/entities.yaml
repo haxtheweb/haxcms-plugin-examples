@@ -47,7 +47,7 @@
         expect: { body: { data-store.notes: [{ uuid: n1 }] }, notContains: ['"n2"'] }
       - eraseUser: u1
         expect: { body: { removed: 1 } }
-- id: entities-006
+- id: entities-010
   title: "ctx.storage.update changes a store as one step: twenty at once all count"
   spec: spec/04-entities-data-upgrades.md
   given: "fx-tally, a siteData store holding { n }"
