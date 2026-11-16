@@ -178,12 +178,91 @@ class ImporterOpenstaxPlugin {
     return $path;
   }
 
+  // ---- HTML clean-up by scanning, not by regex replacement (twin of the helpers in src/nodejs/index.js) ----
+  // the ">" closing the tag that opens at $lt (quoted attribute values may hold ">"); -1 when it never closes, -2
+  // when another "<" comes first (then the first one is text)
+  private static function tagEnd($s, $lt) {
+    $q = '';
+    $n = strlen($s);
+    for ($i = $lt + 1; $i < $n; $i++) {
+      $c = $s[$i];
+      if ($q !== '') { if ($c === $q) { $q = ''; } } elseif ($c === '"' || $c === "'") { $q = $c; } elseif ($c === '>') { return $i; } elseif ($c === '<') { return -2; }
+    }
+    return -1;
+  }
+  // a tag's source (between < and >) without on* event handler attributes
+  private static function withoutHandlers($raw) {
+    if (!preg_match('/^(\/?)([A-Za-z][A-Za-z0-9-]*)/', $raw, $m)) { return $raw; }
+    $out = $m[0];
+    $n = strlen($raw);
+    $i = strlen($m[0]);
+    $space = function ($c) { return $c === ' ' || $c === "\t" || $c === "\n" || $c === "\r" || $c === "\f" || $c === "\v"; };
+    while ($i < $n) {
+      $j = $i;
+      while ($j < $n && ($space($raw[$j]) || $raw[$j] === '/')) { $j++; }
+      if ($j >= $n) { $out .= substr($raw, $i); break; }
+      $k = $j;
+      while ($k < $n && !$space($raw[$k]) && $raw[$k] !== '/' && $raw[$k] !== '=') { $k++; }
+      $name = substr($raw, $j, $k - $j);
+      $e = $k;
+      $w = $k;
+      while ($w < $n && $space($raw[$w])) { $w++; }
+      if ($w < $n && $raw[$w] === '=') {
+        $w++;
+        while ($w < $n && $space($raw[$w])) { $w++; }
+        $q = $w < $n ? $raw[$w] : '';
+        if ($q === '"' || $q === "'") { $close = strpos($raw, $q, $w + 1); $e = $close === false ? $n : $close + 1; }
+        else { $e = $w; while ($e < $n && !$space($raw[$e])) { $e++; } }
+      }
+      if (strtolower(substr($name, 0, 2)) !== 'on') { $out .= substr($raw, $i, $e - $i); }
+      $i = $e > $i ? $e : $i + 1;
+    }
+    return $out;
+  }
+  // drops each element in $blocks with its content, each tag in $tags (opening or closing), every on* attribute,
+  // and comments when $comments is true; an unterminated tag, or a block never closed, drops the rest
+  private static function cleanHtml($html, array $blocks, array $tags, $comments) {
+    $s = (string) ($html ?? '');
+    $lower = strtolower($s);
+    $n = strlen($s);
+    $out = '';
+    $i = 0;
+    while ($i < $n) {
+      $lt = strpos($s, '<', $i);
+      if ($lt === false) { $out .= substr($s, $i); break; }
+      $out .= substr($s, $i, $lt - $i);
+      if (substr($s, $lt, 4) === '<!--') {
+        $end = strpos($s, '-->', $lt + 4);
+        $next = $end === false ? $n : $end + 3;
+        if (!$comments) { $out .= substr($s, $lt, $next - $lt); }
+        $i = $next;
+        continue;
+      }
+      if (!preg_match('/^(\/?)([A-Za-z][A-Za-z0-9-]*)/', substr($s, $lt + 1, 64), $m)) { $out .= '&lt;'; $i = $lt + 1; continue; }
+      $gt = self::tagEnd($s, $lt);
+      if ($gt === -2) { $out .= '&lt;'; $i = $lt + 1; continue; }
+      if ($gt < 0) { break; }
+      $name = strtolower($m[2]);
+      if ($m[1] === '' && in_array($name, $blocks, true)) {
+        $close = strpos($lower, '</' . $name, $gt + 1);
+        if ($close === false) { break; }
+        $closeGt = strpos($s, '>', $close);
+        $i = $closeGt === false ? $n : $closeGt + 1;
+        continue;
+      }
+      if (in_array($name, $blocks, true) || in_array($name, $tags, true)) { $i = $gt + 1; continue; }
+      $raw = substr($s, $lt + 1, $gt - $lt - 1);
+      $out .= '<' . ($m[1] !== '' ? $raw : self::withoutHandlers($raw)) . '>';
+      $i = $gt + 1;
+    }
+    return $out;
+  }
+
   private function cleanPage($ctx, $content, &$run) {
     if (!is_string($content) || trim($content) === '') { return '<p></p>'; }
     if (preg_match('/<body\b[^>]*>([\s\S]*)<\/body\s*>/i', $content, $body)) { $html = $body[1]; }
     else { $html = preg_replace('/<!DOCTYPE[^>]*>/i', '', preg_replace('/<\?xml[^>]*\?>/i', '', $content)); }
-    $html = preg_replace('/<(style|script|noscript|head)\b[\s\S]*?<\/\1\s*>/i', '', $html);
-    $html = preg_replace('/<\/?(link|meta|script|style|noscript)\b[^>]*>/i', '', $html);
+    $html = self::cleanHtml($html, ['style', 'script', 'noscript', 'head'], ['link', 'meta'], false);
     if (preg_match('/^\s*<div\b([^>]*)>([\s\S]*)<\/div>\s*$/i', $html, $wrap) && preg_match('/\bdata-type\s*=\s*["\']page["\']/i', $wrap[1])) { $html = $wrap[2]; }
     $html = preg_replace('/<([a-z][a-z0-9]*)\b[^>]*\bdata-type\s*=\s*["\']document-title["\'][^>]*>[\s\S]*?<\/\1\s*>/i', '', $html, 1);
 
@@ -225,7 +304,7 @@ class ImporterOpenstaxPlugin {
       }, $part);
     }
     $html = implode('', $parts);
-    $html = preg_replace('/\son[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $html);
+    $html = self::cleanHtml($html, [], [], false);
     $html = trim(preg_replace('/>\s*\n\s*</', '><', $html));
     return $html === '' ? '<p></p>' : $html;
   }
