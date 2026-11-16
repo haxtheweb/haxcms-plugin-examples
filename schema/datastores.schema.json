@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/datastores.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/datastores.schema.json",
   "title": "Plugin datastores (config/datastores.yaml) - DRAFT",
   "type": "object",
   "additionalProperties": false,

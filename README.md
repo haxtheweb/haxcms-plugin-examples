@@ -1,4 +1,4 @@
-# haxcms-plugin-examples
+# haxcms-plugins
 
 Specification, JSON Schema, validator, conformance cases and example plugins for the HAXcms plugin architecture.
 
@@ -10,7 +10,7 @@ The architecture decisions and their log live in https://github.com/haxtheweb/is
 | `schema/` | JSON Schemas (`plugin.yaml`, Merlin declarations, theme and element registry entries, stores, entities, prompts, test cases, hook contracts; appstore fragments use https://github.com/haxtheweb/appstore-spec), the hook contracts (`hook-contracts.json`, source of the spec/06 table), capabilities, categories and derived tags |
 | `scripts/validate.mjs` | `hax-plugin-validate`: validates a plugin folder and its registries |
 | `scripts/check-core-config.mjs` | checks a live HAXcms `coreConfig` folder against the schemas |
-| `core-plugins/`, `contrib-plugins/` | not in this base: plugins are added one at a time on top of it, each with its own tests, and land here once reviewed. Drafts that informed the spec are in https://github.com/haxtheweb/haxcms-plugin-examples/pull/4 |
+| `core-plugins/`, `contrib-plugins/` | not in this base: plugins are added one at a time on top of it, each with its own tests, and land here once reviewed. Drafts that informed the spec are in https://github.com/haxtheweb/haxcms-plugins/pull/4 |
 | `examples/` | the comprehensive teaching `example`, `data-store`, `minimal-pack` |
 | `skills/` | draft agent skills for building, auditing, upgrading and porting plugins |
 | `scripts/gen-example-hooks.py`, `scripts/hook-table.mjs` | regenerate the example's hook stubs and the spec/06 table from the hook contracts |

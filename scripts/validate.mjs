@@ -4,7 +4,7 @@
 // JSON output matches the other HAX validators: [{ file, errors: [{path,message}], warnings: [...] }]
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { parse, parseDocument, isMap, isPair, isScalar, visit } from "yaml";
+import { parse, parseDocument, parseAllDocuments, isMap, isPair, isScalar, visit } from "yaml";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -90,7 +90,13 @@ function yamlProblems(text) {
   try { doc = parseDocument(text, { uniqueKeys: true, prettyErrors: true }); } catch (e) { return [String(e.message)]; }
   for (const e of doc.errors) out.push(`line ${e.linePos ? e.linePos[0].line : "?"}: ${e.message.split("\n")[0]}`);
   const lineOf = (node) => { const o = node && node.range ? node.range[0] : null; return o === null ? "?" : text.slice(0, o).split("\n").length; };
+  if (parseAllDocuments(text).length > 1) out.push("more than one document in the file (---): use one");
   visit(doc, {
+    Alias(_, node) { out.push(`line ${lineOf(node)}: an alias (*${node.source}); write the value out`); },
+    Node(_, node) {
+      if (node.anchor) out.push(`line ${lineOf(node)}: an anchor (&${node.anchor}); write the value out where it is used`);
+      if (node.tag && node.tag.startsWith("!") && node.range && text.slice(node.range[0] - 40 < 0 ? 0 : node.range[0] - 40, node.range[0] + 2).includes("!")) out.push(`line ${lineOf(node)}: a tag (${node.tag}); use plain values`);
+    },
     Map(_, map) {
       if (!map.flow) return;
       for (const pair of map.items) {

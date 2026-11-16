@@ -11,7 +11,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/haxtheweb/haxcms-plugin-examples.git"
+    "url": "git+https://github.com/haxtheweb/haxcms-plugins.git"
   },
   "bugs": {
     "url": "https://github.com/haxtheweb/issues/issues"

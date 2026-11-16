@@ -30,7 +30,10 @@ for (const [layer, needles] of Object.entries(expected)) {
     continue;
   }
   const text = l.errors.join("\n");
-  const missing = needles.filter((n) => !text.includes(n));
+  // without PHPUnit on this machine the php layer still runs php -l and PHPStan; only the PHPUnit gate is skipped
+  const noPhpunit = layer === "php" && (l.notes || []).some((n) => n.includes("PHPUnit not installed"));
+  if (noPhpunit) console.log("skip php: PHPUnit not installed here (set PHPUNIT); its gate is not asserted");
+  const missing = needles.filter((n) => !(noPhpunit && n === "PHPUnit failed") && !text.includes(n));
   if (l.status !== "fail" || missing.length) {
     failed++;
     console.log(`FAIL ${layer}: expected it to catch ${missing.map((m) => JSON.stringify(m)).join(", ") || "a failure"}; got ${l.status}\n${text}`);

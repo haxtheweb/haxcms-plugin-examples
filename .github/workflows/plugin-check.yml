@@ -15,10 +15,10 @@ name: plugin-check
 # The live job runs against haxcms-nodejs's plugin platform branch
 # (HAXCMS_NODEJS_REF; today draft/plugin-platform, haxcms-nodejs#138), with
 # this checkout installed as its @haxtheweb/haxcms-plugin-spec, so a change
-# here is tested in the server that will run it. No haxcms-php live job yet:
-# haxcms-php has no plugin host (haxtheweb/issues#3176); until it does, the
-# PHP side is covered by the php job (cases, parity, PHPStan, PHPUnit on
-# PHP 8.3 to 8.6).
+# here is tested in the server that will run it. haxcms-php's native engine
+# (haxcms-php#822) runs every conformance case and plugin case in the last job;
+# it has no boot-and-call-over-HTTP job yet, so PHP plugin code is also covered
+# by the php job (cases, parity, PHPStan, PHPUnit on PHP 8.3 to 8.6).
 on:
   push:
     branches: [main]

@@ -57,7 +57,7 @@ node harness/check/run.mjs --only live --haxcms ../haxcms-nodejs
 
 `inactive` is not a failure: a plugin whose requirements this environment does not meet (a command it runs, a setting with no test value) is reported with what is missing. 502, 503 and 504 from a plugin route are how a plugin says an outside service is unreachable or unconfigured, which is right with no network; a 500 is a crash and fails.
 
-haxcms-php has no plugin host yet, so there is no PHP live layer. Until there is, PHP plugin code is covered by the `cases` layer (PHP runtime and Node/PHP parity) and the `php` layer (PHPStan and PHPUnit), on PHP 8.3 to 8.6 in CI.
+There is no PHP live layer yet. haxcms-php has its own engine (haxcms-php#822) and CI runs every conformance case and every plugin's PHP cases through it, with a case-by-case comparison against the reference engine (`plugin-check.yml`, job "haxcms-php native engine"); what is missing is the same boot-a-server-and-call-it-over-HTTP run this layer does for Node. Until then PHP plugin code is covered by that job, the `cases` layer (PHP runtime and Node/PHP parity) and the `php` layer (PHPStan and PHPUnit), on PHP 8.3 to 8.6.
 
 ## Proving the gates work
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/cli-command.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/cli-command.schema.json",
   "title": "CLI command (registries/cli/*.yaml) - DRAFT",
   "description": "A command a plugin adds to the hax CLI, exposed as `hax <plugin id> <command>` while the plugin is enabled. The CLI embeds the backend in-process, so it calls the plugin's operation directly with no network or credentials; the core CLI never names a plugin. A plugin may also declare a short top-level alias.",
   "type": "object",

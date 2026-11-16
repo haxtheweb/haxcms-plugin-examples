@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/plugin.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/plugin.schema.json",
   "title": "HAXcms plugin manifest (plugin.yaml)",
   "description": "Draft. Unknown keys are rejected. Keys described as reserved are validated but have no behavior yet. Decisions: https://github.com/haxtheweb/issues/issues/3176",
   "type": "object",
