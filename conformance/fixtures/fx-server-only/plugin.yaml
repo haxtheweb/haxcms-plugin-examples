@@ -1,0 +1,13 @@
+specVersion: "0.1.0"
+id: fx-server-only
+uuid: 5b0c3f6e-2f0a-5c1d-9a4e-7d1f0c2b9a11
+title: fx-server-only (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+targets: [server]
+hooks:
+  - name: rebuild.after

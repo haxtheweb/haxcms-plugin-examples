@@ -67,11 +67,16 @@ class ExamplePlugin {
    *
    * @param object $ctx  Platform context (spec/13); settings: apiKey; fetch().
    * @param array  $req  query.q: the search text.
-   * @return array  the upstream [status, body], or 503 when no apiKey is set.
+   * @return array  the upstream [status, body], 503 when no apiKey is set, or 502 when the upstream cannot be
+   *   reached (an outside service being down is not a server error here).
    */
   public function exampleAppstoreBrowse($ctx, $req) {
     if (empty($ctx->settings['apiKey'])) { return ['status' => 503, 'body' => ['error' => 'The example appstore is not configured']]; }
-    $res = $ctx->fetch('https://example.invalid/api/explosions?q=' . rawurlencode($req['query']['q'] ?? ''), ['headers' => ['x-api-key' => $ctx->settings['apiKey']]]);
+    try {
+      $res = $ctx->fetch('https://example.invalid/api/explosions?q=' . rawurlencode($req['query']['q'] ?? ''), ['headers' => ['x-api-key' => $ctx->settings['apiKey']]]);
+    } catch (\Throwable $e) {
+      return ['status' => 502, 'body' => ['error' => 'example.invalid could not be reached']];
+    }
     return ['status' => $res['status'], 'body' => $res['json']];
   }
 

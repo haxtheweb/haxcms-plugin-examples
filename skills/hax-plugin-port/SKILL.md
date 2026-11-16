@@ -10,7 +10,7 @@ metadata:
 
 # Porting to a HAXcms plugin
 
-Spec: https://github.com/haxtheweb/haxcms-plugin-examples. Candidates and their priority: `spec/12-plugin-candidates.md`.
+Spec: https://github.com/haxtheweb/haxcms-plugins. Candidates and their priority: `spec/12-plugin-candidates.md`.
 
 ## Extracting a core feature
 

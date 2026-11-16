@@ -8,13 +8,13 @@ const ROUTE = "x/api/v1/plugins/page-feedback/";
 const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const PRINTABLE_RE = /^[\x21-\x7E]+$/;
-const WEBHOOK_RE = /^https:\/\/([^\/?#@:]+)(:\d{1,5})?([\/?#].*)?$/;
+const WEBHOOK_RE = /^https:\/\/([^/?#@:]+)(:\d{1,5})?([/?#].*)?$/;
 const HOST_RE = /^[a-z0-9.-]+$/;
 const HEADER_RE = /^[A-Za-z0-9-]+$/;
 const PRIVATE_RE = /^(localhost$|127\.|10\.|192\.168\.|169\.254\.|0\.|172\.(1[6-9]|2\d|3[01])\.)/;
 const FORBIDDEN_HEADERS = ["host", "content-length", "content-type", "connection", "transfer-encoding", "cookie"];
 const NOTIFY = ["all", "negative", "comments"];
-const TAG_RE = /<page-feedback(?=[\s>\/])/g;
+const TAG_RE = /<page-feedback(?=[\s>/])/g;
 const WEBHOOK_HELP = "The webhook address must be an https address with a host, such as https://example.edu/hooks/feedback";
 
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -59,7 +59,7 @@ const isPrivateHost = (host) => PRIVATE_RE.test(host) || host.endsWith(".interna
 
 /** The host part of an Origin header or of the site address, lower case, or "". */
 function originHost(url) {
-  const m = /^[a-z][a-z0-9+.-]*:\/\/([^\/?#]*)/i.exec(String(url));
+  const m = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(String(url));
   return m ? m[1].toLowerCase() : "";
 }
 

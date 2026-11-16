@@ -22,9 +22,9 @@ paths:
                 comment: { type: string, maxLength: 20000 }
       responses:
         "200": { description: Received, content: { application/json: { schema: { type: object, required: [received], properties: { received: { type: boolean } } } } } }
-        "403": { description: Sent from another site, or refused by another plugin }
+        "403": { description: "Sent from another site, or refused by another plugin" }
         "404": { description: No such page }
-        "422": { description: The rating, a reason or the comment is not acceptable }
+        "422": { description: "The rating, a reason or the comment is not acceptable" }
         "429": { description: Too many responses this hour }
     get:
       operationId: pageFeedbackList

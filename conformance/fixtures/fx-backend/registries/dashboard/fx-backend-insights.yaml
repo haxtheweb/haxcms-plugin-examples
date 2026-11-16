@@ -1,0 +1,7 @@
+# a site-surface contribution in the insights.section slot
+id: fx-backend-insights
+surface: site
+placement: slot
+slot: insights.section
+icon: icons:assessment
+label: Word counts

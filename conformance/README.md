@@ -17,6 +17,8 @@ Language-neutral cases every backend must pass before it counts as plugin-suppor
         expect: { veto: true, message: "fx-probe-a says no" }
 ```
 
+Run them against the reference engine with the fixtures' Node code (`node conformance/run.mjs`) or their PHP code (`--runtime php`), or against a backend through its adapter (`--backend <module>`; haxcms-nodejs `test/plugins/haxcms-adapter.mjs`, haxcms-php `test/plugins/haxcms-php-adapter.mjs`).
+
 Steps: `call` (operation, params, query, body, credentials), `fire` (hook, subject, previous, entity, transaction), `render` (page), `enable`, `disable`, `config` (plugin, values), `transaction` (nested steps). A case may instead `validate` a fixture folder and expect validator `errors`. `expect` keys are shared with plugin test cases (`harness/expect.mjs`): `status`, `body`, `subject`, `absent`, `contains`, `notContains`, `veto`, `message`, `marks`, `cached`, `status_of`, and `log` (`contains`, `notContains`, `order`, `count`).
 
 Run: `node conformance/run.mjs` (part of `npm test`). It runs against the in-memory reference harness (`harness/`); a backend runs the same cases through its own adapter (spec/13 section 9). Every executable case was checked by breaking the matching rule in the harness and watching it fail.

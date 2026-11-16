@@ -4,9 +4,10 @@ uuid: 57445e00-4b0d-5b61-92e4-db679bf4dd27
 title: fx-cache (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 datastores: config/datastores.yaml
 hooks:
   - name: render.before

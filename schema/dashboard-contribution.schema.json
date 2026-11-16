@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/dashboard-contribution.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/dashboard-contribution.schema.json",
   "title": "Admin contribution (registries/dashboard/*.yaml) - DRAFT",
   "description": "Declarative UI a plugin adds to an admin surface: the HAXcms dashboard (app-hax) or the site editor's admin screens. Core renders it with elements it already has (simple-icon-button-lite, simple-tooltip, simple-modal, accent-card, hax-element-demo, simple-icon-lite, and the HAX UI admin primitives in the site editor), so the plugin ships no front-end code. Data comes from the plugin's own operations through the surface's API layer, which adds the credentials.",
   "type": "object",
