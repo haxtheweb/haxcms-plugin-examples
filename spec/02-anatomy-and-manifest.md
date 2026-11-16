@@ -81,7 +81,9 @@ The Node and PHP backends use different YAML parsers, and they disagree at the e
 
 - inside `{ }` or `[ ]`, a value that contains a comma, a colon followed by a space, or a brace is quoted;
 - no key appears twice in one mapping;
-- no anchors, aliases, tags or multi-document files.
+- one document per file (no `---` separators).
+
+Anchors and aliases are fine: both parsers resolve them the same way.
 
 JSON is always accepted where YAML is.
 
