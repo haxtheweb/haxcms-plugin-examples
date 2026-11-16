@@ -1,0 +1,17 @@
+specVersion: "0.1.0"
+id: fx-tally
+uuid: 8d2f4c1a-6b7e-5a90-b3c4-1e2f3a4b5c6d
+title: fx-tally (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+datastores: config/datastores.yaml
+tagPrefix: fx-tally-
+assets:
+  - { id: fx-tally-board.js, hash: "sha256-5z6i2tFpiw++K8a3kF+QKykZdGCFND60mZW1/UuYHDY=", size: 71, type: text/javascript }
+  - { id: img/dot.svg, hash: "sha256-kvMHB88CY9wFbi4ii90LpqaG82hOzbbbHsn2vjd0nJc=", size: 94, type: image/svg+xml }
+  - { id: edited.js, hash: "sha256-3UOAPXF2UD1TLTnKgbkyeB0JHPTPNTunaXpgMgLn3A8=", size: 67, type: text/javascript }
