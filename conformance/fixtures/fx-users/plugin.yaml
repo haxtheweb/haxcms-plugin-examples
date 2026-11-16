@@ -4,8 +4,9 @@ uuid: 154e6d97-205a-5b3f-bef1-16a2ff640261
 title: fx-users (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 hooks:
   - name: user.after.login

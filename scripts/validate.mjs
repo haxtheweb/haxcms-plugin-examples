@@ -143,7 +143,7 @@ function validatePlugin(manifestPath) {
   if (m.runtimes && m.runtimes.length < 2 && m.kind !== "pack") {
     const other = ["nodejs", "php"].filter((r) => !m.runtimes.includes(r)).join(" and ");
     if (m.core) err("/runtimes", `core plugins must provide both nodejs and php (missing ${other})`);
-    else warn("/runtimes", `single runtime: this plugin will not load on ${other} backends`);
+    else warn("/runtimes", `single runtime: ${other} backends refuse this plugin (no ${other} implementation)`);
   }
   if (m.openapi && existsSync(join(dir, m.openapi))) {
     const api = readAny(join(dir, m.openapi));
@@ -381,7 +381,7 @@ function validatePlugin(manifestPath) {
     for (const op of def.operations) for (const [rt, entry] of Object.entries(m.entry || {})) {
       const f = join(dir, entry); if (!existsSync(f)) continue;
       const code = readFileSync(f, "utf8");
-      const phpName = c.split(".").map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("") + op[0].toUpperCase() + op.slice(1);
+      const phpName = c.split(/[.-]/).map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("") + op[0].toUpperCase() + op.slice(1);
       const found = rt === "php" ? code.includes(`function ${phpName}`) : code.includes(`"${c}"`) && new RegExp(`\\b${op}\\b`).test(code);
       if (!found) err(`/implements`, `implements ${c} but ${entry} has no ${rt === "php" ? phpName : `contracts["${c}"].${op}`}`);
     }
@@ -391,6 +391,20 @@ function validatePlugin(manifestPath) {
   for (const [i, j] of (m.schedules || []).entries()) for (const [rt, entry] of Object.entries(m.entry || {})) {
     const f = join(dir, entry);
     if (existsSync(f) && !readFileSync(f, "utf8").includes(j.handler)) err(`/schedules/${i}/handler`, `handler "${j.handler}" not found in ${entry}`);
+  }
+  // hooks: every subscription has a handler in each runtime the plugin ships (spec/13 section 3): a Node entry names
+  // the hook as a key; a PHP class has the method camel-cased across "." and "-". The entry's folder is searched, so
+  // handlers kept in a helper file next to it count.
+  if (m.kind !== "pack") for (const [rt, entry] of Object.entries(m.entry || {})) {
+    const f = join(dir, entry);
+    if (!existsSync(f)) continue;
+    const files = (d) => (existsSync(d) ? readdirSync(d).flatMap((n) => (statSync(join(d, n)).isDirectory() ? files(join(d, n)) : [join(d, n)])) : []);
+    const code = files(dirname(f)).filter((x) => (rt === "php" ? /\.php$/ : /\.(m?js|cjs)$/).test(x)).map((x) => readFileSync(x, "utf8")).join("\n");
+    for (const [i, h] of (m.hooks || []).entries()) {
+      const php = h.name.split(/[.-]/).map((x, k) => (k ? x[0].toUpperCase() + x.slice(1) : x)).join("");
+      const found = rt === "php" ? new RegExp(`function\\s+${php}\\s*\\(`).test(code) : code.includes(`"${h.name}"`) || code.includes(`'${h.name}'`) || code.includes(`\`${h.name}\``);
+      if (!found) err(`/hooks/${i}`, `subscribes to ${h.name} but ${entry} has no ${rt === "php" ? `method ${php}` : `hooks["${h.name}"]`}`);
+    }
   }
   // tests: required unless explicitly untested; code-free packs are exempt
   const testsDir = join(dir, m.tests || "tests");

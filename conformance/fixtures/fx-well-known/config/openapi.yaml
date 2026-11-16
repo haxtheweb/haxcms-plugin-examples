@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: { title: fx-well-known, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /metadata:
+    get:
+      operationId: fxWellKnownMetadata
+      x-hax-public: true
+      x-hax-well-known: oauth-authorization-server   # also served at /.well-known/oauth-authorization-server
+      responses: { "200": { description: OK } }

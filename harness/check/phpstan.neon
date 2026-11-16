@@ -1,0 +1,17 @@
+# PHPStan for plugins' src/php (hax-plugin-check, harness/check/phpstan.sh).
+# Level 5, like haxcms-php. Paths come from the command line (plugin folders).
+includes:
+  - phpstan-baseline.neon
+parameters:
+  level: 5
+  fileExtensions: [php]
+  excludePaths:
+    analyseAndScan:
+      - */tests/*
+      - */node_modules/*
+      - */vendor/*
+  # the PHP ctx a plugin receives: the reference harness's implementation of spec/13
+  scanFiles:
+    - ../php/bridge.php
+  # one baseline for all plugins; a run over one plugin must not report the others' entries
+  reportUnmatchedIgnoredErrors: false

@@ -128,3 +128,60 @@
     steps:
       - call: { operation: fxListedPublic }
         expect: { body: [a, d] }
+- id: plat-011
+  title: "the system engine: system stores and routes work with no site; site stores, records, rendering and rebuilds refuse"
+  spec: spec/13-backend-platform-contract.md
+  given: "the system engine (no site) with fx-system: a system store counts, a site store perSite"
+  when: "count twice, write perSite, render, rebuild"
+  then: "count 1 then 2 with ctx.site null; perSite, render and rebuild are refused with \"needs a site; this is the system engine\""
+  run:
+    system: true
+    plugins: [fx-system]
+    steps:
+      - call: { operation: fxSystemCount }
+        expect: { status: 200, body: { count: 1, site: null } }
+      - call: { operation: fxSystemCount }
+        expect: { body: { count: 2 } }
+      - call: { operation: fxSystemPerSite }
+        expect: { status: 500, log: { contains: ["needs a site; this is the system engine"] } }
+- id: plat-012
+  title: "fx-backend, the fixture backends load for their own integration tests, does the same in every engine"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-backend: page.before.save adds metadata.plugins.fx-backend.words, rebuild.after writes fx-backend.txt, notes keep personal data in a siteData store, insights.check provides word.count"
+  when: "save a page, rebuild, post and list notes, ask for the advertised contracts and run the check"
+  then: "the declared field is on the page, the managed file lists the listed pages, a visitor cannot post, the contract is advertised by result name"
+  run:
+    plugins: [fx-backend]
+    steps:
+      - save: { type: page, record: { id: p1, title: First, content: "<p>one two three</p>" } }
+        expect: { subject: { metadata: { plugins: { fx-backend: { words: 3 } } } } }
+      - rebuild: { reason: save }
+        expect: { status: 200 }
+      - managed: fx-backend.txt
+        expect: { body: "First\n" }
+      - call: { operation: fxBackendNote, params: { pageId: p1 }, body: { body: hi }, credentials: none }
+        expect: { status: 401 }
+      - call: { operation: fxBackendNote, params: { pageId: p1 }, body: { body: hi } }
+        expect: { status: 200, body: { pageId: p1, authorId: u1, body: hi } }
+      - call: { operation: fxBackendNotes, params: { pageId: p1 }, credentials: none }
+        expect: { status: 200, body: [{ id: n1, body: hi }] }
+      - call: { operation: fxBackendNote, params: { pageId: nope }, body: { body: hi } }
+        expect: { status: 404 }
+      - advertised: true
+        expect: { body: { insights.check: { provides: [word.count] } } }
+      - contract: { name: insights.check, op: check, input: { provides: [word.count] } }
+        expect: { body: [{ plugin: fx-backend, result: { results: { word.count: { status: ok, summary: { pages: 1 } } } } }] }
+- id: plat-013
+  title: "fx-well-known stays inactive until its required issuer is set, then answers its public operation"
+  spec: spec/05-routes-and-security.md
+  given: "fx-well-known, a public system GET marked x-hax-well-known: oauth-authorization-server, with a required issuer setting"
+  when: "load, set the issuer, call the operation with no credentials"
+  then: "inactive, then active, then the issuer"
+  run:
+    plugins: [fx-well-known]
+    expect: { status_of: { fx-well-known: inactive } }
+    steps:
+      - config: { plugin: fx-well-known, values: { issuer: "https://cms.example.edu" } }
+        expect: { status: 200 }
+      - call: { operation: fxWellKnownMetadata, credentials: none }
+        expect: { status: 200, body: { issuer: "https://cms.example.edu" } }

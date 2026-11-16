@@ -1,0 +1,3 @@
+stores:
+  - { id: counts, scope: system, file: counts.json }
+  - { id: perSite, scope: site, file: per-site.json }
