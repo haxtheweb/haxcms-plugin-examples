@@ -95,7 +95,7 @@ function resolveBare(spec, fromFile) {
       else for (const [pattern, target] of Object.entries(pkg.exports)) {
         if (!pattern.includes("*")) continue;
         const [pre, post] = pattern.split("*");
-        if (key.startsWith(pre) && key.endsWith(post) && key.length >= pre.length + post.length) { const t = pickExport(target); if (t) { rel = t.replace("*", key.slice(pre.length, key.length - post.length)); break; } }
+        if (key.startsWith(pre) && key.endsWith(post) && key.length >= pre.length + post.length) { const t = pickExport(target); if (t) { rel = t.split("*").join(key.slice(pre.length, key.length - post.length)); break; } }
       }
     } else if (!sub) rel = pickExport(pkg.exports) || pkg.module || pkg.main || "index.js";
     if (!rel && sub) rel = sub;
