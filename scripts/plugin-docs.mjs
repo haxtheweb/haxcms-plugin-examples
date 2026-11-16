@@ -27,7 +27,7 @@ const END = "<!-- implements:end -->";
 
 /** Every "Implements ..." docblock in a runtime's source: key -> first sentence of its description. */
 // the code right after a docblock must be the thing it documents, so a block left behind after a refactor fails
-const camelHook = (n) => n.split(".").map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("");
+const camelHook = (n) => n.split(/[.-]/).map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join("");
 function placedOn(key, next, handlers) {
   const [kind, rest] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
   if (kind === "hook") return next.includes(`"${rest}"`) || next.includes(`'${rest}'`) || new RegExp(`function\\s+${camelHook(rest)}\\s*\\(`).test(next);
@@ -83,7 +83,7 @@ export function implementations(dir, m) {
   return list;
 }
 
-const esc = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+const esc = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 const when = (i) => {
   if (i.kind === "hook") { const c = contracts[i.name]; return c ? `${c.when}${i.h.detached ? " (detached)" : ""}${i.h.stage ? ` (stage ${i.h.stage})` : ""}` : "a hook another plugin defines"; }
   if (i.kind === "operation" || i.kind === "proxy") { const sec = (i.op.security || []).map((r) => Object.keys(r).join(" + ") || "anonymous").join(" or ") || (i.op["x-hax-public"] ? "public" : ""); return `\`${i.verb} ${i.scope === "system" ? "/system/api" : "/x/api"}/v1/plugins/<id>${i.path}\`${sec ? ` (${sec})` : ""}`; }

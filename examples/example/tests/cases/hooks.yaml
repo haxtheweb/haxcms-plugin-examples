@@ -91,3 +91,14 @@
     settings: { greeting: Hi }
     call: { operation: exampleAppstoreBrowse, query: { q: boom } }
     expect: { status: 503, message: "not configured" }
+
+- id: example-008b
+  title: "the appstore broker answers 502, not a server error, when the upstream cannot be reached"
+  operation: exampleAppstoreBrowse
+  given: "an apiKey, and example.invalid unreachable (no fetch fake: the network is off)"
+  when: "GET /appstore/browse"
+  then: "502 with a message; found by the live check (harness/check/live-nodejs.cjs)"
+  run:
+    settings: { greeting: Hi, apiKey: test-key }
+    call: { operation: exampleAppstoreBrowse, query: { q: boom } }
+    expect: { status: 502, message: "could not be reached" }

@@ -4,7 +4,8 @@ uuid: f7638d1b-5982-5751-ba5d-ff1478f10214
 title: fx-dependent (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 dependencies: [fx-probe-a]

@@ -35,3 +35,37 @@ Load order is the reverse (lowest first), and a higher tier wins on a name colli
 - **Provenance.** The lock config records two independent flags per plugin: **tested** (the CLI ran the validator, `exec` scan and the plugin's tests) and **signed** (a valid signature from the release workflow or a supplier). Placing a plugin by hand (copying a folder over FTP, local development, then refreshing the plugins page to load it) is allowed and expected, but the plugin shows "not tested" and "not signed", with a note that this is not the ideal path, the CLI commands that would check it, and a link to the reference documentation. Enabling it needs an explicit confirmation that it is not from an official source and may carry risk, the way Windows asks before running an app downloaded directly from the web. Running `hax plugin verify <id>` (or updating through the CLI) clears "not tested" when the checks pass; "not signed" stays until the package is signed.
 - **Plugin health.** A plugin with discards, warnings, vetoes, timeouts or detached failures shows a chip on the plugin dashboard, where plugins are enabled and their settings managed. Core keeps the counts and last message itself, so chips work without the log plugin; the log plugin is optional and adds the full history. Site owners and system admins can see it for now; roles and permissions are to be teased out later. A hook that keeps failing keeps running and keeps logging; nothing is auto-disabled after enabling succeeded. The messages themselves go to the log plugin (spec/06).
 - **Per-site readiness.** A dependency is satisfied for a site only after the dependency's own per-site upgrade has run. A plugin that depends on a newly extracted core plugin cannot be enabled on an older site until that site's upgrade step has completed.
+
+## The plugin registry
+
+Core keeps track of every installed plugin in one place per scope, and every surface (dashboard, CLI, agents, the publish step) reads that instead of looking at folders.
+
+**What is stored.** `_config/plugins/plugins.yaml`, at `<HAXCMS_ROOT>` for the system and in each site for that site (`schema/plugin-registry.schema.json`):
+
+```yaml
+version: 1
+enabled: [announcements, quick-poll]   # ids enabled in this scope; required and locked plugins are on without being listed
+locked: []                             # deployment config: enabled, and cannot be turned off here or in any site
+blocked: [mcp]                         # deployment config: cannot be enabled anywhere in this deployment
+plugins:                               # what core recorded when each was enabled
+  quick-poll: { version: 26.11.1, enabledAt: "2026-11-16T21:00:00Z", by: btopro }
+```
+
+A site's file lists what that site turned on in addition to the system's list. A plugin is enabled for a site when the system list or that site's list names it, unless the deployment blocked it.
+
+**What is served.** `GET /system/api/v1/plugins` (both credentials) and `GET /x/api/v1/plugins` (site credentials, for that site) return one entry per installed plugin:
+
+| Field | Meaning |
+|---|---|
+| `id`, `title`, `version`, `tier`, `kind` | identity and where the copy in use comes from |
+| `status`, `reason` | `available`, `active`, `inactive`, `disabled`, `failed` or `refused`, with why |
+| `enabled`, `required` | whether it is on in this scope, and whether it can be turned off |
+| `unmet` | requirements that keep it inactive: settings to fill in, and what this backend's target cannot give it (spec/14) |
+| `limited` | what it cannot do on this backend's target while still running (spec/14) |
+| `needs`, `targets`, `staticCapable` | what it needs from a backend, how it fits each target (`full`, `limited`, `no`), and whether it works on a static copy |
+| `dependencies`, `dependents` | both directions, so a screen can say why something cannot be turned off |
+| `sites` | system scope only: the sites that enabled it themselves |
+
+**What changes it.** `POST /system/api/v1/plugins/<id>/enable` and `.../disable` (both credentials) for the system; `POST /x/api/v1/plugins/<id>/enable` and `.../disable` (site credentials) for one site. Each runs the lifecycle in spec/13 section 2 (install hooks on the first enable in a scope, `plugin.before.enable`, requirements), writes the registry file only when that succeeded, and answers with the plugin's registry entry. The refusals are the ones above: 409 with `dependencies` to enable first, 409 with `dependents`, 409 for a required, locked or blocked plugin, 404 for one that is not installed. The CLI's `hax plugin enable|disable|list|status` are these calls made in process.
+
+**Nothing loads until it is enabled.** A plugin that is installed and not enabled is `available`: its manifest was read and validated, none of its code was loaded, it has no routes, hooks or registry entries, and it appears only in the registry.

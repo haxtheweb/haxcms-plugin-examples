@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/entities.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/entities.schema.json",
   "title": "Plugin entities (config/entities.yaml) - DRAFT",
   "description": "Extends or adds entities and annotates existing ones. Extensions never break the parent (spec/04).",
   "type": "object",

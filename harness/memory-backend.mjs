@@ -12,8 +12,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync, spawn } from "node:child_process";
 import { inflateRawSync } from "node:zlib";
 import { parse } from "yaml";
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import { validateManifest } from "../scripts/manifest-schema.mjs";
+import { backendNeeds, targetFit, targetSummary, TARGETS } from "../scripts/backend-needs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -22,8 +22,17 @@ const CORE_CONTRACTS = parse(readFileSync(join(root, "schema/core-contracts.yaml
 // core's shared HTML-to-pages step (haxcms-nodejs importHtmlToItems): site splits at the highest heading level and its
 // next level; branch at the highest level only; page keeps one page. Text before the first heading becomes a page
 // titled after the file, so nothing is lost.
-const slugify = (t) => String(t).toLowerCase().replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "page";
-const textOf = (h) => String(h).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+// Plain text from markup for titles and slugs (never rendered as HTML): strip tags until nothing changes, then drop
+// any stray "<" so no fragment of a tag survives.
+const stripTags = (h) => { let s = String(h), prev; do { prev = s; s = s.replace(/<[^>]*>/g, ""); } while (s !== prev); return s.replace(/</g, ""); };
+const slugify = (t) => stripTags(String(t).toLowerCase()).replace(/&[a-z#0-9]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "page";
+const textOf = (h) => stripTags(h).replace(/\s+/g, " ").trim();
+// request headers as a plain object with lower-case names, whether given as an object, a Map/Headers or pairs
+const headerMap = (h) => {
+  if (!h) return {};
+  const pairs = typeof h.entries === "function" && !Array.isArray(h) ? [...h.entries()] : Array.isArray(h) ? h : Object.entries(h);
+  return Object.fromEntries(pairs.map(([k, v]) => [String(k).toLowerCase(), String(v)]));
+};
 export function outlineFromHtml(html, { method = "site", parentId = null, titleValue = "import" } = {}) {
   const items = [];
   const add = (title, content, parent, slug, indent = 0) => { const it = { id: `item-${items.length + 1}`, title, slug, parent, order: items.filter((x) => x.parent === parent).length, indent, content: content.trim() || "<p></p>" }; items.push(it); return it; };
@@ -81,19 +90,21 @@ export function readZip(b64, { match = ".*", maxEntries = 5000, maxBytes = 100 *
 }
 // implements entries are a name or { name, accepts }
 const implEntry = (m, name) => (m.implements || []).map((e) => (typeof e === "string" ? { name: e } : e)).find((e) => e.name === name) || null;
-const contractMethod = (name, op) => name.split(".").map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join("") + op[0].toUpperCase() + op.slice(1);
+const contractMethod = (name, op) => camelHook(name) + op[0].toUpperCase() + op.slice(1);
 const CORE_HOOKS = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8"));
 const SPEC_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 const USER_TOKEN_REQUIRED = "X-HAXCMS-User-Token header is required for this endpoint";
 const TIERS = { "haxiam-core": 1, "haxiam-contrib": 2, "system-core": 3, "system-contrib": 4, site: 5 };
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-addFormats(ajv);
-const validateManifest = ajv.compile(JSON.parse(readFileSync(join(root, "schema/plugin.schema.json"), "utf8")));
 
 const studly = (id) => id.split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("") + "Plugin";
-const camelHook = (name) => name.split(".").map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join("");
+// PHP method names (spec/13): camel case across both "." and "-", so a hook a dashed plugin defines
+// (fx-definer.after.ping) still names a valid method (fxDefinerAfterPing)
+function camelHook(name) { return name.split(/[.-]/).map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join(""); }
 const getPath = (obj, path) => path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
 const cmpVersion = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0) ? -1 : 1; } return 0; };
+// what both backends write into a new site's site.json besides its id and title (their boilerplate/site/site.json).
+// The reference site starts the same way, so a plugin that reads the license sees what it would on a real new site.
+const NEW_SITE = { author: "", description: "", license: "by-sa" };
 const LIMITED_USER = ["id", "name", "displayName", "roles", "avatar"];
 async function withTimeout(promise, ms, label) {
   let timer;
@@ -101,11 +112,30 @@ async function withTimeout(promise, ms, label) {
   finally { clearTimeout(timer); }
 }
 
+// store scopes that live with one site; the system engine (site: null) has none of them
+const SITE_SCOPES = ["site", "siteData", "manifest"];
+
+// What a backend answers when the registry (spec/03) refuses an enable or disable before the engine is asked. They
+// live here, with the engine's own answers ("not installed", "required plugins cannot be disabled"), so every backend
+// says the same thing and the message catalog has one place to cover.
+export const REGISTRY_REFUSALS = Object.freeze({
+  notInstalled: "not installed",
+  blocked: "blocked by deployment config",
+  locked: "locked by deployment config",
+  systemEnabled: "enabled for the whole system; a site cannot turn it off",
+});
+
 export class MemoryBackend {
-  constructor({ haxcmsVersion = "26.10.1", runtime = "nodejs", site = { id: "00000000-0000-4000-8000-000000000001", name: "test-site", path: "/sites/test-site" }, user = { id: "u1", name: "admin", displayName: "Admin", roles: ["admin"], avatar: null, email: "admin@example.invalid", passwordHash: "never-exposed" }, hookTimeout = 5000 } = {}) {
-    this.haxcms = { version: haxcmsVersion, runtime };
+  constructor({ haxcmsVersion = "26.10.1", runtime = "nodejs", site = { id: "00000000-0000-4000-8000-000000000001", name: "test-site", path: "/sites/test-site" }, user = { id: "u1", name: "admin", displayName: "Admin", roles: ["admin"], avatar: null, email: "admin@example.invalid", passwordHash: "never-exposed" }, hookTimeout = 5000, target = "server" } = {}) {
+    // where this backend runs (spec/14): a hosted server, the desktop app or the browser. It decides which plugins can
+    // be active here and which run with a caveat
+    if (!TARGETS.targets[target]) throw new Error(`unknown target "${target}"; known: ${Object.keys(TARGETS.targets).join(", ")}`);
+    this.target = target;
+    this.haxcms = { version: haxcmsVersion, runtime, target };
+    // site: null is the system engine (spec/13 section 9): HAXcms-wide work with no site, for system-scope operations
+    // and dashboard contributions; anything that needs a site refuses with requireSite()
     // a real, empty folder stands in for the site directory, so plugins that run commands there (git) can be tested
-    if (!site.path || site.path === "/sites/test-site") site = { ...site, path: mkdtempSync(join(tmpdir(), "hax-site-")) };
+    if (site && (!site.path || site.path === "/sites/test-site")) site = { ...site, path: mkdtempSync(join(tmpdir(), "hax-site-")) };
     this.runtime = runtime;
     this.site = site;
     // fixed clock for byte-identical output across runtimes (ctx.now); a case may set run.now
@@ -124,17 +154,26 @@ export class MemoryBackend {
     this.fetchCalls = [];
     this.fetchFakes = {};
     this.execFakes = {};
-    this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } }, page: {}, file: {} };
+    this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: site ? { [site.id]: { id: site.id, title: site.name, ...NEW_SITE, metadata: { plugins: {} }, items: [] } } : {}, page: {}, file: {} };
+  }
+
+  // the system engine has no site: site records, site stores, site files, rendering and rebuilds refuse there
+  requireSite(what) {
+    if (!this.site) throw new Error(`${what}: needs a site; this is the system engine`);
   }
 
   seed(records = {}) {
-    if (records.site) this.records.site[this.site.id] = { id: this.site.id, metadata: { plugins: {} }, items: [], ...structuredClone(records.site) };
+    if (records.site) this.requireSite("site records");
+    if (records.site) this.records.site[this.site.id] = { id: this.site.id, ...NEW_SITE, metadata: { plugins: {} }, items: [], ...structuredClone(records.site) };
     for (const type of Object.keys(records)) if (type !== "site") for (const r of records[type]) { this.records[type] = this.records[type] || {}; this.records[type][r.id || r.uuid] = structuredClone(r); }
   }
 
   // ---- loading (spec/13 section 2) ----
   // dirs: paths, or { path, tier } objects. options: settings, stores (by plugin id), disabled, blocked, required.
-  async load(dirs, { settings = {}, stores = {}, disabled = [], blocked = [], required = [], records } = {}) {
+  // `enabled`, when given, is the deployment's list of enabled plugin ids (the system registry, spec/03): a plugin that
+  // is not on it, not required and not locked is `available` (installed, off) and none of its code is loaded. Left out,
+  // every plugin found is enabled, which is what test cases over a handful of fixtures want.
+  async load(dirs, { settings = {}, stores = {}, enabled, disabled = [], blocked = [], required = [], records } = {}) {
     if (records) this.seed(records);
     const found = [];
     for (const d of dirs) {
@@ -142,7 +181,7 @@ export class MemoryBackend {
       const dir = resolve(spec.path);
       let m;
       try { m = readAny(join(dir, "plugin.yaml")); } catch (e) { this.log.push({ level: "error", plugin: spec.path, message: `cannot read plugin.yaml: ${e.message}` }); continue; }
-      found.push({ id: m && m.id, dir, manifest: m || {}, tier: spec.tier || "system-core", ops: {}, stores: {}, hookDefs: {}, entities: {}, settings: {}, explicit: new Set(), form: [], entry: null, status: "enabled", reason: null, unmet: [] });
+      found.push({ id: m && m.id, dir, manifest: m || {}, tier: spec.tier || "system-core", ops: {}, stores: {}, hookDefs: {}, entities: {}, settings: {}, explicit: new Set(), form: [], entry: null, status: "enabled", reason: null, unmet: [], needs: [], limited: [], targetUnmet: [] });
     }
     // higher tier wins a name collision
     found.sort((a, b) => TIERS[a.tier] - TIERS[b.tier]);
@@ -156,11 +195,20 @@ export class MemoryBackend {
       const refuse = (reason) => { p.status = "refused"; p.reason = reason; this.log.push({ level: "error", plugin: p.id, message: reason }); };
       if (!validateManifest(m)) { refuse(`invalid manifest: ${validateManifest.errors.map((e) => `${e.instancePath || "/"} ${e.message}${e.params && e.params.additionalProperty ? ` (${e.params.additionalProperty})` : ""}`).join("; ")}`); }
       else if (cmpVersion(m.specVersion, SPEC_VERSION) > 0) refuse(`specVersion ${m.specVersion} is newer than this backend supports (${SPEC_VERSION})`);
+      // code for another runtime only: refused here with the reason, rather than active with every operation
+      // answering 501 and every hook silently skipped (spec/13 section 2)
+      else if (m.kind !== "pack" && Array.isArray(m.runtimes) && !m.runtimes.includes(this.runtime)) refuse(`no ${this.runtime} implementation: this plugin ships ${m.runtimes.join(", ")} only`);
       else if (blocked.includes(p.id)) refuse("blocked by deployment config");
       else if (disabled.includes(p.id) && !m.required && !required.includes(p.id)) { p.status = "disabled"; p.reason = "disabled"; }
+      else if (Array.isArray(enabled) && !enabled.includes(p.id) && !m.required && !required.includes(p.id)) { p.status = "available"; p.reason = "not enabled"; }
       if (p.status === "refused") { this.plugins.push(p); continue; }
-      if (m.openapi) {
-        const api = readAny(join(p.dir, m.openapi));
+      const api = m.openapi ? readAny(join(p.dir, m.openapi)) : null;
+      // what it needs from a backend, and how this backend's target fits (spec/14)
+      p.needs = backendNeeds(m, api);
+      const fit = targetFit(m, p.needs, this.target);
+      p.targetUnmet = fit.unmet;
+      p.limited = fit.limited;
+      if (api) {
         for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
           if (!op || !op.operationId) continue;
           p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, atomic: (op["x-hax-transaction"] || api["x-hax-transaction"]) === "atomic", security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null };
@@ -175,10 +223,8 @@ export class MemoryBackend {
       p.explicit = new Set(Object.keys(settings[p.id] || {}));
       p.form = m.settings && existsSync(join(p.dir, m.settings)) ? readAny(join(p.dir, m.settings)).configure || [] : [];
       p.storeOverrides = { ...(stores[p.id] || {}) };
-      if (m.kind !== "pack" && this.runtime === "nodejs" && m.entry && m.entry.nodejs) {
-        try { const mod = await import(pathToFileURL(join(p.dir, m.entry.nodejs)).href); p.entry = mod.default || mod; }
-        catch (e) { p.status = "failed"; p.reason = `entry failed to load: ${e.message}`; this.log.push({ level: "error", plugin: p.id, message: p.reason }); }
-      }
+      // code of a plugin that is not enabled is never loaded; enable() loads it then
+      if (p.status !== "available") await this.loadEntry(p);
       this.plugins.push(p);
     }
     // dependencies: a missing or unusable dependency keeps the plugin disabled
@@ -202,13 +248,50 @@ export class MemoryBackend {
   }
 
   get(id) { return this.plugins.find((x) => x.id === id); }
+  async loadEntry(p) {
+    const m = p.manifest;
+    if (p.entry || m.kind === "pack" || this.runtime !== "nodejs" || !m.entry || !m.entry.nodejs) return;
+    try { const mod = await import(pathToFileURL(join(p.dir, m.entry.nodejs)).href); p.entry = mod.default || mod; }
+    catch (e) { p.status = "failed"; p.reason = `entry failed to load: ${e.message}`; this.log.push({ level: "error", plugin: p.id, message: p.reason }); }
+  }
+  // One engine serves every request for its site, so who is asking cannot live on the engine: two requests in flight
+  // would see each other's user. A backend calls forUser(user) per request and works through what it returns. The
+  // view shares all engine state and has its own user, transaction and re-entry guard.
+  forUser(user) {
+    const root = this;
+    const view = Object.create(this);
+    Object.defineProperty(view, "user", { value: user, writable: true, enumerable: true });
+    for (const k of ["now", "lastRuns", "fragments", "flushed", "collectingPrompts"]) {
+      Object.defineProperty(view, k, { get: () => root[k], set: (v) => { root[k] = v; }, enumerable: true });
+    }
+    view.currentTx = null;
+    view.running = null;
+    return view;
+  }
+  // The plugin registry (spec/03): one entry per installed plugin with what the system needs to keep track of it.
+  // Backends serve it at GET .../plugins and keep the enabled list it reflects in _config/plugins/plugins.yaml.
+  registry() {
+    return this.plugins.map((p) => {
+      const m = p.manifest || {};
+      const on = p.status === "active" || p.status === "inactive";
+      return {
+        id: p.id, title: m.title || p.id, version: m.version || null, tier: p.tier, kind: m.kind || "plugin",
+        status: p.status, reason: p.reason, enabled: on, required: m.required === true,
+        unmet: p.unmet || [], limited: on ? p.limited || [] : [],
+        needs: p.needs || [], targets: p.status === "refused" ? {} : targetSummary(m, p.needs || []),
+        staticCapable: m.staticCapable === undefined ? !(p.needs || []).includes("backend") : m.staticCapable === true,
+        dependencies: (m.dependencies || []).map((d) => d.split("@")[0]),
+        dependents: this.plugins.filter((x) => (x.status === "active" || x.status === "inactive") && (x.manifest.dependencies || []).some((d) => d.split("@")[0] === p.id)).map((x) => x.id),
+      };
+    });
+  }
   // scheduled jobs (spec/13): the CLI or a timer plugin runs them; schedule.before.run may skip one
   async runSchedule(pluginId, jobId) {
     const p = this.get(pluginId);
     const job = p && (p.manifest.schedules || []).find((j) => j.id === jobId);
     if (!job) return { status: 404, body: { error: `no schedule ${jobId} in ${pluginId}` } };
     if (p.status !== "active") return { status: 409, body: { error: `${pluginId} is ${p.status}` } };
-    const subject = { job: jobId, plugin: pluginId, scope: job.scope || "site", siteId: this.site.id, lastRun: (this.lastRuns || {})[`${pluginId}:${jobId}`] ?? null };
+    const subject = { job: jobId, plugin: pluginId, scope: job.scope || "site", siteId: this.site ? this.site.id : null, lastRun: (this.lastRuns || {})[`${pluginId}:${jobId}`] ?? null };
     const before = await this.fire("schedule.before.run", subject);
     if (before.veto) return { status: 200, body: { ran: false, skipped: before.veto.message } };
     const started = this.now;
@@ -219,7 +302,7 @@ export class MemoryBackend {
       value = r.value;
     } catch (e) { ok = false; error = e.message; this.log.push({ level: "error", plugin: pluginId, message: `schedule ${jobId}: ${e.message}` }); }
     this.lastRuns = { ...(this.lastRuns || {}), [`${pluginId}:${jobId}`]: this.now };
-    await this.fire("schedule.after.run", { job: jobId, plugin: pluginId, scope: subject.scope, siteId: this.site.id, ok, durationMs: this.now - started, ...(error ? { error } : {}) });
+    await this.fire("schedule.after.run", { job: jobId, plugin: pluginId, scope: subject.scope, siteId: this.site ? this.site.id : null, ok, durationMs: this.now - started, ...(error ? { error } : {}) });
     return { status: ok ? 200 : 500, body: { ran: true, ok, ...(value != null ? { result: value } : {}), ...(error ? { error } : {}) } };
   }
   // metadata.plugins.<id> on core records (spec/04): only fields that plugin declared (entities.yaml metadata), with
@@ -306,6 +389,7 @@ export class MemoryBackend {
     return Object.values(this.records[type] || {}).filter((r) => (listed === undefined || (type === "page" && this.isListed(r) === listed)) && Object.entries(rest).every(([k, v]) => r[k] === v));
   }
   siteInfo() {
+    if (!this.site) return null;
     const rec = (this.records.site || {})[this.site.id] || {};
     const domain = rec.metadata && rec.metadata.site && rec.metadata.site.domain;
     const url = String(domain || `https://haxcms.example.invalid/sites/${this.site.name}/`).replace(/\/?$/, "/");
@@ -322,6 +406,7 @@ export class MemoryBackend {
     return { type: "site", id: this.site.id, keys: path.split(".") };
   }
   legacyValue(path) {
+    if (!this.site && !path.startsWith("config:")) return undefined;
     const { type, id, keys } = this.legacyLocation(path);
     return keys.reduce((o, k) => (o == null ? undefined : o[k]), (this.records[type] || {})[id]);
   }
@@ -367,8 +452,8 @@ export class MemoryBackend {
       this.log.push({ level: "info", plugin: p.id, message: `moved ${Object.keys(moved).join(", ")} from the core location into plugin settings` });
     }
   }
-  // ctx.fetch in the harness: egress is checked, the call recorded, and the answer comes from the case's `fetch`
-  // fakes by host; without a fake the network is simply off
+  // ctx.fetch: egress is checked on every hop, the call recorded, and fetchOnce answers each hop (the case's
+  // `fetch` fakes here; a host's network); without a fake the network is simply off
   async fetchFor(p, url, init = {}) {
     // redirects are followed (up to 5), and every hop is checked again: egress list, then the SSRF guard (spec/13)
     let current = String(url);
@@ -377,24 +462,53 @@ export class MemoryBackend {
       const hosts = this.egressHosts(p);
       if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.|\[?::1\]?$)/.test(host) || /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host.endsWith(".internal") || host.endsWith(".local")) throw new Error(`fetch to ${host} not allowed (private address)`);
       if (!(p.manifest.capabilities || []).includes("network:egress") || !(hosts.includes("*") || hosts.includes(host))) throw new Error(`fetch to ${host} not allowed${hop ? " (redirected)" : ""}`);
-      this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url: current });
-      // fakes match the exact URL first, then the URL without its query, then the host
-      const fakes = this.fetchFakes || {};
-      const fake = fakes[current] || fakes[current.split("?")[0]] || fakes[host];
-      if (!fake) throw new Error("network is disabled in the harness");
-      const status = fake.status ?? 200;
-      const headers = Object.fromEntries(Object.entries(fake.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
-      if ([301, 302, 303, 307, 308].includes(status) && headers.location) { current = new URL(headers.location, current).toString(); continue; }
-      const body = typeof fake.body === "string" ? fake.body : JSON.stringify(fake.body ?? null);
-      return { status, ok: status < 400, url: current, headers: new Map(Object.entries(headers)), text: async () => body, json: async () => JSON.parse(body) };
+      this.secretGuard(p, host, current, init, hop);
+      // header names are recorded so cases can see where a key travelled; values never are
+      this.fetchCalls.push({ plugin: p.id, method: (init.method || "GET").toUpperCase(), url: current, headers: Object.keys(headerMap(init.headers)).sort() });
+      const res = await this.fetchOnce(p, current, init, host);
+      const location = res.headers && res.headers.get ? res.headers.get("location") : null;
+      if ([301, 302, 303, 307, 308].includes(res.status) && location) { current = new URL(location, current).toString(); continue; }
+      res.url = current;
+      return res;
     }
     throw new Error("too many redirects");
   }
 
+  // one hop, no redirect followed (fetchFor checks the next hop itself). Here the answer comes from the case's fakes,
+  // matched by exact URL, then the URL without its query, then the host; a host overrides this to go to the network.
+  async fetchOnce(p, url, init, host) {
+    const fakes = this.fetchFakes || {};
+    const fake = fakes[url] || fakes[url.split("?")[0]] || fakes[host];
+    if (!fake) throw new Error("network is disabled in the harness");
+    const status = fake.status ?? 200;
+    const headers = Object.fromEntries(Object.entries(fake.headers || {}).map(([k, v]) => [k.toLowerCase(), v]));
+    const body = typeof fake.body === "string" ? fake.body : JSON.stringify(fake.body ?? null);
+    return { status, ok: status < 400, url, headers: new Map(Object.entries(headers)), text: async () => body, json: async () => JSON.parse(body) };
+  }
+
   // egress: fixed hosts, plus hosts of the URLs in any setting named by { setting } (spec/08)
   egressHosts(p) {
+    return this.hostsFrom(p, p.manifest.egress || []);
+  }
+  // hosts named by a list of egress-shaped entries (egress itself, or a secret field's x-secret-egress)
+  hostsFrom(p, entries) {
     const eff = this.effectiveSettings(p);
-    return (p.manifest.egress || []).flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : e.input ? (p.inputHost ? [p.inputHost] : []) : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
+    return entries.flatMap((e) => (typeof e === "string" ? [e] : e.any ? ["*"] : e.input ? (p.inputHost ? [p.inputHost] : []) : String(eff[e.setting] || "").split("\n").map((u) => { try { return new URL(u.trim()).hostname; } catch { return null; } }).filter(Boolean)));
+  }
+  // x-secret-egress (spec/07): a secret setting's value may only travel (URL, header or body; plain, URL-encoded or
+  // base64) to the hosts its field names. A secret field without x-secret-egress may go to any egress host.
+  secretGuard(p, host, url, init, hop) {
+    const eff = this.effectiveSettings(p);
+    const carriers = [String(url), ...Object.values(headerMap(init.headers)).map(String), typeof init.body === "string" ? init.body : ""];
+    for (const f of p.form) {
+      if (!f["x-secret"] || !Array.isArray(f["x-secret-egress"])) continue;
+      const v = eff[f.property];
+      if (typeof v !== "string" || v.length < 4) continue;
+      const forms = [v, encodeURIComponent(v), Buffer.from(v).toString("base64")];
+      if (!carriers.some((c) => forms.some((x) => c.includes(x)))) continue;
+      const allowed = this.hostsFrom(p, f["x-secret-egress"]);
+      if (!(allowed.includes("*") || allowed.includes(host))) throw new Error(`secret setting "${f.property}" may not be sent to ${host}${hop ? " (redirected)" : ""}`);
+    }
   }
   // x-hax-proxy (spec/05): a GET operation answered by core from the declaration, with no plugin code. Templates may
   // read settings ({{settings.apiKey}}) and only the listed query parameters pass through from the caller.
@@ -421,6 +535,11 @@ export class MemoryBackend {
     if (!Array.isArray(args) || args.some((a) => typeof a !== "string")) throw new Error("exec args must be a list of strings (no shell)");
     const call = { plugin: p.id, cmd, args: args.map((a) => a.replace(/\{tmp\}/g, "<tmp>")), files: Object.keys(opts.files || {}).sort() };
     this.execCalls.push(call);
+    return this.execOnce(p, cmd, args, opts);
+  }
+  // runs one checked command. Here the answer comes from the case's exec fakes; a host overrides this to run the
+  // command for real (no shell, a private {tmp} folder for files, a timeout).
+  async execOnce(p, cmd, args, opts = {}) {
     const fake = (this.execFakes || {})[cmd];
     if (!fake) throw new Error(`exec "${cmd}" has no fake in this case (run.exec)`);
     return { code: fake.code ?? 0, stdout: fake.stdout ?? "", stderr: fake.stderr ?? "" };
@@ -431,14 +550,15 @@ export class MemoryBackend {
     if (!pr.consentSetting || p.settings[pr.consentSetting] === true) return pr;
     return { ...pr, requiresConsent: [] };
   }
-  status() { return this.plugins.map((p) => ({ id: p.id, status: p.status, reason: p.reason, unmet: p.unmet })); }
+  status() { return this.plugins.map((p) => ({ id: p.id, status: p.status, reason: p.reason, unmet: p.unmet, limited: p.status === "active" ? p.limited || [] : [] })); }
   active(id) { const p = this.get(id); return !!p && p.status === "active"; }
   hookContract(name) { return CORE_HOOKS.find((c) => c.name === name) || this.plugins.map((p) => p.hookDefs[name]).find(Boolean); }
 
   // a required settings field without a value is an unmet requirement on its own (spec/03); hooks add the rest
   requiredUnmet(p) {
     const eff = this.effectiveSettings(p);
-    return p.form.filter((f) => f.required && (eff[f.property] === undefined || eff[f.property] === null || eff[f.property] === "")).map((f) => ({ key: `settings.${f.property}`, message: `Set ${f.title || f.property}` }));
+    // what this backend's target cannot give the plugin comes first (spec/14): no setting fixes that
+    return [...(p.targetUnmet || []), ...p.form.filter((f) => f.required && (eff[f.property] === undefined || eff[f.property] === null || eff[f.property] === "")).map((f) => ({ key: `settings.${f.property}`, message: `Set ${f.title || f.property}` }))];
   }
   async refreshStatus(p) {
     const before = await this.fire("plugin.before.requirements", this.requiredUnmet(p), { only: p.id, includeInactive: true });
@@ -455,6 +575,12 @@ export class MemoryBackend {
     if (p.status === "refused") return { status: 409, body: { error: p.reason } };
     const subject = { id, version: p.manifest.version, scope: "system" };
     const wasStatus = p.status;
+    await this.loadEntry(p);
+    if (p.status === "failed" && !p.entry && p.reason && p.reason.startsWith("entry failed")) return { status: 409, body: { error: p.reason, status: "failed", previous: wasStatus } };
+    // a dependency that is off keeps it off; the caller enables the dependency first (after confirmation, spec/03)
+    const missing = (p.manifest.dependencies || []).map((d) => d.split("@")[0]).filter((d) => { const x = this.get(d); return !x || !(x.status === "active" || x.status === "inactive"); });
+    if (missing.length) return { status: 409, body: { error: "enable its dependencies first", dependencies: missing } };
+    p.reason = null;
     p.status = "active"; // hooks of the plugin itself run during its own enable
     try {
       const first = !this.installed.has(`${id}:system`);
@@ -509,6 +635,7 @@ export class MemoryBackend {
   storeKey(p, id) {
     const s = p.stores[id];
     if (!s) throw new Error(`${p.id}: unknown store "${id}"`);
+    if (SITE_SCOPES.includes(s.scope)) this.requireSite(`${p.id}: store "${id}" (${s.scope} scope)`);
     return `${p.id}:${s.scope}:${["site", "siteData", "manifest"].includes(s.scope) ? this.site.id : "-"}:${id}`;
   }
   readStore(p, id) {
@@ -516,14 +643,14 @@ export class MemoryBackend {
     if (!s) throw new Error(`${p.id}: unknown store "${id}"`);
     if (p.storeOverrides && id in p.storeOverrides) return structuredClone(p.storeOverrides[id]);
     if (s.scope === "package") return readAny(join(p.dir, "data", s.file));
-    if (s.scope === "manifest") { const v = getPath(this.records.site[this.site.id], `metadata.plugins.${p.id}.${id}`); return v === undefined ? null : structuredClone(v); }
+    if (s.scope === "manifest") { this.requireSite(`${p.id}: store "${id}" (manifest scope)`); const v = getPath(this.records.site[this.site.id], `metadata.plugins.${p.id}.${id}`); return v === undefined ? null : structuredClone(v); }
     const v = this.memory.get(this.storeKey(p, id));
     return v === undefined ? null : structuredClone(v);
   }
   writeStore(p, id, value) {
     if (p.stores[id] && p.stores[id].scope === "package") throw new Error(`${p.id}: store "${id}" is read-only (package scope)`);
     if (p.storeOverrides) delete p.storeOverrides[id];
-    if (p.stores[id] && p.stores[id].scope === "manifest") { this.bump("site", this.site.id); const site = this.records.site[this.site.id]; site.metadata = site.metadata || {}; site.metadata.plugins = site.metadata.plugins || {}; site.metadata.plugins[p.id] = { ...(site.metadata.plugins[p.id] || {}), [id]: structuredClone(value) }; return; }
+    if (p.stores[id] && p.stores[id].scope === "manifest") { this.requireSite(`${p.id}: store "${id}" (manifest scope)`); this.bump("site", this.site.id); const site = this.records.site[this.site.id]; site.metadata = site.metadata || {}; site.metadata.plugins = site.metadata.plugins || {}; site.metadata.plugins[p.id] = { ...(site.metadata.plugins[p.id] || {}), [id]: structuredClone(value) }; return; }
     this.memory.set(this.storeKey(p, id), structuredClone(value));
   }
 
@@ -600,6 +727,7 @@ export class MemoryBackend {
       entities: {
         get: async (type, id) => {
           backend.requireCap(p, type, "read");
+          if (["site", "page", "file"].includes(type)) backend.requireSite(`${type} records`);
           const key = type === "site" ? id || backend.site.id : id;
           const r = (backend.records[type] || {})[key];
           readRevs.set(`${type}:${key}`, backend.rev(type, key));
@@ -607,10 +735,11 @@ export class MemoryBackend {
         },
         // query `listed: true` on pages: what an anonymous visitor can open (published, not hidden from the menu, not a
         // fragment such as region content); feeds, sitemaps, search and llms.txt all use the same rule (spec/13)
-        list: async (type, query = {}) => { backend.requireCap(p, type, "read"); return backend.listRecords(type, query).map((r) => structuredClone(r)); },
-        delete: async (type, id) => { backend.requireCap(p, type, "write"); return backend.deleteEntity(type, id); },
+        list: async (type, query = {}) => { backend.requireCap(p, type, "read"); if (["site", "page", "file"].includes(type)) backend.requireSite(`${type} records`); return backend.listRecords(type, query).map((r) => structuredClone(r)); },
+        delete: async (type, id) => { backend.requireCap(p, type, "write"); if (["site", "page", "file"].includes(type)) backend.requireSite(`${type} records`); return backend.deleteEntity(type, id); },
         save: async (type, record) => {
           backend.requireCap(p, type, "write");
+          if (["site", "page", "file"].includes(type)) backend.requireSite(`${type} records`);
           const key = type === "site" ? record.id || backend.site.id : record.id || record.uuid;
           const seen = readRevs.get(`${type}:${key}`);
           // a copy read before someone else changed the record is refused rather than silently overwriting their change
@@ -667,6 +796,7 @@ export class MemoryBackend {
   sitePath(p, path) {
     const clean = String(path).replace(/^\/+/, "");
     if (!/^files\/[A-Za-z0-9._\/-]+$/.test(clean) || clean.includes("..")) throw new Error(`${p.id}: site files live under files/ (${path})`);
+    this.requireSite(`${p.id}: site files`);
     return join(this.site.path, clean);
   }
   putSiteFile(p, path, data) {
@@ -726,6 +856,7 @@ export class MemoryBackend {
 
   // ---- rebuild (spec/07 managed files): plugins mark fragment pages, then write their own files ----
   async rebuild(reason = "save") {
+    this.requireSite("rebuild");
     const before = await this.fire("rebuild.before", { scope: "site", siteId: this.site.id, reason, fragments: [] });
     if (before.veto) return { status: before.veto.status || 409, body: { error: before.veto.message } };
     const fragments = [...new Set(before.subject.fragments || [])];
@@ -755,6 +886,7 @@ export class MemoryBackend {
   }
   // pages and site.json are files in a HAXcms site; writing them lets plugins that work with files (git) see real changes
   writeToDisk(type, record) {
+    if (!this.site) return;
     try {
       if (type === "page") { const d = join(this.site.path, "pages", String(record.id)); mkdirSync(d, { recursive: true }); writeFileSync(join(d, "index.html"), String(record.content ?? record.title ?? "")); }
       if (type === "site") writeFileSync(join(this.site.path, "site.json"), JSON.stringify(record, null, 2));
@@ -763,6 +895,7 @@ export class MemoryBackend {
   bump(type, id) { const k = `${type}:${id}`; this.revs.set(k, (this.revs.get(k) || 0) + 1); }
   rev(type, id) { return this.revs.get(`${type}:${id}`) || 0; }
   async saveEntity(type, record) {
+    if (["site", "page", "file"].includes(type)) this.requireSite(`${type} records`);
     const id = type === "site" ? record.id || this.site.id : record.id || record.uuid;
     const store = (this.records[type] = this.records[type] || {});
     const previous = store[id] ? structuredClone(store[id]) : undefined;
@@ -772,7 +905,7 @@ export class MemoryBackend {
     const metaWarnings = this.checkPluginMetadata(type, before.subject);
     store[id] = structuredClone(before.subject);
     this.bump(type, id);
-    this.writeToDisk(type, store[id]);
+    await this.writeToDisk(type, store[id]); // a host may write asynchronously
     const after = await this.fire(`entity.after.${op}`, structuredClone(store[id]), { entity: type, previous });
     // before-hook warnings travel back to whoever saved (the editor shows them; spec/06)
     return { record: after.subject, warnings: [...(before.warnings || []), ...metaWarnings] };
@@ -793,7 +926,7 @@ export class MemoryBackend {
   // ---- personal data (spec/04): core exports and erases personalData stores by user id ----
   personalStores() {
     const out = [];
-    for (const p of this.plugins) for (const s of Object.values(p.stores)) if (s.personalData && s.scope !== "package") out.push({ p, s, key: s.userKey || "userId" });
+    for (const p of this.plugins) for (const s of Object.values(p.stores)) if (s.personalData && s.scope !== "package" && (this.site || !SITE_SCOPES.includes(s.scope))) out.push({ p, s, key: s.userKey || "userId" });
     return out;
   }
   // export and erase are core operations with before/after hooks (spec/04); plugins that keep personal data outside
@@ -912,12 +1045,14 @@ export class MemoryBackend {
       return { value: await fn(ctx, ...args) };
     }
     const storeState = {};
-    for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package") storeState[id] = this.readStore(p, id);
+    for (const id of Object.keys(p.stores)) if (p.stores[id].scope !== "package" && (this.site || !SITE_SCOPES.includes(p.stores[id].scope))) storeState[id] = this.readStore(p, id);
     const input = {
       entry: join(p.dir, p.manifest.entry.php), class: studly(p.id), method: kind === "hook" ? camelHook(name) : kind === "contract" ? contractMethod(...name.split("#")) : name, args,
-      capabilities: p.manifest.capabilities || [], records: this.records, listedPages: Object.values(this.records.page || {}).filter((pg) => this.isListed(pg)).map((pg) => pg.id), currentSite: this.site.id, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
+      capabilities: p.manifest.capabilities || [], records: this.records, listedPages: Object.values(this.records.page || {}).filter((pg) => this.isListed(pg)).map((pg) => pg.id), currentSite: this.site ? this.site.id : null, pluginId: p.id, activePlugins: this.activeList(), operations: this.pluginOperations({}), prompts: this.staticPrompts(), skillsByAudience: { site: this.pluginSkills("site"), system: this.pluginSkills("system") }, managedFiles: Object.fromEntries([...this.managed].map(([k, v]) => [k, v.content])),
       pluginDir: p.dir, packageStores: Object.fromEntries(Object.values(p.stores).filter((s) => s.scope === "package").map((s) => [s.id, s.file])),
       overrides: p.storeOverrides || {},
+      // the system engine has no site, so a site-bound store refuses (the same message the reference throws)
+      refusedStores: this.site ? {} : Object.fromEntries(Object.values(p.stores).filter((st) => SITE_SCOPES.includes(st.scope)).map((st) => [st.id, `${p.id}: store "${st.id}" (${st.scope} scope): needs a site; this is the system engine`])),
       contractImpls: Object.fromEntries(Object.keys(CORE_CONTRACTS).map((n) => [n, this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, n) && x.manifest.entry && x.manifest.entry.php).map((x) => ({ plugin: x.id, entry: join(x.dir, x.manifest.entry.php), class: studly(x.id), method: contractMethod(n, CORE_CONTRACTS[n].operations[0]), accepts: implEntry(x.manifest, n).accepts || null, dispatch: CORE_CONTRACTS[n].dispatch || "all" }))])),
       fetch: { egress: (p.manifest.capabilities || []).includes("network:egress") ? this.egressHosts(p) : [], fakes: this.fetchFakes || {} },
       exec: { allowed: (p.manifest.capabilities || []).includes("exec:run") ? p.manifest.exec || [] : [], fakes: this.execFakes || {} },
@@ -925,6 +1060,11 @@ export class MemoryBackend {
     };
     const out = await this.runPhp(input, p, ctx);
     if (out.missing) return { missing: true };
+    if (out.thrown !== undefined) {
+      for (const call of out.execCalls || []) this.execCalls.push({ plugin: p.id, ...call });
+      for (const l of out.logs || []) this.log.push({ ...l, plugin: p.id });
+      throw new Error(out.thrown);
+    }
     for (const [path, b64] of Object.entries(out.sitePuts || {})) this.putSiteFile(p, path, b64);
     for (const path of out.siteRemoves || []) this.removeSiteFile(p, path);
     for (const values of out.configSaves || []) await this.saveConfig(p.id, values);
@@ -1176,6 +1316,7 @@ export class MemoryBackend {
   // ---- render pipeline (spec/06): the same stages run for live pages and static publish ----
   // mode: dynamic (served by the server), preview (the editor's preview) or publish (static output); spec/06
   async render(page, { theme = "clean-one", mode = "dynamic" } = {}) {
+    this.requireSite("rendering");
     // cacheable: a plugin whose output differs per visitor sets it to false, so caches skip the page (spec/06)
     const ctx0 = { site: { id: this.site.id, name: this.site.name }, page, theme, mode, cacheable: true, head: [], content: page.content || "", body: { start: [], end: [] }, html: null };
     const before = await this.fire("render.before", ctx0);

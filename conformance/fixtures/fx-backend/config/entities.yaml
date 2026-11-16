@@ -1,0 +1,4 @@
+metadata:
+  page:
+    fields:
+      words: { type: integer, note: "words on the page, counted on save" }

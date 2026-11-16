@@ -1,0 +1,8 @@
+openapi: 3.1.0
+info: { title: fx-system, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /count:
+    post: { operationId: fxSystemCount, security: [{ bearerAuth: [], userTokenHeader: [] }], responses: { "200": { description: OK } } }
+  /per-site:
+    post: { operationId: fxSystemPerSite, security: [{ bearerAuth: [], userTokenHeader: [] }], responses: { "200": { description: OK } } }

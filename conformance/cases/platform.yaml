@@ -128,3 +128,101 @@
     steps:
       - call: { operation: fxListedPublic }
         expect: { body: [a, d] }
+- id: plat-011
+  title: "the system engine: system stores and routes work with no site; site stores, records, rendering and rebuilds refuse"
+  spec: spec/13-backend-platform-contract.md
+  given: "the system engine (no site) with fx-system: a system store counts, a site store perSite"
+  when: "count twice, write perSite, render, rebuild"
+  then: "count 1 then 2 with ctx.site null; perSite, render and rebuild are refused with \"needs a site; this is the system engine\""
+  run:
+    system: true
+    plugins: [fx-system]
+    steps:
+      - call: { operation: fxSystemCount }
+        expect: { status: 200, body: { count: 1, site: null } }
+      - call: { operation: fxSystemCount }
+        expect: { body: { count: 2 } }
+      - call: { operation: fxSystemPerSite }
+        expect: { status: 500, log: { contains: ["needs a site; this is the system engine"] } }
+- id: plat-012
+  title: "fx-backend, the fixture backends load for their own integration tests, does the same in every engine"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-backend: page.before.save adds metadata.plugins.fx-backend.words, rebuild.after writes fx-backend.txt, notes keep personal data in a siteData store, insights.check provides word.count"
+  when: "save a page, rebuild, post and list notes, ask for the advertised contracts and run the check"
+  then: "the declared field is on the page, the managed file lists the listed pages, a visitor cannot post, the contract is advertised by result name"
+  run:
+    plugins: [fx-backend]
+    steps:
+      - save: { type: page, record: { id: p1, title: First, content: "<p>one two three</p>" } }
+        expect: { subject: { metadata: { plugins: { fx-backend: { words: 3 } } } } }
+      - rebuild: { reason: save }
+        expect: { status: 200 }
+      - managed: fx-backend.txt
+        expect: { body: "First\n" }
+      - call: { operation: fxBackendNote, params: { pageId: p1 }, body: { body: hi }, credentials: none }
+        expect: { status: 401 }
+      - call: { operation: fxBackendNote, params: { pageId: p1 }, body: { body: hi } }
+        expect: { status: 200, body: { pageId: p1, authorId: u1, body: hi } }
+      - call: { operation: fxBackendNotes, params: { pageId: p1 }, credentials: none }
+        expect: { status: 200, body: [{ id: n1, body: hi }] }
+      - call: { operation: fxBackendNote, params: { pageId: nope }, body: { body: hi } }
+        expect: { status: 404 }
+      - advertised: true
+        expect: { body: { insights.check: { provides: [word.count] } } }
+      - contract: { name: insights.check, op: check, input: { provides: [word.count] } }
+        expect: { body: [{ plugin: fx-backend, result: { results: { word.count: { status: ok, summary: { pages: 1 } } } } }] }
+- id: plat-013
+  title: "fx-well-known stays inactive until its required issuer is set, then answers its public operation"
+  spec: spec/05-routes-and-security.md
+  given: "fx-well-known, a public system GET marked x-hax-well-known: oauth-authorization-server, with a required issuer setting"
+  when: "load, set the issuer, call the operation with no credentials"
+  then: "inactive, then active, then the issuer"
+  run:
+    plugins: [fx-well-known]
+    expect: { status_of: { fx-well-known: inactive } }
+    steps:
+      - config: { plugin: fx-well-known, values: { issuer: "https://cms.example.edu" } }
+        expect: { status: 200 }
+      - call: { operation: fxWellKnownMetadata, credentials: none }
+        expect: { status: 200, body: { issuer: "https://cms.example.edu" } }
+- id: plat-014
+  title: "a secret setting travels only to the hosts its x-secret-egress names, even among allowed egress hosts"
+  spec: spec/07-registries-settings-assets.md
+  given: "fx-secret-host: egress api.example.org and cdn.example.org; its key may only go to api.example.org"
+  when: "send the key to api.example.org, the key to cdn.example.org, then no key to cdn.example.org"
+  then: "the first and last are sent; the key to cdn.example.org is refused before any request"
+  run:
+    plugins: [fx-secret-host]
+    load: { settings: { fx-secret-host: { key: secret-k1 } } }
+    fetch: { api.example.org: { status: 200, body: {} }, cdn.example.org: { status: 200, body: {} } }
+    steps:
+      - call: { operation: fxSecretHostSend, query: { host: api.example.org, withKey: "1" } }
+        expect: { body: { answered: 200 }, fetch: { count: 1, contains: ['"headers":["authorization"]'] } }
+      - call: { operation: fxSecretHostSend, query: { host: cdn.example.org, withKey: "1" } }
+        expect: { status: 502, body: { error: 'secret setting "key" may not be sent to cdn.example.org' }, fetch: { count: 0 }, notContains: [secret-k1] }
+      - call: { operation: fxSecretHostSend, query: { host: cdn.example.org } }
+        expect: { body: { answered: 200 }, fetch: { count: 1 } }
+- id: plat-015
+  title: "a redirect cannot carry a bound secret to another allowed host, and a proxy template cannot either"
+  spec: spec/07-registries-settings-assets.md
+  given: "api.example.org redirects to cdn.example.org; an x-hax-proxy puts the key in a cdn.example.org query"
+  when: "send the key to api.example.org; call the proxy"
+  then: "the redirected hop is refused; the proxy answers 502 without calling cdn.example.org"
+  run:
+    plugins: [fx-secret-host]
+    load: { settings: { fx-secret-host: { key: secret-k1 } } }
+    fetch: { api.example.org: { status: 307, headers: { location: "https://cdn.example.org/x" } }, cdn.example.org: { status: 200, body: {} } }
+    steps:
+      - call: { operation: fxSecretHostSend, query: { host: api.example.org, withKey: "1" } }
+        expect: { status: 502, body: { error: 'secret setting "key" may not be sent to cdn.example.org (redirected)' }, fetch: { count: 1, notContains: [cdn.example.org] } }
+      - call: { operation: fxSecretHostProxy, query: { q: cats } }
+        expect: { status: 502, fetch: { count: 0 }, notContains: [secret-k1], log: { contains: ['may not be sent to cdn.example.org'] } }
+- id: plat-016
+  title: "x-secret-egress must name hosts from egress, and only on secret fields"
+  spec: spec/07-registries-settings-assets.md
+  given: "a secret bound to a host outside egress; x-secret-egress on a plain field"
+  when: "validate"
+  then: "two errors"
+  run:
+    validate: fx-secret-bad
+    expect: { errors: ["not in the manifest's egress", "is not x-secret"] }
