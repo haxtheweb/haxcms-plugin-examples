@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-well-known
+uuid: 2e0b76ea-f7e0-4062-a1bf-3bc5c7ab1865
+title: fx-well-known (backend integration fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+openapi: config/openapi.yaml

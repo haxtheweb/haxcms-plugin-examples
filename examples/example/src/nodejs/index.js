@@ -1,4 +1,4 @@
-// Example plugin (Node). Implements every operation in config/openapi.yaml and every hook in schema/hooks.json.
+// Example plugin (Node). Implements every operation in config/openapi.yaml and every hook in schema/hook-contracts.json.
 // Most hook bodies only log; the comment says what you could do there. The contract for ctx is spec/13.
 const log = (name, ctx) => (ctx && ctx.log ? ctx.log.info(name) : console.log(`[example] ${name}`));
 
@@ -57,12 +57,17 @@ export default {
      *
      * @param {object} ctx  Platform context (spec/13); ctx.settings.apiKey, ctx.fetch.
      * @param {object} req  req.query.q: the search text.
-     * @returns {Promise<object>}  the upstream { status, body }, or 503 when no apiKey is set.
+     * @returns {Promise<object>}  the upstream { status, body }, 503 when no apiKey is set, or 502 when the
+     *   upstream cannot be reached (an outside service being down is not a server error here).
      */
     async exampleAppstoreBrowse(ctx, req) {
       if (!ctx.settings.apiKey) return { status: 503, body: { error: "The example appstore is not configured" } };
-      const res = await ctx.fetch(`https://example.invalid/api/explosions?q=${encodeURIComponent(req.query.q || "")}`, { headers: { "x-api-key": ctx.settings.apiKey } });
-      return { status: res.status, body: await res.json() };
+      try {
+        const res = await ctx.fetch(`https://example.invalid/api/explosions?q=${encodeURIComponent(req.query.q || "")}`, { headers: { "x-api-key": ctx.settings.apiKey } });
+        return { status: res.status, body: await res.json() };
+      } catch (e) {
+        return { status: 502, body: { error: "example.invalid could not be reached" } };
+      }
     },
   },
   /**

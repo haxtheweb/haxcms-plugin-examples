@@ -8,3 +8,5 @@ paths:
     get: { operationId: fxRoutesJwt, security: [{ bearerAuth: [] }], responses: { "200": { description: OK } } }
   /public:
     get: { operationId: fxRoutesPublic, x-hax-public: true, x-hax-rate-limit: { requests: 10, per: minute }, responses: { "200": { description: OK } } }
+  /where:
+    get: { operationId: fxRoutesWhere, security: [{ bearerAuth: [] }], responses: { "200": { description: OK } } }

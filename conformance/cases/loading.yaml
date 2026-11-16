@@ -197,3 +197,23 @@
   given: "plugins A and B both declare alias tips"
   when: "hax tips; hax A tips; hax B tips"
   then: "hax tips is not registered and the CLI warns naming both; the namespaced forms run"
+- id: load-118
+  title: "a plugin with no code for this backend's runtime is refused, naming the runtimes it ships (PHP backend)"
+  spec: spec/13-backend-platform-contract.md
+  given: "a plugin with runtimes [nodejs] on a PHP backend"
+  when: "load"
+  then: "refused with the reason, not active with operations answering 501 and hooks silently skipped"
+  runtimes: [php]
+  run:
+    plugins: [fx-only-nodejs]
+    expect: { status_of: { fx-only-nodejs: refused }, log: { contains: ["no php implementation: this plugin ships nodejs only"] } }
+- id: load-119
+  title: "a plugin with no code for this backend's runtime is refused, naming the runtimes it ships (Node backend)"
+  spec: spec/13-backend-platform-contract.md
+  given: "a plugin with runtimes [php] on a Node backend"
+  when: "load"
+  then: "refused with the reason"
+  runtimes: [nodejs]
+  run:
+    plugins: [fx-only-php]
+    expect: { status_of: { fx-only-php: refused }, log: { contains: ["no nodejs implementation: this plugin ships php only"] } }

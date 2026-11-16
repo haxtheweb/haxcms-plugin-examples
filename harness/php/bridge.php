@@ -16,14 +16,16 @@ function harness_rpc($method, $args = []) {
 }
 
 class HarnessStorage {
-  public $state; public $written = []; private $pluginDir; private $packageStores; private $overrides;
-  public function __construct($state, $pluginDir, $packageStores, $overrides) { $this->state = $state; $this->pluginDir = $pluginDir; $this->packageStores = $packageStores; $this->overrides = $overrides; }
+  public $state; public $written = []; private $pluginDir; private $packageStores; private $overrides; private $refused;
+  public function __construct($state, $pluginDir, $packageStores, $overrides, $refused = []) { $this->state = $state; $this->pluginDir = $pluginDir; $this->packageStores = $packageStores; $this->overrides = $overrides; $this->refused = $refused; }
   public function read($id) {
+    if (isset($this->refused[$id])) { throw new Exception($this->refused[$id]); }
     if (array_key_exists($id, $this->overrides)) { return $this->overrides[$id]; }
     if (isset($this->packageStores[$id])) { return json_decode(file_get_contents($this->pluginDir . '/data/' . $this->packageStores[$id]), true); }
     return $this->state[$id] ?? null;
   }
   public function write($id, $value) {
+    if (isset($this->refused[$id])) { throw new Exception($this->refused[$id]); }
     if (isset($this->packageStores[$id])) { throw new Exception("store \"$id\" is read-only (package scope)"); }
     $this->state[$id] = $value; $this->written[$id] = $value;
     harness_rpc('storage.write', [$id, $value]);
@@ -62,6 +64,8 @@ class HarnessEntities {
   private function need($type, $action) {
     $area = ['site' => 'site', 'page' => 'items', 'file' => 'files', 'config' => 'settings'][$type] ?? null;
     if (!$area) { return; }
+    // the system engine has no site (spec/13 section 8b)
+    if ($this->site === null && $type !== 'config') { throw new Exception("$type records: needs a site; this is the system engine"); }
     if (!in_array("$area:$action", $this->caps, true) && !($action === 'read' && in_array("$area:write", $this->caps, true))) {
       throw new Exception("{$this->pluginId} needs the $area:$action capability to $action $type records");
     }
@@ -186,7 +190,7 @@ class HarnessCtx {
     if (!isset($this->transaction['marks']) || !is_array($this->transaction['marks'])) { $this->transaction['marks'] = []; }
     $this->enabled = $c['enabled'] ?? [];
     $this->nowMs = $c['now'] ?? 0;
-    $this->storage = new HarnessStorage($c['stores'] ?? [], $in['pluginDir'], $in['packageStores'] ?? [], $in['overrides'] ?? []);
+    $this->storage = new HarnessStorage($c['stores'] ?? [], $in['pluginDir'], $in['packageStores'] ?? [], $in['overrides'] ?? [], $in['refusedStores'] ?? []);
     $this->package = new HarnessPackage($in['pluginDir']);
     $this->log = new HarnessLog();
     $this->hooks = new HarnessHooks();
@@ -251,7 +255,13 @@ if (!method_exists($plugin, $in['method'])) { echo json_encode(['missing' => tru
 $ctx = new HarnessCtx($in);
 $ctx->execSpec = $in['exec'] ?? ['allowed' => [], 'fakes' => []];
 $ctx->fetchSpec = $in['fetch'] ?? ['egress' => [], 'fakes' => []];
-$result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
+// a throw is the plugin's error, not the bridge's: report its message so the engine logs it as Node would
+try {
+  $result = call_user_func_array([$plugin, $in['method']], array_merge([$ctx], $in['args'] ?? []));
+} catch (\Throwable $e) {
+  echo json_encode(['thrown' => $e->getMessage(), 'logs' => $ctx->log->entries, 'execCalls' => $ctx->execCalls], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+  exit(0);
+}
 echo json_encode([
   'result' => $result,
   'logs' => $ctx->log->entries,

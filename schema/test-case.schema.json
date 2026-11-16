@@ -256,6 +256,14 @@
                 }
               }
             }
+          },
+          "target": {
+            "enum": [
+              "server",
+              "desktop",
+              "browser"
+            ],
+            "description": "The deployment target the backend runs as for this case (spec/14); default server."
           }
         },
         "required": [],

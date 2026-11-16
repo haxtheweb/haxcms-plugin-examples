@@ -1,4 +1,4 @@
-# haxcms-plugin-examples
+# haxcms-plugins
 
 Specification, JSON Schema, validator, conformance cases and example plugins for the HAXcms plugin architecture.
 
@@ -16,6 +16,7 @@ The architecture decisions and their log live in https://github.com/haxtheweb/is
 | `skills/` | draft agent skills for building, auditing, upgrading and porting plugins |
 | `scripts/gen-example-hooks.py`, `scripts/hook-table.mjs` | regenerate the example's hook stubs and the spec/06 table from the hook contracts |
 | `harness/` | the reference harness: an in-memory implementation of the backend platform contract (spec/13) that runs plugins' executable cases in Node and PHP (`hax-plugin-test`) |
+| `harness/check/` | `hax-plugin-check`: every check a plugin needs in one command (validator, cases, ESLint and PHPStan like haxcms-nodejs and haxcms-php, its web components in Chrome like webcomponents, and a live run in a real haxcms-nodejs); see [harness/check/README.md](harness/check/README.md) |
 | `conformance/` | language-neutral cases every backend must pass, with fixture plugins; `node conformance/run.mjs` runs the executable ones |
 | `tests/` | fixtures and the checks `npm test` runs, including each example's own tests and the Node/PHP parity run |
 

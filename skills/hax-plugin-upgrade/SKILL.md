@@ -10,7 +10,7 @@ metadata:
 
 # Upgrading a HAXcms plugin
 
-The goal is that plugins written once keep working, and that an agent can upgrade one with tests proving it. Spec and recipes: https://github.com/haxtheweb/haxcms-plugin-examples (`spec/CHANGELOG.md`).
+The goal is that plugins written once keep working, and that an agent can upgrade one with tests proving it. Spec and recipes: https://github.com/haxtheweb/haxcms-plugins (`spec/CHANGELOG.md`).
 
 ## Before changing anything
 

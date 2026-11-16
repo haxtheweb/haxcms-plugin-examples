@@ -1,0 +1,102 @@
+name: ci
+# The plugin contract's own test suite (haxtheweb/issues#3176): manifest and
+# schema validation, example and conformance-case checks, the generated hook
+# table and plugin docs, every plugin's own tests, and the conformance cases
+# against the reference harness. `npm test` is the single entry point.
+#
+# Blocking. Runs on the Node.js versions the HAXcms backends support
+# (22, 24, 26) so a plugin that only works on one runtime is caught here,
+# before it is mirrored into haxcms-nodejs.
+#
+# Plugins also carry src/php for haxcms-php, so every PHP file is syntax
+# checked (php -l) on the PHP versions haxcms-php supports (8.3 to 8.6).
+#
+# Until the spec lands on main there may be no package.json; the jobs then
+# report that there is nothing to test and pass.
+on:
+  push:
+    branches: [main]
+  # No branch filter: stacked PRs (base is another feature branch) must run too.
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: "npm test (Node ${{ matrix.node-version }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24, 26]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Nothing to test yet
+        if: hashFiles('package.json') == ''
+        run: echo "::notice title=ci::No package.json on this ref yet; nothing to test."
+      - name: Set up Node.js
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install (no lifecycle scripts)
+        if: hashFiles('package.json') != ''
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Test
+        if: hashFiles('package.json') != ''
+        run: npm test
+  audit:
+    name: "Dependency audit (runtime deps, level >= high)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        if: hashFiles('package-lock.json') != ''
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: npm audit
+        if: hashFiles('package-lock.json') != ''
+        run: npm audit --omit=dev --audit-level=high
+  php-lint:
+    name: "php -l (PHP ${{ matrix.php-version }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ["8.3", "8.4", "8.5", "8.6"]
+    # 8.6 reaches GA on 2026-11-19; until then a failure there shows on the
+    # run without failing the check (same rule as haxcms-php).
+    continue-on-error: ${{ matrix.php-version == '8.6' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+      - name: Syntax check every PHP file
+        run: |
+          failed=0
+          count=0
+          while IFS= read -r -d '' file; do
+            count=$((count + 1))
+            if ! out=$(php -l "$file" 2>&1); then
+              echo "::error file=${file#./}::${out//$'\n'/ }"
+              failed=1
+            fi
+          done < <(find . -path ./node_modules -prune -o -path ./.git -prune -o -name '*.php' -print0)
+          echo "Checked ${count} PHP file(s)."
+          exit "$failed"

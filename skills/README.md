@@ -1,6 +1,6 @@
 # Skills for working on HAXcms plugins
 
-Drafts for review. Generic: no machine paths; references are GitHub URLs. They target the spec in this repository (https://github.com/haxtheweb/haxcms-plugin-examples) and will move to wherever HAX skills are published once the topology is locked.
+Drafts for review. Generic: no machine paths; references are GitHub URLs. They target the spec in this repository (https://github.com/haxtheweb/haxcms-plugins) and will move to wherever HAX skills are published once the topology is locked.
 
 | Skill | Use it to |
 |---|---|

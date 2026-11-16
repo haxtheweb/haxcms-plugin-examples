@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/merlin-declaration.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/merlin-declaration.schema.json",
   "title": "Merlin declaration (registries/merlin/*.yaml)",
   "description": "Plugin-side wrapper around a Merlin option. `option` is a MerlinOption exactly as documented in https://github.com/haxtheweb/merlin-schema (validated against merlin-option.schema.json after the host fills value.program for programs). Only options expressible as data are declarable: eventName super-daemon-run-program, hax-super-daemon-insert-tag, execute-keyboard-shortcut, disabled, or a custom event name whose detail is JSON. Options that need live references (super-daemon-element-method and -click targets) must be registered from a plugin element/module instead. For run-program options, `program` says how the host builds value.program.",
   "type": "object",

@@ -32,11 +32,11 @@
       - call: { operation: fxRoutesPublic, credentials: none }
         expect: { status: 404 }
 - id: routes-005
-  title: "x-hax-public operations work without credentials and are rate limited"
+  title: "an x-hax-public operation answers without credentials; a secured one beside it does not"
   spec: spec/05-routes-and-security.md
-  given: "example /public/ping"
-  when: "31 requests in a minute"
-  then: "first 30 ok, then 429"
+  given: "fx-routes: /public is x-hax-public, /jwt needs a token"
+  when: "call both with no credentials"
+  then: "200 and 401"
   run:
     plugins: [fx-routes]
     steps:
@@ -71,3 +71,9 @@
   given: "MCP plugin enabled; plugin with one x-hax-mcp operation and one without"
   when: "MCP client lists tools"
   then: "only the opted-in operation is listed; calling it applies the caller's permissions"
+- id: routes-008
+  title: "public operations are rate limited by the backend's limiter, and x-hax-rate-limit tightens one operation"
+  spec: spec/05-routes-and-security.md
+  given: "fx-routes /public with x-hax-rate-limit 10 a minute, served over HTTP"
+  when: "11 requests from one address in a minute"
+  then: "the first 10 answer, the 11th is 429 with Retry-After; a backend proves this in its own HTTP tests, because the limiter counts addresses the engine never sees"
