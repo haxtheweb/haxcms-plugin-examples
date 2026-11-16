@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/element-registry-entry.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/element-registry-entry.schema.json",
   "title": "Plugin element registry entry (DRAFT)",
   "description": "registries/elements/<tag>.yaml. Feeds the tag-to-file registry (wc-registry.json). role block = insertable by authors, needs haxProperties; role injected = page singleton, none needed.",
   "type": "object",

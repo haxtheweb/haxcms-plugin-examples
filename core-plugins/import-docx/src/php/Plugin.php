@@ -6,6 +6,51 @@ class ImportDocxPlugin {
   private function attr($xml, $name) { return preg_match('/' . preg_quote($name, '/') . '="([^"]*)"/', $xml, $m) ? $m[1] : null; }
 
   /** numId => "ol" | "ul", from numbering.xml. */
+  // ---- HTML clean-up by scanning, not by regex replacement (twin of the helpers in src/nodejs/index.js) ----
+  // the ">" closing the tag that opens at $lt (quoted attribute values may hold ">"); -1 when it never closes, -2
+  // when another "<" comes first (then the first one is text)
+  private static function tagEnd($s, $lt) {
+    $q = '';
+    $n = strlen($s);
+    for ($i = $lt + 1; $i < $n; $i++) {
+      $c = $s[$i];
+      if ($q !== '') { if ($c === $q) { $q = ''; } } elseif ($c === '"' || $c === "'") { $q = $c; } elseif ($c === '>') { return $i; } elseif ($c === '<') { return -2; }
+    }
+    return -1;
+  }
+  // the text of some markup: every tag and comment dropped, $glue where each one was ("<" before anything but a
+  // letter, "/", "!" or "?" is text). Repeated until nothing changes, so what is left never holds a tag.
+  private static function withoutTagsOnce($s, $glue) {
+    $n = strlen($s);
+    $out = '';
+    $i = 0;
+    while ($i < $n) {
+      $lt = strpos($s, '<', $i);
+      if ($lt === false) { $out .= substr($s, $i); break; }
+      $out .= substr($s, $i, $lt - $i);
+      if (substr($s, $lt, 4) === '<!--') {
+        $end = strpos($s, '-->', $lt + 4);
+        $out .= $glue;
+        $i = $end === false ? $n : $end + 3;
+        continue;
+      }
+      $gt = $lt + 1 < $n && preg_match('/[A-Za-z\/!?]/', $s[$lt + 1]) ? self::tagEnd($s, $lt) : -2;
+      if ($gt === -2) { $out .= '<'; $i = $lt + 1; continue; }
+      if ($gt < 0) { break; }
+      $out .= $glue;
+      $i = $gt + 1;
+    }
+    return $out;
+  }
+  private static function withoutTags($html, $glue = '') {
+    $s = (string) ($html ?? '');
+    while (true) {
+      $next = self::withoutTagsOnce($s, $glue);
+      if ($next === $s) { return $s; }
+      $s = $next;
+    }
+  }
+
   private function listKinds($xml) {
     $abstract = []; $out = [];
     preg_match_all('/<w:abstractNum\b[^>]*w:abstractNumId="(\d+)"[^>]*>([\s\S]*?)<\/w:abstractNum>/', (string) $xml, $mm, PREG_SET_ORDER);
@@ -87,7 +132,7 @@ class ImportDocxPlugin {
     foreach ($mm[0] as $block) {
       if (strpos($block, '<w:tbl') === 0) { $close(); $out[] = $this->table($block, $rels); continue; }
       $p = $this->paragraph($block, $rels);
-      if ($p['tag'] === 'title') { if ($title === '') { $title = preg_replace('/<[^>]+>/', '', $p['html']); } continue; }
+      if ($p['tag'] === 'title') { if ($title === '') { $title = self::withoutTags($p['html']); } continue; }
       if ($p['tag'] === 'li') {
         $kind = $kinds[$p['list']] ?? 'ul';
         if (!$open || $open['id'] !== $p['list']) { $close(); $out[] = "<$kind>"; $open = ['tag' => $kind, 'id' => $p['list']]; }

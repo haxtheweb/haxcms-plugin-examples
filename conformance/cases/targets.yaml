@@ -1,0 +1,104 @@
+- id: target-001
+  title: "on a hosted server a plugin with a public route is active with no caveat, and the registry says where else it fits"
+  spec: spec/14-deployment-targets.md
+  given: "fx-routes (operations, one public) and fx-exec (exec:run) on the server target"
+  when: "load, read the registry"
+  then: "both active; fx-routes needs backend and visitors and is limited on desktop and browser; fx-exec needs process and cannot run in the browser"
+  run:
+    plugins: [fx-routes, fx-exec]
+    expect: { status_of: { fx-routes: active, fx-exec: active } }
+    steps:
+      - registry: true
+        expect:
+          body:
+            fx-routes: { enabled: true, needs: [backend, visitors], limited: [], targets: { server: full, desktop: limited, browser: limited }, staticCapable: false }
+            fx-exec: { needs: [backend, process], targets: { server: full, desktop: full, browser: "no" } }
+- id: target-002
+  title: "in the browser a plugin that runs commands stays inactive with the reason; one with a public route runs and says what visitors cannot do"
+  spec: spec/14-deployment-targets.md
+  given: "the same two plugins on the browser target"
+  when: "load, call the public operation, read the registry"
+  then: "fx-exec is inactive (backend.process unmet) and its operation is not found; fx-routes answers and lists backend.visitors as limited"
+  run:
+    target: browser
+    plugins: [fx-routes, fx-exec]
+    expect: { status_of: { fx-routes: active, fx-exec: inactive } }
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 200, body: { ok: true } }
+      - call: { operation: fxExecRun, params: { cmd: echo } }
+        expect: { status: 404 }
+      - registry: true
+        expect:
+          body:
+            fx-exec: { status: inactive, enabled: true, unmet: [{ key: backend.process }] }
+            fx-routes: { status: active, limited: [{ key: backend.visitors }] }
+          contains: ["which the browser does not have"]
+- id: target-003
+  title: "a plugin that lists its targets is inactive anywhere else"
+  spec: spec/14-deployment-targets.md
+  given: "fx-server-only (targets: [server]) on the desktop target"
+  when: "load, read the registry"
+  then: "inactive with target.desktop unmet; the registry shows server full, desktop and browser no"
+  run:
+    target: desktop
+    plugins: [fx-server-only, fx-exec]
+    expect: { status_of: { fx-server-only: inactive, fx-exec: active } }
+    steps:
+      - registry: true
+        expect:
+          body:
+            fx-server-only: { unmet: [{ key: target.desktop }], targets: { server: full, desktop: "no", browser: "no" } }
+- id: target-004
+  title: "plugins see which target they run on"
+  spec: spec/14-deployment-targets.md
+  given: "fx-routes on the desktop target"
+  when: "call the operation that returns ctx.haxcms"
+  then: "target is desktop"
+  run:
+    target: desktop
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesWhere }
+        expect: { status: 200, body: { target: desktop } }
+- id: load-120
+  title: "with an enabled list, a plugin that is not on it is available, loads no code and answers nothing until it is enabled"
+  spec: spec/03-tiers-and-enablement.md
+  given: "fx-routes and fx-exec installed; the deployment's enabled list names fx-routes only"
+  when: "load, call fx-exec, enable it, call again, disable it"
+  then: "fx-exec is available and 404; after enable it is active and answers; after disable it is disabled; the registry follows"
+  run:
+    plugins: [fx-routes, fx-exec]
+    load: { enabled: [fx-routes] }
+    exec: { echo: { code: 0, stdout: "hi\n" } }
+    expect: { status_of: { fx-routes: active, fx-exec: available } }
+    steps:
+      - call: { operation: fxExecRun, params: { cmd: echo } }
+        expect: { status: 404 }
+      - registry: true
+        expect: { body: { fx-exec: { status: available, enabled: false, limited: [] }, fx-routes: { enabled: true } } }
+      - enable: fx-exec
+        expect: { status: 200, status_of: { fx-exec: active } }
+      - call: { operation: fxExecRun, params: { cmd: echo } }
+        expect: { status: 200 }
+      - disable: fx-exec
+        expect: { status: 200, status_of: { fx-exec: disabled } }
+      - registry: true
+        expect: { body: { fx-exec: { status: disabled, enabled: false } } }
+- id: load-121
+  title: "enabling a plugin whose dependency is off is refused with the dependencies to enable first"
+  spec: spec/03-tiers-and-enablement.md
+  given: "fx-probe-a and fx-dependent (depends on fx-probe-a) installed, nothing enabled"
+  when: "enable fx-dependent, then fx-probe-a, then fx-dependent"
+  then: "409 naming fx-probe-a; then both enable"
+  run:
+    plugins: [fx-probe-a, fx-dependent]
+    load: { enabled: [] }
+    expect: { status_of: { fx-probe-a: available, fx-dependent: available } }
+    steps:
+      - enable: fx-dependent
+        expect: { status: 409, body: { dependencies: [fx-probe-a] }, status_of: { fx-dependent: available } }
+      - enable: fx-probe-a
+        expect: { status: 200 }
+      - enable: fx-dependent
+        expect: { status: 200, status_of: { fx-dependent: active } }

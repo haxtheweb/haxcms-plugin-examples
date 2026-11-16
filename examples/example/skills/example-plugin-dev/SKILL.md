@@ -14,6 +14,6 @@ metadata:
 
 This skill shows the shape of a **developer** skill: it helps someone working on the plugin or the system.
 
-- Manifest: `plugin.yaml`, validated by `hax-plugin-validate` from https://github.com/haxtheweb/haxcms-plugin-examples
+- Manifest: `plugin.yaml`, validated by `hax-plugin-validate` from https://github.com/haxtheweb/haxcms-plugins
 - Add pieces with `hax plugin add <piece> <name>` rather than by hand, then run `hax plugin validate`.
-- Every hook in the spec's `schema/hooks.json` has a stub in both `src/nodejs/index.js` and `src/php/Plugin.php`; keep them in step.
+- Every hook in the spec's `schema/hook-contracts.json` has a stub in both `src/nodejs/index.js` and `src/php/Plugin.php`; keep them in step.
