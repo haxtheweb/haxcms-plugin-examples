@@ -22,8 +22,11 @@ const CORE_CONTRACTS = parse(readFileSync(join(root, "schema/core-contracts.yaml
 // core's shared HTML-to-pages step (haxcms-nodejs importHtmlToItems): site splits at the highest heading level and its
 // next level; branch at the highest level only; page keeps one page. Text before the first heading becomes a page
 // titled after the file, so nothing is lost.
-const slugify = (t) => String(t).toLowerCase().replace(/<[^>]+>/g, "").replace(/&[a-z#0-9]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "page";
-const textOf = (h) => String(h).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+// Plain text from markup for titles and slugs (never rendered as HTML): strip tags until nothing changes, then drop
+// any stray "<" so no fragment of a tag survives.
+const stripTags = (h) => { let s = String(h), prev; do { prev = s; s = s.replace(/<[^>]*>/g, ""); } while (s !== prev); return s.replace(/</g, ""); };
+const slugify = (t) => stripTags(String(t).toLowerCase()).replace(/&[a-z#0-9]+;/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "page";
+const textOf = (h) => stripTags(h).replace(/\s+/g, " ").trim();
 export function outlineFromHtml(html, { method = "site", parentId = null, titleValue = "import" } = {}) {
   const items = [];
   const add = (title, content, parent, slug, indent = 0) => { const it = { id: `item-${items.length + 1}`, title, slug, parent, order: items.filter((x) => x.parent === parent).length, indent, content: content.trim() || "<p></p>" }; items.push(it); return it; };

@@ -83,7 +83,7 @@ export function implementations(dir, m) {
   return list;
 }
 
-const esc = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+const esc = (s) => String(s ?? "").replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 const when = (i) => {
   if (i.kind === "hook") { const c = contracts[i.name]; return c ? `${c.when}${i.h.detached ? " (detached)" : ""}${i.h.stage ? ` (stage ${i.h.stage})` : ""}` : "a hook another plugin defines"; }
   if (i.kind === "operation" || i.kind === "proxy") { const sec = (i.op.security || []).map((r) => Object.keys(r).join(" + ") || "anonymous").join(" or ") || (i.op["x-hax-public"] ? "public" : ""); return `\`${i.verb} ${i.scope === "system" ? "/system/api" : "/x/api"}/v1/plugins/<id>${i.path}\`${sec ? ` (${sec})` : ""}`; }

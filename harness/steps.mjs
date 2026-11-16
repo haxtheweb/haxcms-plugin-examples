@@ -4,7 +4,7 @@ import { check } from "./expect.mjs";
 
 // vars: values captured by earlier steps (`capture: { name: "body.token" }`), substituted into later steps as {{name}}
 export async function step(backend, raw, vars = {}) {
-  const s = JSON.parse(JSON.stringify(raw).replace(/\{\{\$(\w+)\}\}/g, (m, k) => (k in vars ? String(vars[k]).replace(/"/g, '\\"') : m)));
+  const s = JSON.parse(JSON.stringify(raw).replace(/\{\{\$(\w+)\}\}/g, (m, k) => (k in vars ? JSON.stringify(String(vars[k])).slice(1, -1) : m)));
   const out = {};
   const execFrom = (backend.execCalls || []).length;
   const fetchFrom = (backend.fetchCalls || []).length;
