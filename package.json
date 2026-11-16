@@ -55,6 +55,7 @@
     "eslint": "9.39.5",
     "eslint-plugin-n": "18.5.0",
     "globals": "17.13.0",
+    "lit": "3.3.3",
     "puppeteer-core": "25.17.0"
   },
   "peerDependencies": {

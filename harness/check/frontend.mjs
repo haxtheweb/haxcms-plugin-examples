@@ -33,7 +33,7 @@
 // outside the local server is aborted, so nothing reaches the network.
 import { createServer } from "node:http";
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, resolve, relative, extname, dirname, sep } from "node:path";
+import { join, resolve, relative, extname, dirname, sep, delimiter } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { parse } from "yaml";
@@ -52,11 +52,99 @@ const MIME = { ".js": "text/javascript", ".mjs": "text/javascript", ".json": "ap
 const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const pages = new Map();
 
+// ---- packages an element imports by name (lit, @haxtheweb/...) ----
+// A site resolves these through its import map (spec/07, Authoring). Here the local server does the same job: a bare
+// specifier in any module it serves is pointed at the installed package, looked for next to the importing file, in
+// the folders named by HAX_PLUGIN_CHECK_MODULES (a path list of node_modules folders, for example a webcomponents
+// checkout's), then in this package's own node_modules (which has lit). A package that is installed nowhere is
+// answered with an empty module and reported as a note: an import for its side effect still loads, and an element
+// that needs a name from it fails with the browser's own message.
+const NM = "/__node_modules__";
+const STUB = "/__not_installed__/";
+const moduleRoots = [...String(process.env.HAX_PLUGIN_CHECK_MODULES || "").split(delimiter).filter(Boolean).map((p) => resolve(p)), join(root, "node_modules")];
+const notInstalled = new Set();
+const servedPackages = new Set(); // package folders a bare specifier resolved to
+// Package files are served by a token the server handed out while rewriting imports, never by a path taken from the
+// request, so a request cannot name a file.
+const packageFiles = new Map(); // url path -> absolute file
+const packageUrls = new Map(); // absolute file -> url path
+function packageUrl(file) {
+  if (!packageUrls.has(file)) { const u = `${NM}/${packageUrls.size}/${encodeURIComponent(file.split(sep).pop())}`; packageUrls.set(file, u); packageFiles.set(u, file); }
+  return packageUrls.get(file);
+}
+const pickExport = (target) => {
+  if (typeof target === "string") return target;
+  if (Array.isArray(target)) return target.map(pickExport).find(Boolean) || null;
+  if (target && typeof target === "object") for (const cond of ["browser", "import", "module", "default"]) if (cond in target) { const r = pickExport(target[cond]); if (r) return r; }
+  return null;
+};
+function resolveBare(spec, fromFile) {
+  const parts = spec.split("/");
+  const name = spec.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0];
+  const sub = spec.slice(name.length + 1);
+  const dirs = [];
+  for (let d = dirname(fromFile); ; d = dirname(d)) { dirs.push(join(d, "node_modules")); if (dirname(d) === d) break; }
+  for (const nm of [...dirs, ...moduleRoots]) {
+    const pkgDir = join(nm, name);
+    if (!existsSync(join(pkgDir, "package.json"))) continue;
+    const pkg = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
+    let rel = null;
+    if (pkg.exports && typeof pkg.exports === "object" && !Array.isArray(pkg.exports) && Object.keys(pkg.exports).some((k) => k.startsWith("."))) {
+      const key = sub ? `./${sub}` : ".";
+      if (key in pkg.exports) rel = pickExport(pkg.exports[key]);
+      else for (const [pattern, target] of Object.entries(pkg.exports)) {
+        if (!pattern.includes("*")) continue;
+        const [pre, post] = pattern.split("*");
+        if (key.startsWith(pre) && key.endsWith(post) && key.length >= pre.length + post.length) { const t = pickExport(target); if (t) { rel = t.replace("*", key.slice(pre.length, key.length - post.length)); break; } }
+      }
+    } else if (!sub) rel = pickExport(pkg.exports) || pkg.module || pkg.main || "index.js";
+    if (!rel && sub) rel = sub;
+    if (!rel) continue;
+    const file = resolve(pkgDir, rel);
+    if (file.startsWith(pkgDir + sep) && existsSync(file) && statSync(file).isFile()) { servedPackages.add(pkgDir); return file; }
+  }
+  return null;
+}
+// why a specifier could not be answered: the package is installed nowhere, or the copy found lacks that file
+function describeMissing(spec, fromFile) {
+  const name = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
+  const dirs = [];
+  for (let d = dirname(fromFile); ; d = dirname(d)) { dirs.push(join(d, "node_modules")); if (dirname(d) === d) break; }
+  const at = [...dirs, ...moduleRoots].map((nm) => join(nm, name, "package.json")).find((f) => existsSync(f));
+  if (!at) return `${name} is not installed where the check looks (the plugin's node_modules, HAX_PLUGIN_CHECK_MODULES, this package)`;
+  return `${spec}: the installed ${name} (${JSON.parse(readFileSync(at, "utf8")).version}) has no such file; point HAX_PLUGIN_CHECK_MODULES at a build that does`;
+}
+// point bare specifiers at what the server can answer; relative and absolute ones are left alone
+function rewriteImports(code, file, inPackage = false) {
+  return code.replace(/(\bfrom\s*|\bimport\s*\(?\s*)(["'])([^"'\n]+)\2/g, (all, lead, quote, spec) => {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(spec) || spec.startsWith("/")) return all;
+    if (spec.startsWith(".")) {
+      // a package's own relative imports: hand out a token for each file, inside that package only
+      if (!inPackage) return all;
+      const target = resolve(dirname(file), spec);
+      const home = [...servedPackages].find((d) => file.startsWith(d + sep));
+      if (!home || !target.startsWith(home + sep) || !existsSync(target) || !statSync(target).isFile()) return all;
+      return `${lead}${quote}${packageUrl(target)}${quote}`;
+    }
+    const found = resolveBare(spec, file);
+    if (!found) { notInstalled.add(describeMissing(spec, file)); return `${lead}${quote}${STUB}${encodeURIComponent(spec)}${quote}`; }
+    return `${lead}${quote}${packageUrl(found)}${quote}`;
+  });
+}
 const server = createServer((req, res) => {
   const url = new URL(req.url, "http://localhost");
   if (pages.has(url.pathname)) {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     return res.end(pages.get(url.pathname));
+  }
+  if (url.pathname.startsWith(STUB)) {
+    res.writeHead(200, { "content-type": "text/javascript" });
+    return res.end("export default {};\n");
+  }
+  if (packageFiles.has(url.pathname)) {
+    const pkgFile = packageFiles.get(url.pathname);
+    res.writeHead(200, { "content-type": MIME[extname(pkgFile)] || "text/javascript" });
+    return res.end([".js", ".mjs"].includes(extname(pkgFile)) ? rewriteImports(readFileSync(pkgFile, "utf8"), pkgFile, true) : readFileSync(pkgFile));
   }
   const file = resolve(root, "." + decodeURIComponent(url.pathname));
   if ((file !== root && !file.startsWith(root + sep)) || !existsSync(file) || !statSync(file).isFile()) {
@@ -64,7 +152,7 @@ const server = createServer((req, res) => {
     return res.end();
   }
   res.writeHead(200, { "content-type": MIME[extname(file)] || "application/octet-stream" });
-  res.end(readFileSync(file));
+  res.end([".js", ".mjs"].includes(extname(file)) ? rewriteImports(readFileSync(file, "utf8"), file) : readFileSync(file));
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -141,6 +229,8 @@ async function checkPlugin(dir) {
       out.errors.push(...errs.map((e) => `${f}: ${e}`));
     }
   }
+  for (const why of [...notInstalled].sort()) out.notes.push(`${why}; answered with an empty module`);
+  notInstalled.clear();
   return out;
 }
 
@@ -240,7 +330,7 @@ async function checkElement(dir, el) {
   const dark = snapshots.dark;
   if (light && dark && light.ownColors && light.key === dark.key) {
     const singleScheme = el.theme && Array.isArray(el.colorSchemes) && el.colorSchemes.length === 1;
-    if (!singleScheme) errors.push("ignores dark mode: it sets its own colors and they are identical under prefers-color-scheme: dark");
+    if (!singleScheme) errors.push(`ignores dark mode: it sets its own colors and they are identical under prefers-color-scheme: dark (${light.parts.slice(0, 3).join("; ")})`);
   }
   return errors;
 }
@@ -279,6 +369,8 @@ function colorSnapshot(tag) {
   const walk = (n, parentColor, path) => {
     if (n.nodeType !== 1) return;
     const s = getComputedStyle(n);
+    // a child the element does not slot is not rendered and has no computed colors: nothing to compare
+    if (s.color === "") return;
     const bg = s.backgroundColor;
     const here = `${path}>${n.localName}`;
     if (s.color !== parentColor) parts.push(`${here} color ${s.color}`);
@@ -289,7 +381,7 @@ function colorSnapshot(tag) {
     for (const c of n.children) walk(c, s.color, `${here}:${i++}`);
   };
   walk(host, getComputedStyle(host.parentElement || document.body).color, "");
-  return { ownColors: parts.length > 0, key: parts.join(";") };
+  return { ownColors: parts.length > 0, key: parts.join(";"), parts };
 }
 
 // animations still running after load, hover and focus with reduced motion on
