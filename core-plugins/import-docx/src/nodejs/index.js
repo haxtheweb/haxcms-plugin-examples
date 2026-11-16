@@ -6,6 +6,51 @@ const PARTS = "^(word/document\\.xml|word/numbering\\.xml|word/_rels/document\\.
 const attr = (xml, name) => { const m = new RegExp(`${name}="([^"]*)"`).exec(xml); return m ? m[1] : null; };
 
 /** numId -> "ol" or "ul", from numbering.xml (decimal and letters are ordered lists). */
+// ---- HTML clean-up by scanning, not by regex replacement, so nested or broken markup cannot reassemble into a tag
+// that a single pass missed. Same algorithm as the twin in Plugin.php.
+// the ">" closing the tag that opens at lt (quoted attribute values may hold ">"); -1 when it never closes, -2 when
+// another "<" comes first (then the first one is text)
+const tagEnd = (s, lt) => {
+  let q = "";
+  for (let i = lt + 1; i < s.length; i++) {
+    const c = s[i];
+    if (q) { if (c === q) q = ""; } else if (c === '"' || c === "'") q = c; else if (c === ">") return i; else if (c === "<") return -2;
+  }
+  return -1;
+};
+// the text of some markup: every tag and comment dropped, `glue` where each one was ("<" before anything but a
+// letter, "/", "!" or "?" is text). Repeated until nothing changes, so what is left never holds a tag.
+const TAG_START = /[A-Za-z/!?]/;
+const withoutTagsOnce = (s, glue) => {
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    const lt = s.indexOf("<", i);
+    if (lt < 0) { out += s.slice(i); break; }
+    out += s.slice(i, lt);
+    if (s.startsWith("<!--", lt)) {
+      const end = s.indexOf("-->", lt + 4);
+      out += glue;
+      i = end < 0 ? s.length : end + 3;
+      continue;
+    }
+    const gt = lt + 1 < s.length && TAG_START.test(s[lt + 1]) ? tagEnd(s, lt) : -2;
+    if (gt === -2) { out += "<"; i = lt + 1; continue; }
+    if (gt < 0) break;
+    out += glue;
+    i = gt + 1;
+  }
+  return out;
+};
+const withoutTags = (html, glue = "") => {
+  let s = String(html ?? "");
+  for (;;) {
+    const next = withoutTagsOnce(s, glue);
+    if (next === s) return s;
+    s = next;
+  }
+};
+
 function listKinds(xml) {
   const abstract = {};
   for (const m of String(xml || "").matchAll(/<w:abstractNum\b[^>]*w:abstractNumId="(\d+)"[^>]*>([\s\S]*?)<\/w:abstractNum>/g)) {
@@ -71,7 +116,7 @@ export function docxToHtml(parts) {
   for (const m of body.matchAll(/<w:tbl\b[^>]*>[\s\S]*?<\/w:tbl>|<w:p\b[^>]*\/>|<w:p\b[^>]*>[\s\S]*?<\/w:p>/g)) {
     if (m[0].startsWith("<w:tbl")) { close(); out.push(table(m[0], rels)); continue; }
     const p = paragraph(m[0], rels);
-    if (p.tag === "title") { if (!title) title = p.html.replace(/<[^>]+>/g, ""); continue; }
+    if (p.tag === "title") { if (!title) title = withoutTags(p.html); continue; }
     if (p.tag === "li") {
       const kind = kinds[p.list] || "ul";
       if (!open || open.id !== p.list) { close(); out.push(`<${kind}>`); open = { tag: kind, id: p.list }; }

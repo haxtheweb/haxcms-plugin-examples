@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/locale-overlay.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/locale-overlay.schema.json",
   "title": "Plugin locale overlay (registries/locales/<lang>.yaml) - DRAFT",
   "description": "Flat key to message map containing only changed keys; merged per key with fallback.",
   "type": "object",

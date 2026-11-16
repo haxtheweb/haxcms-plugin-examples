@@ -4,8 +4,9 @@ uuid: 00bf59a9-13dd-5552-ad9b-8a4058364f1e
 title: fx-enable-fails (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 hooks:
   - name: plugin.before.install

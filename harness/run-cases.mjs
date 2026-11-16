@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // hax-plugin-test: run a plugin's executable test cases (tests/cases/*.yaml with a `run` block) through the
 // reference harness, in Node, in PHP, or both. With both, every case must also give the same result in each.
-// Usage: node harness/run-cases.mjs <plugin folder> [--runtime nodejs|php|both] [--json]
+// Usage: node harness/run-cases.mjs <plugin folder> [--runtime nodejs|php|both] [--json [--outputs]] [--backend <adapter module>]
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,8 @@ const backendFactory = backendArg ? await import((await import("node:url")).path
 const dir = resolve(args.find((a, i) => !a.startsWith("--") && !["--backend", "--runtime"].includes(args[i - 1])) || ".");
 const runtimeArg = (args.find((a) => a.startsWith("--runtime=")) || "").split("=")[1] || (args.includes("--runtime") ? args[args.indexOf("--runtime") + 1] : "both");
 const asJson = args.includes("--json");
+// --outputs (with --json): include every case's step outputs, so two backends can be compared case by case
+const withOutputs = args.includes("--outputs");
 const manifest = parse(readFileSync(join(dir, "plugin.yaml"), "utf8"));
 const hasPhp = spawnSync("php", ["-v"]).status === 0;
 let runtimes = runtimeArg === "both" ? (manifest.runtimes || ["nodejs"]) : [runtimeArg];
@@ -27,7 +29,7 @@ import { step } from "./steps.mjs";
 
 async function runCase(c, runtime) {
   const r = c.run;
-  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}) };
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}), ...(r.target ? { target: r.target } : {}) };
   // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
   const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
   await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} }, records: r.records });
@@ -61,7 +63,8 @@ for (const f of files) {
     const per = {};
     for (const rt of rts) {
       try { per[rt] = await runCase(c, rt); } catch (err) { per[rt] = { out: null, errors: [String(err && err.stack || err)] }; }
-      results.push({ id: c.id, runtime: rt, ok: !per[rt].errors.length, errors: per[rt].errors });
+      // outputs leave out the case's parityIgnore keys (values that legitimately differ per run: tokens, commit hashes)
+      results.push({ id: c.id, runtime: rt, ok: !per[rt].errors.length, errors: per[rt].errors, ...(withOutputs ? { out: JSON.parse(JSON.stringify(per[rt].out, (k, x) => ((c.parityIgnore || []).includes(k) ? undefined : x))) } : {}) });
     }
     if (rts.length === 2 && per.nodejs.out && per.php.out) {
       const strip = (v) => JSON.parse(JSON.stringify(v, (k, x) => ((c.parityIgnore || []).includes(k) ? undefined : x)));

@@ -6,6 +6,8 @@
   then: "data-correct and choice feedback are gone, labels stay, the block carries its key, the monitor singleton follows"
   run:
     settings: { protect: auto, elements: multiple-choice, blockUntrusted: true, minAnswerMs: 1500, honorPrompt: "I am answering myself." }
+    # a new HAXcms site is by-sa (open); this one has chosen no license, which auto treats as private
+    records: { site: { license: "", metadata: { plugins: {} } } }
     steps:
       - save: { type: page, record: { id: p1, title: Quiz, content: '<p>Intro</p><multiple-choice id="q1" title="Capital"><p slot="question">Capital of France?</p><input type="checkbox" value="Paris" data-correct="true" data-selected="Yes, Paris."><input type="checkbox" value="Lyon" data-unselected="Fine."></multiple-choice>' } }
       - render: { page: { id: p1, content: '<p>Intro</p><multiple-choice id="q1" title="Capital"><p slot="question">Capital of France?</p><input type="checkbox" value="Paris" data-correct="true" data-selected="Yes, Paris."><input type="checkbox" value="Lyon" data-unselected="Fine."></multiple-choice>' } }
@@ -58,6 +60,7 @@
   when: "a learner, then an admin, reads the page"
   then: "the learner gets no correct attribute and a fingerprint key; the admin gets the authored content"
   run:
+    records: { site: { license: "", metadata: { plugins: {} } } }
     steps:
       - asUser: { id: u2, name: learner, displayName: Learner, roles: [viewer], avatar: null }
       - fire: { hook: entity.after.read, entity: page, subject: { id: p1, content: '<multiple-choice><p>Pick one</p><input value="Yes" correct><input value="No"></multiple-choice>' } }

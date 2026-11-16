@@ -1,0 +1,163 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method AnnouncementsPlugin\:\:pluginAfterUpgrade\(\) should return null but return statement is missing\.$#'
+			identifier: return.missing
+			count: 1
+			path: ../../core-plugins/announcements/src/php/Plugin.php
+
+		-
+			message: '#^Method AnnouncementsPlugin\:\:pluginBeforeEnable\(\) should return null but return statement is missing\.$#'
+			identifier: return.missing
+			count: 1
+			path: ../../core-plugins/announcements/src/php/Plugin.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: ../../core-plugins/import-docx/src/php/Plugin.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 3
+			path: ../../core-plugins/import-markdown/src/php/Markdown.php
+
+		-
+			message: '#^Offset 2 on array\{non\-falsy\-string, '''', '''', string, non\-falsy\-string\}\|array\{non\-falsy\-string, string, non\-falsy\-string\} in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: ../../core-plugins/import-markdown/src/php/Markdown.php
+
+		-
+			message: '#^Empty array passed to foreach\.$#'
+			identifier: foreach.emptyArray
+			count: 1
+			path: ../../core-plugins/importer-drupal/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 2
+			path: ../../core-plugins/importer-drupal/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../../core-plugins/importer-gitbook/src/php/Plugin.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between non\-empty\-string and '''' will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: ../../core-plugins/importer-gitbook/src/php/Plugin.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: ../../core-plugins/importer-html/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../../core-plugins/importer-html/src/php/Plugin.php
+
+		-
+			message: '#^Offset mixed on non\-empty\-array\<int\<0, max\>\> in isset\(\) always exists and is not nullable\.$#'
+			identifier: isset.offset
+			count: 1
+			path: ../../core-plugins/importer-notion/src/php/Plugin.php
+
+		-
+			message: '#^Offset 3 on array\{non\-falsy\-string, non\-falsy\-string, string, ''''\|''/''\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: ../../core-plugins/importer-openstax/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 3
+			path: ../../core-plugins/importer-plone/src/php/Plugin.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: ../../core-plugins/importer-pressbooks/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 2
+			path: ../../core-plugins/importer-pressbooks/src/php/Plugin.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: ../../core-plugins/importer-quarto/src/php/Plugin.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: ../../core-plugins/importer-quarto/src/php/Plugin.php
+
+		-
+			message: '#^Offset 2 on array\{non\-falsy\-string, non\-empty\-string, string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: ../../core-plugins/importer-quarto/src/php/Plugin.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''root'' and ''drop'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: ../../core-plugins/importer-quarto/src/php/Plugin.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''root'' and ''wrap'' will always evaluate to false\.$#'
+			identifier: identical.alwaysFalse
+			count: 1
+			path: ../../core-plugins/importer-quarto/src/php/Plugin.php
+
+		-
+			message: '#^Binary operation "\+" between non\-empty\-string and 0 results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: ../../core-plugins/importer-vitepress/src/php/Plugin.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: ../../core-plugins/importer-vitepress/src/php/Plugin.php
+
+		-
+			message: '#^If condition is always false\.$#'
+			identifier: if.alwaysFalse
+			count: 1
+			path: ../../core-plugins/importer-vitepress/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../../core-plugins/importer-wordpress/src/php/Plugin.php
+
+		-
+			message: '#^PHPDoc tag @return has invalid value \(array  \[\]\.\)\: Unexpected token "\.", expected TOKEN_HORIZONTAL_WS at offset 325 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: ../../core-plugins/oauth/src/php/Plugin.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function array_filter expects \(callable\(string\)\: bool\)\|null, ''strlen'' given\.$#'
+			identifier: argument.type
+			count: 1
+			path: ../../core-plugins/oauth/src/php/Plugin.php

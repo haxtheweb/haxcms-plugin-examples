@@ -4,9 +4,10 @@ uuid: 91e5d3d1-a51d-5af0-9ea2-e55734cdc1bb
 title: fx-probe-c (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 hooks:
   - name: entity.before.create
     entities: [note]

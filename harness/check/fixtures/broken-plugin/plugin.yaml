@@ -1,0 +1,16 @@
+# Self-test fixture for hax-plugin-check (see README.md): every gate must fail on it.
+# The manifest is wrong on purpose too: the id does not match the folder name.
+specVersion: "0.1.0"
+id: not-the-folder-name
+uuid: 6b0f4f4a-2d1e-4c4b-9a8e-0c7a1f2b3c4d
+title: Broken plugin (self-test)
+description: Breaks every hax-plugin-check gate on purpose. Never shipped.
+category: other
+icon: icons:bug-report
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+tagPrefix: broken-
+untested: true

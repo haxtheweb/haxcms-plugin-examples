@@ -4,8 +4,9 @@ uuid: 5c87c29c-be33-513f-a7cc-9c325ce1ea62
 title: fx-notes (conformance fixture)
 description: Conformance fixture; see conformance/fixtures/README.md.
 version: 0.1.0
-runtimes: [nodejs]
+runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
 entities: config/entities.yaml
 datastores: config/datastores.yaml

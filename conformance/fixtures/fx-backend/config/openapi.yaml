@@ -1,0 +1,15 @@
+openapi: 3.1.0
+info: { title: fx-backend, version: 0.1.0 }
+paths:
+  /pages/{pageId}/notes:
+    get:
+      operationId: fxBackendNotes
+      security: [{}, { bearerAuth: [] }]
+      parameters: [{ name: pageId, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: OK } }
+    post:
+      operationId: fxBackendNote
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: pageId, in: path, required: true, schema: { type: string } }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [body], properties: { body: { type: string } } } } } }
+      responses: { "200": { description: OK }, "404": { description: No such page } }
