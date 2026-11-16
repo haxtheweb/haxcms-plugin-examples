@@ -22,7 +22,7 @@ const KEEP_ATTRIBUTES = {
   "media-image": ["source", "alt"],
 };
 const ATTR = /([^\s=/>"']+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
-const SPACE = /[\t\n\v\f\r  ]+/g;
+const SPACE = /[\t\n\v\f\r \u00a0]+/g;
 
 /** HAXCMS.cleanTitle from core. */
 function cleanTitle(value) {
