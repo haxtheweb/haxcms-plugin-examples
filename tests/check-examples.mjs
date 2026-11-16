@@ -20,7 +20,7 @@ for (const name of examples) {
 }
 
 // 2. hook coverage in the comprehensive example
-const hooks = JSON.parse(readFileSync(join(root, "schema/hooks.json"), "utf8"));
+const hooks = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8")).map((c) => c.name);
 const ex = join(root, "examples/example");
 const manifest = readFileSync(join(ex, "plugin.yaml"), "utf8");
 const node = readFileSync(join(ex, "src/nodejs/index.js"), "utf8");
@@ -47,6 +47,10 @@ const broken = [
   ["exec list without the capability", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(', "exec:run"', ""))],
   ["missing category", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(/^category: .*\n/m, ""))],
   ["missing README", (d) => rmSync(join(d, "README.md"))],
+  ["YAML the PHP parser refuses: an unquoted comma inside { }", (d) => writeFileSync(join(d, "registries/locales/en.yaml"), 'awesome.explode: "Explode"\nawesome.note: { text: Sent from another site, or refused }\n')],
+  ["duplicate YAML key", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8") + "\ntitle: Twice\n")],
+  ["operation on a reserved sub-path", (d) => writeFileSync(join(d, "config/openapi.yaml"), readFileSync(join(d, "config/openapi.yaml"), "utf8").replace(/^  \/[a-z][^:\n]*:/m, "  /enable:"))],
+  ["desktop target without a nodejs runtime", (d) => writeFileSync(join(d, "plugin.yaml"), readFileSync(join(d, "plugin.yaml"), "utf8").replace(/^runtimes: .*$/m, "runtimes: [php]").replace(/^  nodejs: .*\n/m, "") + "\ntargets: [server, desktop]\n")],
   ["missing AGENTS.md", (d) => rmSync(join(d, "AGENTS.md"))],
   ["no tests and no untested flag", (d) => rmSync(join(d, "tests"), { recursive: true })],
   ["only commented-out test stubs", (d) => { rmSync(join(d, "tests/cases/hooks.yaml")); }],

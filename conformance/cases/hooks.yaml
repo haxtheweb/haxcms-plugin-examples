@@ -71,7 +71,7 @@
       - fire: { hook: entity.before.create, entity: note, subject: { title: Hi } }
         expect: { veto: false, log: { contains: ["timed out after 200 ms", "fx-probe-b:entity.before.create"] } }
 - id: hooks-007
-  title: "every hook in schema/hooks.json is implemented by examples/example"
+  title: "every hook in schema/hook-contracts.json is implemented by examples/example"
   spec: spec/10-examples-conformance.md
   given: "examples/example"
   when: "static check"

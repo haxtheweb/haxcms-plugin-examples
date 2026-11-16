@@ -4,12 +4,13 @@
 // JSON output matches the other HAX validators: [{ file, errors: [{path,message}], warnings: [...] }]
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { parse } from "yaml";
+import { parse, parseDocument, isMap, isPair, isScalar, visit } from "yaml";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename, resolve } from "node:path";
 import { missingDocblocks } from "./plugin-docs.mjs";
+import { backendNeeds, targetSummary, TARGET_NAMES } from "./backend-needs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -41,19 +42,29 @@ const validators = {
   dashboard: own("dashboard-contribution.schema.json"),
   cli: own("cli-command.schema.json"),
 };
-const knownHooks = new Set(readJson(join(root, "schema/hooks.json")));
+// the hook list is the names in hook-contracts.json; there is no second list to keep in step
 const hookContracts = Object.fromEntries(readJson(join(root, "schema/hook-contracts.json")).map((c) => [c.name, c]));
+const knownHooks = new Set(Object.keys(hookContracts));
+// sub-paths of /plugins/<id>/ that core answers itself (spec/05): a plugin operation cannot take them
+const RESERVED_PATHS = ["assets", "openapi.json", "openapi.yaml", "enable", "disable", "settings"];
 const knownCaps = new Set(readJson(join(root, "schema/capabilities.json")));
 const cliReserved = new Set(readJson(join(root, "schema/cli-reserved.json")));
 const knownCategories = new Set(readJson(join(root, "schema/categories.json")));
 const derivedTagNames = Object.keys(readJson(join(root, "schema/derived-tags.json")));
 
 // Derived tags: computed from the manifest so authors cannot hide security or longevity implications.
-function derivedTags(m) {
+function derivedTags(m, dir) {
+  let api = null;
+  try { if (dir && m.openapi && existsSync(join(dir, m.openapi))) api = readAny(join(dir, m.openapi)); } catch { api = null; }
+  const needs = backendNeeds(m, api);
+  const fits = targetSummary(m, needs);
   const caps = m.capabilities || [];
   const has = (c) => caps.some((x) => x === c || x.startsWith(c + ":"));
   const t = [];
   if (m.staticCapable === false || m.openapi) t.push("needs-server");
+  if (needs.includes("visitors")) t.push("needs-reachable-server");
+  if (fits.browser === "no") t.push("not-in-browser");
+  if (fits.desktop === "no") t.push("not-on-desktop");
   if (has("exec")) t.push("runs-commands");
   if (has("network")) t.push("sends-data-out");
   if (has("settings:secret")) t.push("stores-secrets");
@@ -69,6 +80,31 @@ function derivedTags(m) {
   if ((m.egress || []).some((e) => e && e.input)) t.push("reaches-given-url");
   if ([...(m.egress || []), ...((m.privacy && m.privacy.recipients) || [])].some((e) => e && e.setting)) t.push("admin-chosen-hosts");
   return t;
+}
+// YAML both backends read the same way (spec/02, YAML profile). The two parsers differ at the edges: the Node one
+// accepts `{ description: Sent from another site, or refused }` as two keys (the second with no value) where the PHP
+// one refuses the file, so a plugin that validated here did not load in haxcms-php. These are rejected for everyone.
+function yamlProblems(text) {
+  const out = [];
+  let doc;
+  try { doc = parseDocument(text, { uniqueKeys: true, prettyErrors: true }); } catch (e) { return [String(e.message)]; }
+  for (const e of doc.errors) out.push(`line ${e.linePos ? e.linePos[0].line : "?"}: ${e.message.split("\n")[0]}`);
+  const lineOf = (node) => { const o = node && node.range ? node.range[0] : null; return o === null ? "?" : text.slice(0, o).split("\n").length; };
+  visit(doc, {
+    Map(_, map) {
+      if (!map.flow) return;
+      for (const pair of map.items) {
+        if (isPair(pair) && (pair.value === null || (isScalar(pair.value) && pair.value.value === null && pair.value.source === undefined && pair.value.range && pair.value.range[0] === pair.value.range[1]))) {
+          out.push(`line ${lineOf(pair.key)}: "${isScalar(pair.key) ? pair.key.value : "?"}" has no value inside { }. A comma in an unquoted value ends it: put the value in quotes`);
+        }
+      }
+    },
+    Seq(_, seq) {
+      if (!seq.flow) return;
+      for (const item of seq.items) if (isMap(item) && !item.flow && item.items.length === 1 && isPair(item.items[0]) && item.items[0].value === null) out.push(`line ${lineOf(item)}: a key with no value inside [ ]: put the text in quotes`);
+    },
+  });
+  return out;
 }
 function frontmatter(text) {
   const mt = /^---\n([\s\S]*?)\n---/.exec(text);
@@ -127,6 +163,12 @@ function validatePlugin(manifestPath) {
   const rel2 = rel;
   let m;
   try { m = readAny(manifestPath); } catch (e) { err("/", `cannot parse: ${e.message}`); return { file: manifestPath, errors, warnings }; }
+  // every YAML file the plugin ships must read the same in both backends
+  {
+    const skip = new Set(["node_modules", ".git", "vendor"]);
+    const all = (d) => readdirSync(d).flatMap((n) => (skip.has(n) ? [] : statSync(join(d, n)).isDirectory() ? all(join(d, n)) : [join(d, n)]));
+    for (const f of all(dir).filter((x) => /\.ya?ml$/.test(x))) for (const problem of yamlProblems(readFileSync(f, "utf8"))) err(rel(f), `YAML both backends must read alike: ${problem}`);
+  }
   if (!validators.manifest(m)) fmt(validators.manifest.errors).forEach((e) => err(e.path, e.message));
   if (!m || typeof m !== "object") return { file: manifestPath, errors, warnings };
   if (m.id && basename(dir) !== m.id) err("/id", `id "${m.id}" must equal the plugin folder name "${basename(dir)}"`);
@@ -145,8 +187,11 @@ function validatePlugin(manifestPath) {
     if (m.core) err("/runtimes", `core plugins must provide both nodejs and php (missing ${other})`);
     else warn("/runtimes", `single runtime: ${other} backends refuse this plugin (no ${other} implementation)`);
   }
+  if (m.targets && m.kind === "pack") warn("/targets", "a pack has no backend code, so it runs on every target; targets has no effect");
+  for (const t of m.targets || []) if ((m.runtimes || []).length && !["nodejs"].some((r) => m.runtimes.includes(r)) && t !== "server") err("/targets", `${t} runs haxcms-nodejs: a plugin without a nodejs runtime cannot list it`);
   if (m.openapi && existsSync(join(dir, m.openapi))) {
     const api = readAny(join(dir, m.openapi));
+    for (const path of Object.keys(api.paths || {})) { const first = String(path).split("/").filter(Boolean)[0]; if (RESERVED_PATHS.includes(first)) err(`${m.openapi}/paths/${path}`, `"${first}" is a reserved sub-path of /plugins/<id>/ that core answers itself; choose another path`); }
     const scopes = [api["x-hax-scope"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-scope"]))].filter((x) => x !== undefined);
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);
     // x-hax-transaction: atomic runs the whole operation in one atomic transaction (spec/06, Transactions)
@@ -482,7 +527,7 @@ function validatePlugin(manifestPath) {
   }
   // every hook, operation, contract operation and schedule has an "Implements ..." docblock in each runtime (spec/02)
   for (const x of missingDocblocks(dir, m)) err("/docs", `${x} (see scripts/plugin-docs.mjs for the convention)`);
-  return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m) };
+  return { file: manifestPath, errors, warnings, derivedTags: derivedTags(m, dir) };
 }
 
 const reports = [];

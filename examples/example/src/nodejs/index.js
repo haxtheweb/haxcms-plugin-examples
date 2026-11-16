@@ -1,4 +1,4 @@
-// Example plugin (Node). Implements every operation in config/openapi.yaml and every hook in schema/hooks.json.
+// Example plugin (Node). Implements every operation in config/openapi.yaml and every hook in schema/hook-contracts.json.
 // Most hook bodies only log; the comment says what you could do there. The contract for ctx is spec/13.
 const log = (name, ctx) => (ctx && ctx.log ? ctx.log.info(name) : console.log(`[example] ${name}`));
 

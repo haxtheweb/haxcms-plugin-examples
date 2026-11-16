@@ -14,6 +14,7 @@ import { inflateRawSync } from "node:zlib";
 import { parse } from "yaml";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { backendNeeds, targetFit, targetSummary, TARGETS } from "../scripts/backend-needs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
@@ -105,6 +106,9 @@ const studly = (id) => id.split("-").map((p) => p[0].toUpperCase() + p.slice(1))
 function camelHook(name) { return name.split(/[.-]/).map((p, i) => (i ? p[0].toUpperCase() + p.slice(1) : p)).join(""); }
 const getPath = (obj, path) => path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
 const cmpVersion = (a, b) => { const x = String(a).split(".").map(Number), y = String(b).split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0) ? -1 : 1; } return 0; };
+// what both backends write into a new site's site.json besides its id and title (their boilerplate/site/site.json).
+// The reference site starts the same way, so a plugin that reads the license sees what it would on a real new site.
+const NEW_SITE = { author: "", description: "", license: "by-sa" };
 const LIMITED_USER = ["id", "name", "displayName", "roles", "avatar"];
 async function withTimeout(promise, ms, label) {
   let timer;
@@ -116,8 +120,12 @@ async function withTimeout(promise, ms, label) {
 const SITE_SCOPES = ["site", "siteData", "manifest"];
 
 export class MemoryBackend {
-  constructor({ haxcmsVersion = "26.10.1", runtime = "nodejs", site = { id: "00000000-0000-4000-8000-000000000001", name: "test-site", path: "/sites/test-site" }, user = { id: "u1", name: "admin", displayName: "Admin", roles: ["admin"], avatar: null, email: "admin@example.invalid", passwordHash: "never-exposed" }, hookTimeout = 5000 } = {}) {
-    this.haxcms = { version: haxcmsVersion, runtime };
+  constructor({ haxcmsVersion = "26.10.1", runtime = "nodejs", site = { id: "00000000-0000-4000-8000-000000000001", name: "test-site", path: "/sites/test-site" }, user = { id: "u1", name: "admin", displayName: "Admin", roles: ["admin"], avatar: null, email: "admin@example.invalid", passwordHash: "never-exposed" }, hookTimeout = 5000, target = "server" } = {}) {
+    // where this backend runs (spec/14): a hosted server, the desktop app or the browser. It decides which plugins can
+    // be active here and which run with a caveat
+    if (!TARGETS.targets[target]) throw new Error(`unknown target "${target}"; known: ${Object.keys(TARGETS.targets).join(", ")}`);
+    this.target = target;
+    this.haxcms = { version: haxcmsVersion, runtime, target };
     // site: null is the system engine (spec/13 section 9): HAXcms-wide work with no site, for system-scope operations
     // and dashboard contributions; anything that needs a site refuses with requireSite()
     // a real, empty folder stands in for the site directory, so plugins that run commands there (git) can be tested
@@ -140,7 +148,7 @@ export class MemoryBackend {
     this.fetchCalls = [];
     this.fetchFakes = {};
     this.execFakes = {};
-    this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: site ? { [site.id]: { id: site.id, title: site.name, metadata: { plugins: {} }, items: [] } } : {}, page: {}, file: {} };
+    this.records = { config: { core: { appStore: { apiKeys: {} } } }, site: site ? { [site.id]: { id: site.id, title: site.name, ...NEW_SITE, metadata: { plugins: {} }, items: [] } } : {}, page: {}, file: {} };
   }
 
   // the system engine has no site: site records, site stores, site files, rendering and rebuilds refuse there
@@ -150,13 +158,16 @@ export class MemoryBackend {
 
   seed(records = {}) {
     if (records.site) this.requireSite("site records");
-    if (records.site) this.records.site[this.site.id] = { id: this.site.id, metadata: { plugins: {} }, items: [], ...structuredClone(records.site) };
+    if (records.site) this.records.site[this.site.id] = { id: this.site.id, ...NEW_SITE, metadata: { plugins: {} }, items: [], ...structuredClone(records.site) };
     for (const type of Object.keys(records)) if (type !== "site") for (const r of records[type]) { this.records[type] = this.records[type] || {}; this.records[type][r.id || r.uuid] = structuredClone(r); }
   }
 
   // ---- loading (spec/13 section 2) ----
   // dirs: paths, or { path, tier } objects. options: settings, stores (by plugin id), disabled, blocked, required.
-  async load(dirs, { settings = {}, stores = {}, disabled = [], blocked = [], required = [], records } = {}) {
+  // `enabled`, when given, is the deployment's list of enabled plugin ids (the system registry, spec/03): a plugin that
+  // is not on it, not required and not locked is `available` (installed, off) and none of its code is loaded. Left out,
+  // every plugin found is enabled, which is what test cases over a handful of fixtures want.
+  async load(dirs, { settings = {}, stores = {}, enabled, disabled = [], blocked = [], required = [], records } = {}) {
     if (records) this.seed(records);
     const found = [];
     for (const d of dirs) {
@@ -164,7 +175,7 @@ export class MemoryBackend {
       const dir = resolve(spec.path);
       let m;
       try { m = readAny(join(dir, "plugin.yaml")); } catch (e) { this.log.push({ level: "error", plugin: spec.path, message: `cannot read plugin.yaml: ${e.message}` }); continue; }
-      found.push({ id: m && m.id, dir, manifest: m || {}, tier: spec.tier || "system-core", ops: {}, stores: {}, hookDefs: {}, entities: {}, settings: {}, explicit: new Set(), form: [], entry: null, status: "enabled", reason: null, unmet: [] });
+      found.push({ id: m && m.id, dir, manifest: m || {}, tier: spec.tier || "system-core", ops: {}, stores: {}, hookDefs: {}, entities: {}, settings: {}, explicit: new Set(), form: [], entry: null, status: "enabled", reason: null, unmet: [], needs: [], limited: [], targetUnmet: [] });
     }
     // higher tier wins a name collision
     found.sort((a, b) => TIERS[a.tier] - TIERS[b.tier]);
@@ -183,9 +194,15 @@ export class MemoryBackend {
       else if (m.kind !== "pack" && Array.isArray(m.runtimes) && !m.runtimes.includes(this.runtime)) refuse(`no ${this.runtime} implementation: this plugin ships ${m.runtimes.join(", ")} only`);
       else if (blocked.includes(p.id)) refuse("blocked by deployment config");
       else if (disabled.includes(p.id) && !m.required && !required.includes(p.id)) { p.status = "disabled"; p.reason = "disabled"; }
+      else if (Array.isArray(enabled) && !enabled.includes(p.id) && !m.required && !required.includes(p.id)) { p.status = "available"; p.reason = "not enabled"; }
       if (p.status === "refused") { this.plugins.push(p); continue; }
-      if (m.openapi) {
-        const api = readAny(join(p.dir, m.openapi));
+      const api = m.openapi ? readAny(join(p.dir, m.openapi)) : null;
+      // what it needs from a backend, and how this backend's target fits (spec/14)
+      p.needs = backendNeeds(m, api);
+      const fit = targetFit(m, p.needs, this.target);
+      p.targetUnmet = fit.unmet;
+      p.limited = fit.limited;
+      if (api) {
         for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
           if (!op || !op.operationId) continue;
           p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, atomic: (op["x-hax-transaction"] || api["x-hax-transaction"]) === "atomic", security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null };
@@ -200,10 +217,8 @@ export class MemoryBackend {
       p.explicit = new Set(Object.keys(settings[p.id] || {}));
       p.form = m.settings && existsSync(join(p.dir, m.settings)) ? readAny(join(p.dir, m.settings)).configure || [] : [];
       p.storeOverrides = { ...(stores[p.id] || {}) };
-      if (m.kind !== "pack" && this.runtime === "nodejs" && m.entry && m.entry.nodejs) {
-        try { const mod = await import(pathToFileURL(join(p.dir, m.entry.nodejs)).href); p.entry = mod.default || mod; }
-        catch (e) { p.status = "failed"; p.reason = `entry failed to load: ${e.message}`; this.log.push({ level: "error", plugin: p.id, message: p.reason }); }
-      }
+      // code of a plugin that is not enabled is never loaded; enable() loads it then
+      if (p.status !== "available") await this.loadEntry(p);
       this.plugins.push(p);
     }
     // dependencies: a missing or unusable dependency keeps the plugin disabled
@@ -227,6 +242,43 @@ export class MemoryBackend {
   }
 
   get(id) { return this.plugins.find((x) => x.id === id); }
+  async loadEntry(p) {
+    const m = p.manifest;
+    if (p.entry || m.kind === "pack" || this.runtime !== "nodejs" || !m.entry || !m.entry.nodejs) return;
+    try { const mod = await import(pathToFileURL(join(p.dir, m.entry.nodejs)).href); p.entry = mod.default || mod; }
+    catch (e) { p.status = "failed"; p.reason = `entry failed to load: ${e.message}`; this.log.push({ level: "error", plugin: p.id, message: p.reason }); }
+  }
+  // One engine serves every request for its site, so who is asking cannot live on the engine: two requests in flight
+  // would see each other's user. A backend calls forUser(user) per request and works through what it returns. The
+  // view shares all engine state and has its own user, transaction and re-entry guard.
+  forUser(user) {
+    const root = this;
+    const view = Object.create(this);
+    Object.defineProperty(view, "user", { value: user, writable: true, enumerable: true });
+    for (const k of ["now", "lastRuns", "fragments", "flushed", "collectingPrompts"]) {
+      Object.defineProperty(view, k, { get: () => root[k], set: (v) => { root[k] = v; }, enumerable: true });
+    }
+    view.currentTx = null;
+    view.running = null;
+    return view;
+  }
+  // The plugin registry (spec/03): one entry per installed plugin with what the system needs to keep track of it.
+  // Backends serve it at GET .../plugins and keep the enabled list it reflects in _config/plugins/plugins.yaml.
+  registry() {
+    return this.plugins.map((p) => {
+      const m = p.manifest || {};
+      const on = p.status === "active" || p.status === "inactive";
+      return {
+        id: p.id, title: m.title || p.id, version: m.version || null, tier: p.tier, kind: m.kind || "plugin",
+        status: p.status, reason: p.reason, enabled: on, required: m.required === true,
+        unmet: p.unmet || [], limited: on ? p.limited || [] : [],
+        needs: p.needs || [], targets: p.status === "refused" ? {} : targetSummary(m, p.needs || []),
+        staticCapable: m.staticCapable === undefined ? !(p.needs || []).includes("backend") : m.staticCapable === true,
+        dependencies: (m.dependencies || []).map((d) => d.split("@")[0]),
+        dependents: this.plugins.filter((x) => (x.status === "active" || x.status === "inactive") && (x.manifest.dependencies || []).some((d) => d.split("@")[0] === p.id)).map((x) => x.id),
+      };
+    });
+  }
   // scheduled jobs (spec/13): the CLI or a timer plugin runs them; schedule.before.run may skip one
   async runSchedule(pluginId, jobId) {
     const p = this.get(pluginId);
@@ -492,14 +544,15 @@ export class MemoryBackend {
     if (!pr.consentSetting || p.settings[pr.consentSetting] === true) return pr;
     return { ...pr, requiresConsent: [] };
   }
-  status() { return this.plugins.map((p) => ({ id: p.id, status: p.status, reason: p.reason, unmet: p.unmet })); }
+  status() { return this.plugins.map((p) => ({ id: p.id, status: p.status, reason: p.reason, unmet: p.unmet, limited: p.status === "active" ? p.limited || [] : [] })); }
   active(id) { const p = this.get(id); return !!p && p.status === "active"; }
   hookContract(name) { return CORE_HOOKS.find((c) => c.name === name) || this.plugins.map((p) => p.hookDefs[name]).find(Boolean); }
 
   // a required settings field without a value is an unmet requirement on its own (spec/03); hooks add the rest
   requiredUnmet(p) {
     const eff = this.effectiveSettings(p);
-    return p.form.filter((f) => f.required && (eff[f.property] === undefined || eff[f.property] === null || eff[f.property] === "")).map((f) => ({ key: `settings.${f.property}`, message: `Set ${f.title || f.property}` }));
+    // what this backend's target cannot give the plugin comes first (spec/14): no setting fixes that
+    return [...(p.targetUnmet || []), ...p.form.filter((f) => f.required && (eff[f.property] === undefined || eff[f.property] === null || eff[f.property] === "")).map((f) => ({ key: `settings.${f.property}`, message: `Set ${f.title || f.property}` }))];
   }
   async refreshStatus(p) {
     const before = await this.fire("plugin.before.requirements", this.requiredUnmet(p), { only: p.id, includeInactive: true });
@@ -516,6 +569,12 @@ export class MemoryBackend {
     if (p.status === "refused") return { status: 409, body: { error: p.reason } };
     const subject = { id, version: p.manifest.version, scope: "system" };
     const wasStatus = p.status;
+    await this.loadEntry(p);
+    if (p.status === "failed" && !p.entry && p.reason && p.reason.startsWith("entry failed")) return { status: 409, body: { error: p.reason, status: "failed", previous: wasStatus } };
+    // a dependency that is off keeps it off; the caller enables the dependency first (after confirmation, spec/03)
+    const missing = (p.manifest.dependencies || []).map((d) => d.split("@")[0]).filter((d) => { const x = this.get(d); return !x || !(x.status === "active" || x.status === "inactive"); });
+    if (missing.length) return { status: 409, body: { error: "enable its dependencies first", dependencies: missing } };
+    p.reason = null;
     p.status = "active"; // hooks of the plugin itself run during its own enable
     try {
       const first = !this.installed.has(`${id}:system`);

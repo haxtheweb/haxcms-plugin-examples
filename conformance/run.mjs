@@ -31,7 +31,7 @@ async function runCase(c) {
     return errs;
   }
   // system: true runs the case on the system engine (no site; spec/13 section 9)
-  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, runtime, ...(r.user ? { user: r.user } : {}), ...(r.system ? { site: null } : {}) };
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, runtime, ...(r.user ? { user: r.user } : {}), ...(r.target ? { target: r.target } : {}), ...(r.system ? { site: null } : {}) };
   // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
   const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
   // a case may hold for one runtime only (`runtimes: [php]`); the backend says which runtime it is
