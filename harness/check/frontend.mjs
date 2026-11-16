@@ -309,12 +309,18 @@ async function checkElement(dir, el) {
           const node = document.querySelector(tag);
           if (!node) return [{ id: "missing", help: `no <${tag}> in the page` }];
           const r = await globalThis.axe.run(node, { runOnly: { type: "tag", values: tags }, resultTypes: ["violations"] });
-          return r.violations.map((v) => ({ id: v.id, help: v.help, nodes: v.nodes.length }));
+          // for contrast, say which element and what was measured, so the fix does not start with a hunt
+          const detail = (n) => {
+            const d = [...(n.any || []), ...(n.all || [])].map((c) => c.data).find((x) => x && x.contrastRatio);
+            const where = Array.isArray(n.target) ? n.target.flat().join(" ") : "";
+            return d ? `${where} ${d.contrastRatio}:1, ${d.fgColor} on ${d.bgColor}, needs ${d.expectedContrastRatio}` : where;
+          };
+          return r.violations.map((v) => ({ id: v.id, help: v.help, nodes: v.nodes.length, first: v.nodes.slice(0, 2).map(detail).filter(Boolean).join("; ") }));
         },
         el.tag,
         AXE_TAGS,
       );
-      for (const v of violations) errors.push(`[${scheme}] axe ${v.id}: ${v.help}${v.nodes ? ` (${v.nodes} node${v.nodes > 1 ? "s" : ""})` : ""}`);
+      for (const v of violations) errors.push(`[${scheme}] axe ${v.id}: ${v.help}${v.nodes ? ` (${v.nodes} node${v.nodes > 1 ? "s" : ""}${v.first ? `: ${v.first}` : ""})` : ""}`);
       if (scheme === "light") for (const b of await page.evaluate(brokenIdRefs, el.tag)) errors.push(`aria refs: ${b}`);
       snapshots[scheme] = await page.evaluate(colorSnapshot, el.tag);
       if (scheme === "light") {
