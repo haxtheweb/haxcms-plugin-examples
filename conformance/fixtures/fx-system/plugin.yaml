@@ -1,0 +1,12 @@
+specVersion: "0.1.0"
+id: fx-system
+uuid: 47c0c599-66cf-4a43-9c78-8c5091c2a4c8
+title: fx-system (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+datastores: config/datastores.yaml

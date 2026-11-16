@@ -10,7 +10,7 @@ metadata:
 
 # Auditing a HAXcms plugin
 
-Spec: https://github.com/haxtheweb/haxcms-plugin-examples. Diagnose only; hand fixes to `hax-plugin-dev` or `hax-plugin-upgrade`.
+Spec: https://github.com/haxtheweb/haxcms-plugins. Diagnose only; hand fixes to `hax-plugin-dev` or `hax-plugin-upgrade`.
 
 ## Run
 

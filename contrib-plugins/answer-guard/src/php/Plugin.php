@@ -7,7 +7,6 @@ class AnswerGuardPlugin {
   const TAG = '/^[a-z][a-z0-9]*(-[a-z0-9]+)+$/';
   const VALUE = '(?:"[^"]*"|\'[^\']*\'|[^\s"\'>]+)';
 
-  private function esc($s) { return htmlspecialchars((string) $s, ENT_QUOTES | ENT_HTML5, 'UTF-8'); }
   private function escAttr($s) { return str_replace(['&', '<', '>', '"', "'"], ['&amp;', '&lt;', '&gt;', '&quot;', '&#39;'], (string) $s); }
   private function decode($s) { return str_replace(['&quot;', '&#39;', '&lt;', '&gt;', '&amp;'], ['"', "'", '<', '>', '&'], (string) $s); }
   private function norm($s) { return trim(preg_replace('/\s+/u', ' ', (string) $s)); }

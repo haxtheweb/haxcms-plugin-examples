@@ -1,9 +1,23 @@
 // Minify HTML (Node only). Leaves <script>, <style>, <pre> and <textarea> contents untouched.
+// drops <!-- comments -->, keeping conditional ones (<!--[if ...]>), by scanning rather than by regex replacement
+function withoutComments(html) {
+  let out = "";
+  let i = 0;
+  while (i < html.length) {
+    const start = html.indexOf("<!--", i);
+    if (start < 0) { out += html.slice(i); break; }
+    const end = html.indexOf("-->", start + 4);
+    const next = end < 0 ? html.length : end + 3;
+    out += html.slice(i, start) + (html.startsWith("<!--[if", start) ? html.slice(start, next) : "");
+    i = next;
+  }
+  return out;
+}
+
 export function minify(html) {
   const keep = [];
   const held = String(html).replace(/<(script|style|pre|textarea)\b[\s\S]*?<\/\1>/gi, (m) => `\u0000${keep.push(m) - 1}\u0000`);
-  return held
-    .replace(/<!--(?!\[if)[\s\S]*?-->/g, "")
+  return withoutComments(held)
     .replace(/(>|\u0000)\s+(?=<|\u0000)/g, "$1")
     .replace(/\s{2,}/g, " ")
     // an inline script often starts on its own line; the newline is part of its contents, and so of its CSP hash

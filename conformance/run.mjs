@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs the executable spec conformance cases (conformance/cases/*.yaml with a `run` block) against the
 // reference harness. A real backend runs the same cases through its own adapter (spec/13 section 9).
-// Usage: node conformance/run.mjs [--json] [--case <id>]
+// Usage: node conformance/run.mjs [--json] [--case <id>] [--runtime nodejs|php] [--backend <adapter module>]
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,8 @@ const args = process.argv.slice(2);
 const backendArg = args.includes("--backend") ? args[args.indexOf("--backend") + 1] : null;
 const backendFactory = backendArg ? await import((await import("node:url")).pathToFileURL((await import("node:path")).resolve(backendArg)).href) : null;
 const only = args.includes("--case") ? args[args.indexOf("--case") + 1] : null;
+// --runtime php runs the fixtures' PHP entries (through harness/php/bridge.php in the reference); default nodejs
+const runtime = args.includes("--runtime") ? args[args.indexOf("--runtime") + 1] : "nodejs";
 const fx = (p) => (typeof p === "string" ? join(root, p.includes("/") ? p : `conformance/fixtures/${p}`) : { ...p, path: join(root, p.path.includes("/") ? p.path : `conformance/fixtures/${p.path}`) });
 
 async function runCase(c) {
@@ -28,9 +30,16 @@ async function runCase(c) {
     if (r.expect && r.expect.valid === false && !out.errors.length) errs.push("expected the validator to reject it");
     return errs;
   }
-  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, ...(r.user ? { user: r.user } : {}) };
+  // system: true runs the case on the system engine (no site; spec/13 section 9)
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", hookTimeout: r.hookTimeout || 5000, runtime, ...(r.user ? { user: r.user } : {}), ...(r.target ? { target: r.target } : {}), ...(r.system ? { site: null } : {}) };
   // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
   const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
+  // a case may hold for one runtime only (`runtimes: [php]`); the backend says which runtime it is
+  const backendRuntime = backend.runtime || runtime;
+  if (c.runtimes && !c.runtimes.includes(backendRuntime)) {
+    if (backend.close) backend.close();
+    return null;
+  }
   await backend.load((r.plugins || []).map(fx), r.load || {});
   backend.execFakes = r.exec || {};
   backend.fetchFakes = r.fetch || {};
@@ -43,7 +52,7 @@ async function runCase(c) {
   return errors;
 }
 
-let executable = 0, prose = 0, failed = 0;
+let executable = 0, prose = 0, failed = 0, skipped = 0;
 const results = [];
 for (const f of readdirSync(join(root, "conformance/cases")).filter((n) => n.endsWith(".yaml")).sort()) {
   for (const c of parse(readFileSync(join(root, "conformance/cases", f), "utf8"))) {
@@ -52,13 +61,14 @@ for (const f of readdirSync(join(root, "conformance/cases")).filter((n) => n.end
     executable++;
     let errors;
     try { errors = await runCase(c); } catch (e) { errors = [String(e && e.stack || e)]; }
+    if (errors === null) { executable--; skipped++; continue; }
     if (errors.length) failed++;
     results.push({ id: c.id, ok: !errors.length, errors });
   }
 }
-if (args.includes("--json")) console.log(JSON.stringify({ executable, prose, failed, results }, null, 2));
+if (args.includes("--json")) console.log(JSON.stringify({ executable, prose, failed, skipped, results }, null, 2));
 else {
   for (const r of results) if (!r.ok) console.log(`FAIL ${r.id}\n      ${r.errors.join("\n      ")}`);
-  console.log(`${failed ? "FAIL" : "ok  "} conformance: ${executable - failed}/${executable} executable cases pass against ${backendArg ? backendArg : "the reference harness"}; ${prose} still prose only`);
+  console.log(`${failed ? "FAIL" : "ok  "} conformance: ${executable - failed}/${executable} executable cases pass against ${backendArg ? backendArg : "the reference harness"}${skipped ? ` (${skipped} for another runtime)` : ""}; ${prose} still prose only`);
 }
 process.exit(failed ? 1 : 0);

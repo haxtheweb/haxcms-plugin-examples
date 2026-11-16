@@ -6,7 +6,7 @@ Status: draft for review. Each document is a section of the decision issue https
 |---|---|
 | [01-principles](01-principles.md) | pillars, core-vs-plugin test |
 | [02-anatomy-and-manifest](02-anatomy-and-manifest.md) | folder layout and `plugin.yaml` keys (schema in `../schema/`) |
-| [03-tiers-and-enablement](03-tiers-and-enablement.md) | five tiers, required/locked, failure isolation |
+| [03-tiers-and-enablement](03-tiers-and-enablement.md) | five tiers, required/locked, failure isolation, the plugin registry and the enable/disable routes |
 | [04-entities-data-upgrades](04-entities-data-upgrades.md) | extends, annotations, five store kinds, upgrades |
 | [05-routes-and-security](05-routes-and-security.md) | unified OpenAPI contract, fail-closed security |
 | [06-hooks-and-contracts](06-hooks-and-contracts.md) | before/after hooks, provider contracts |
@@ -14,6 +14,7 @@ Status: draft for review. Each document is a section of the decision issue https
 | [08-capabilities-privacy](08-capabilities-privacy.md) | capabilities, privacy, cookie-consent flow |
 | [09-packaging-tooling](09-packaging-tooling.md) | packaging, dashboard, CLI, audit, pillar report |
 | [11-related-schemas](11-related-schemas.md) | existing HAX schemas the spec reuses |
+| [14-deployment-targets](14-deployment-targets.md) | server, desktop, browser and static: what a plugin needs from a backend, what each target gives, and how core keeps track |
 | [13-backend-platform-contract](13-backend-platform-contract.md) | what every backend implements: layout, loader lifecycle, entry points, `ctx`, operations, hook dispatch, settings, adapters |
 | [12-plugin-candidates](12-plugin-candidates.md) | candidate core and contrib plugins, what moves out of core, priority |
 | [GAPS](GAPS.md) | open decisions and holes found while building the examples |

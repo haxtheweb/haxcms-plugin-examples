@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/haxtheweb/haxcms-plugin-examples/schema/theme-registry-entry.schema.json",
+  "$id": "https://github.com/haxtheweb/haxcms-plugins/schema/theme-registry-entry.schema.json",
   "title": "HAXcms theme registry entry (DRAFT)",
   "description": "One entry of coreConfig/themes.json (keyed by the theme element tag), and the shape of a plugin's registries/themes/*.json|yaml file. Derived from the 34 entries in haxcms-nodejs src/coreConfig/themes.json; no schema exists upstream yet, so this is a candidate to move into a shared schemas repo. Fields marked proposed are not read by core today.",
   "type": "object",
