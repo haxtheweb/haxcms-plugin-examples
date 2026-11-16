@@ -1,0 +1,27 @@
+# Site announcement (proposed community plugin). One line of news at the top of every page of a site, on any theme,
+# until an end date, that visitors can dismiss. Proposed in https://github.com/haxtheweb/issues/issues/3358 after it was first written
+# as core functionality (webcomponents#1436, haxcms-nodejs#285, haxcms-php#818) and closed in favor of a plugin.
+specVersion: "0.1.0"
+id: site-announcement
+uuid: 3c5c0d8e-6607-4cc9-bc26-a7fdea4e8714
+title: Site announcement
+description: Shows one line of news at the top of every page of a site, on any theme, until an end date; visitors can dismiss it.
+version: 0.1.0
+category: content
+icon: icons:announcement
+tags: [banner, notice, alert]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site                # each site its own announcement
+tagPrefix: site-announcement-
+staticCapable: true                # the text is baked into the markup; the element checks the end date itself
+capabilities: ["output:inject"]
+privacy:
+  tracking: false                  # dismissal stays in the visitor's browser
+hooks:
+  - name: render.before.body
