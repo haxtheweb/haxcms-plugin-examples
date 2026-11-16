@@ -5,9 +5,6 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const contracts = JSON.parse(readFileSync(join(root, "schema/hook-contracts.json"), "utf8"));
-const hooks = JSON.parse(readFileSync(join(root, "schema/hooks.json"), "utf8"));
-const names = contracts.map((c) => c.name);
-if (JSON.stringify(names) !== JSON.stringify(hooks)) { console.log("FAIL hooks.json and hook-contracts.json differ"); process.exit(1); }
 const esc = (s) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
 const alias = (c) => (c.aliasOf ? ` **Alias of** ${c.aliasOf.map((a) => `\`${a.hook}\`${a.entities ? ` on ${a.entities.join(", ")}` : ""}${a.changed ? ` when ${a.changed.join(", ")} changes` : ""}`).join(" and ")}.` : "");
 const stages = (c) => (c.stages ? ` **Stages** (subscriptions pick one with \`stage\`, run in order): ${c.stages.map((x) => `\`${x}\``).join(", ")}.` : "");

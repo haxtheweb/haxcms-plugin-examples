@@ -10,7 +10,7 @@ metadata:
 
 # Building a HAXcms plugin
 
-The spec and examples live in https://github.com/haxtheweb/haxcms-plugin-examples. Read the comprehensive example (`examples/example`) when unsure how a piece looks; read `examples/example` for a plugin with code in both runtimes.
+The spec and examples live in https://github.com/haxtheweb/haxcms-plugins. Read the comprehensive example (`examples/example`) when unsure how a piece looks; read `examples/example` for a plugin with code in both runtimes.
 
 ## 1. Decide what the plugin needs
 

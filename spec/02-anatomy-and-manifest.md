@@ -46,7 +46,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `core` | shipped with the platform |
 | `required` | core only: auto-enabled, cannot be disabled, cannot be supplanted |
 | `category` | one category from `schema/categories.json` (`other` when none fits); required by the audit |
-| `tags` | up to three free-form author tags for search and filtering (exactly one `category`, plus tags). **Derived tags** (`schema/derived-tags.json`: needs-server, runs-commands, sends-data-out, stores-secrets, injects-output, writes-files, reads-user-data, single-runtime, tracks-users, not-stable, untested) are computed from the manifest and always shown, because they carry security or longevity implications; authors cannot set or hide them |
+| `tags` | up to three free-form author tags for search and filtering (exactly one `category`, plus tags). **Derived tags** (`schema/derived-tags.json`: needs-server, needs-reachable-server, not-in-browser, not-on-desktop, runs-commands, sends-data-out, stores-secrets, injects-output, writes-files, reads-user-data, single-runtime, tracks-users, not-stable, untested) are computed from the manifest and always shown, because they carry security or longevity implications; authors cannot set or hide them |
 | `icon` | an iconset name or a path to an image in the plugin (see https://github.com/haxtheweb/issues/issues/3173); required by the audit |
 | `screenshots` | optional images (`src`, `alt`) for the dashboard and registry |
 | `docs` | `readme` (default `README.md`) and `agents` (default `AGENTS.md`), both required by the audit; optional `prompts` file and `help` URL (spec/07, Plugin screen) |
@@ -65,6 +65,7 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `tagPrefix` | the only prefix the plugin's custom element tags may use; one namespace per plugin, by design |
 | `staticCapable` | whether the plugin works on a statically published site. `false` is shown as a "needs a server" tag wherever the plugin is listed and the publish step warns, because it infringes the portable-static pillar. The validator warns when a plugin with routes leaves it unset or true |
 | `staticFallback` | for a plugin with routes that still sets `staticCapable: true`: one sentence on what a statically hosted copy gets instead ("static copies show approved comments as of publish time; posting needs the server"). Shown on the plugin screen; without it the validator asks for `staticCapable: false` |
+| `targets` | optional: the deployment targets the backend code runs on (`server`, `desktop`, `browser`), only to rule one out. Left out, core works the fit out from the manifest (spec/14) |
 | `egress` | outbound hosts the plugin may call |
 | `capabilities` | permissions requested, shown at enable time (see 9.1) |
 | `privacy` | `tracking`, categories, cookies set, hosts that receive data, `requiresConsent` categories, and optionally `consentSetting`: a boolean setting that decides per site whether `requiresConsent` applies (a cookieless tracker that asks only when the site's policy wants it). Core resolves it before handing the plugin list to anyone, so a consent plugin only sees what is in effect |
@@ -74,7 +75,17 @@ Unknown keys are rejected. Keys marked reserved are validated and documented but
 | `settingsScope` | `system` (default), `site` (each site has its own values, like the old `site.json` settings) or `both` (system default, site override) |
 | `packaged`, `integrity` | reserved: written by `hax plugin pack` (date, hash, signature reference) |
 
-### 2.2 Documenting what a plugin implements
+### 2.2 YAML both backends read alike
+
+The Node and PHP backends use different YAML parsers, and they disagree at the edges. `"403": { description: Sent from another site, or refused }` is two keys to one of them (the second with no value) and a syntax error to the other, so a plugin that validated and ran in Node did not load in PHP. Plugin YAML therefore keeps to what both read the same way, and the validator rejects the rest in every `.yaml` file a plugin ships:
+
+- inside `{ }` or `[ ]`, a value that contains a comma, a colon followed by a space, or a brace is quoted;
+- no key appears twice in one mapping;
+- no anchors, aliases, tags or multi-document files.
+
+JSON is always accepted where YAML is.
+
+### 2.3 Documenting what a plugin implements
 
 Every implementation carries a docblock, the way Drupal documented each `hook_*()` implementation: the first line says what it implements, the next paragraph says what this plugin does there and why, then the parameters. Both runtimes use the same text.
 

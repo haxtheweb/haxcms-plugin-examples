@@ -24,6 +24,8 @@ export async function step(backend, raw, vars = {}) {
   // what is on disk matches; the in-memory reference has nothing to re-read
   else if (s.reload) { if (backend.reload) await backend.reload(); }
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
+  // registry: the plugin registry a backend serves (spec/03): status, needs, how it fits each target
+  else if (s.registry) Object.assign(out, { status: 200, body: Object.fromEntries((await backend.registry()).map((e) => [e.id, e])) });
   else if (s.advertised) Object.assign(out, { status: 200, body: await backend.advertisedContracts() });
   else if (s.siteFile) { const { existsSync } = await import("node:fs"); const { join } = await import("node:path"); Object.assign(out, { body: { exists: existsSync(join(backend.site.path, s.siteFile)) } }); }
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));

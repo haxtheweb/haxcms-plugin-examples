@@ -29,7 +29,7 @@ import { step } from "./steps.mjs";
 
 async function runCase(c, runtime) {
   const r = c.run;
-  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}) };
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}), ...(r.target ? { target: r.target } : {}) };
   // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
   const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
   await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} }, records: r.records });

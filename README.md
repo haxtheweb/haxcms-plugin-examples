@@ -1,4 +1,4 @@
-# haxcms-plugin-examples
+# haxcms-plugins
 
 Specification, JSON Schema, validator, conformance cases and example plugins for the HAXcms plugin architecture.
 

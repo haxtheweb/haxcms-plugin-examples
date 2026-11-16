@@ -1,6 +1,6 @@
 # example (awesome)
 
-The comprehensive teaching example. It implements **every** hook in `schema/hooks.json` (a log line, or a short body where the pattern matters) and uses every manifest key and extension point, so you can read one plugin and see how all of it fits together. It is deliberately silly: explosions. A real plugin uses a handful of these pieces.
+The comprehensive teaching example. It implements **every** hook in `schema/hook-contracts.json` (a log line, or a short body where the pattern matters) and uses every manifest key and extension point, so you can read one plugin and see how all of it fits together. It is deliberately silly: explosions. A real plugin uses a handful of these pieces.
 
 Start with `plugin.yaml`: every key is commented. Then follow the table.
 

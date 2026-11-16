@@ -57,7 +57,17 @@ node harness/check/run.mjs --only live --haxcms ../haxcms-nodejs
 
 `inactive` is not a failure: a plugin whose requirements this environment does not meet (a command it runs, a setting with no test value) is reported with what is missing. 502, 503 and 504 from a plugin route are how a plugin says an outside service is unreachable or unconfigured, which is right with no network; a 500 is a crash and fails.
 
-haxcms-php has no plugin host yet, so there is no PHP live layer. Until there is, PHP plugin code is covered by the `cases` layer (PHP runtime and Node/PHP parity) and the `php` layer (PHPStan and PHPUnit), on PHP 8.3 to 8.6 in CI.
+There is no PHP live layer yet. haxcms-php has its own engine (haxcms-php#822) and CI runs every conformance case and every plugin's PHP cases through it, with a case-by-case comparison against the reference engine (`plugin-check.yml`, job "haxcms-php native engine"); what is missing is the same boot-a-server-and-call-it-over-HTTP run this layer does for Node. Until then PHP plugin code is covered by that job, the `cases` layer (PHP runtime and Node/PHP parity) and the `php` layer (PHPStan and PHPUnit), on PHP 8.3 to 8.6.
+
+## Elements that import packages
+
+HAX elements are LitElements built on DDD, and they import those by name (`import { LitElement } from "lit"`, `@haxtheweb/d-d-d/...`). A site resolves the names through its import map; the `frontend` layer resolves them through installed packages, looking next to the importing file, then in the folders listed in `HAX_PLUGIN_CHECK_MODULES` (a path list of `node_modules` folders), then in this package's own `node_modules`, which has `lit`:
+
+```sh
+HAX_PLUGIN_CHECK_MODULES=../webcomponents/node_modules node harness/check/run.mjs --only frontend <plugin>
+```
+
+A package or file found nowhere is answered with an empty module and listed as a note with the reason (not installed, or the installed version has no such file). An import made only for its side effect still loads; an element that needs a name from the missing module fails with the browser's own error. The example's `awesome-explosion` is a LitElement, so the path is exercised by `npm run check`.
 
 ## Proving the gates work
 
