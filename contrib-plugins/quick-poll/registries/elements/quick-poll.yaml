@@ -1,0 +1,6 @@
+# The poll block. Authors place it from the block list (marked Beta while the plugin is experimental);
+# render.after.content gives each placed poll the address that counts its votes.
+tag: quick-poll
+path: frontend/dist/quick-poll.js
+role: block
+haxProperties: frontend/dist/quick-poll.haxProperties.json

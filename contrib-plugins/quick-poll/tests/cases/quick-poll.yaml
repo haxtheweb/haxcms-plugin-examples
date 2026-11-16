@@ -1,0 +1,253 @@
+# Pages used below. Keys and option ids are what the quick-poll element computes for the same markup
+# (pinned in test/quick-poll.test.js "server agreement").
+#   p1: one poll "Which tool first?" key quick-poll-3c3c06cb; DevTools c-141a292f, Rewrite CSS c-3b654e18, Ask a classmate c-308d422c
+#   p2: id="mood" allow-change (Ready c-0bca3294, Unsure c-900e13c7); "Secret ballot" never (key quick-poll-3b0e9f15);
+#       "Done yet?" closed, closes 2026-11-12T09:00 with no zone (key quick-poll-dfff89b8); the same question again,
+#       closes 2026-12-31T09:00Z (key quick-poll-dfff89b8-1); Yes c-b3a43630, No c-61e6be1a
+- id: quick-poll-001
+  title: "votes are counted once per browser and results come back as counts"
+  operation: quickPollVote
+  given: "page p1 with one poll; two visitors who are not signed in"
+  when: "the first votes DevTools, votes DevTools again, then tries Rewrite CSS; the second votes Rewrite CSS"
+  then: "counts follow; the repeat changes nothing; the switch is refused because the poll does not allow changes; nothing stores the browser key as sent"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    records: { page: [{ id: p1, title: Debugging, slug: debugging, content: '<p>Intro</p><quick-poll question="Which tool first?"><input value="DevTools"><input value="Rewrite CSS"><input value="Ask a classmate"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "https://haxcms.example.invalid/debugging#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { vote: c-141a292f, counts: { c-141a292f: 1, c-3b654e18: 0, c-308d422c: 0 } }, absent: [hidden] }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "https://haxcms.example.invalid/debugging#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { counts: { c-141a292f: 1 } } }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "https://haxcms.example.invalid/debugging#quick-poll-3c3c06cb", choice: c-3b654e18, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 409, message: "Your vote is already in" }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "https://haxcms.example.invalid/debugging#quick-poll-3c3c06cb", choice: c-3b654e18, voter: fedcba9876543210fedcba9876543210 } }
+        expect: { status: 200, body: { counts: { c-141a292f: 1, c-3b654e18: 1, c-308d422c: 0 } } }
+      - call: { operation: quickPollResults, credentials: none, query: { pageId: p1, activityId: "https://haxcms.example.invalid/debugging#quick-poll-3c3c06cb" } }
+        expect: { status: 200, body: { counts: { c-141a292f: 1, c-3b654e18: 1, c-308d422c: 0 } } }
+      - call: { operation: quickPollList }
+        expect:
+          status: 200
+          body:
+            total: 1
+            items:
+              - pageId: p1
+                pageTitle: Debugging
+                poll: quick-poll-3c3c06cb
+                question: Which tool first?
+                onPage: true
+                showResults: after
+                total: 2
+                options: [{ id: c-141a292f, label: DevTools, count: 1, percent: 50 }, { id: c-3b654e18, label: Rewrite CSS, count: 1, percent: 50 }, { id: c-308d422c, label: Ask a classmate, count: 0, percent: 0 }]
+                description: "2 votes; most picked: DevTools (50%)"
+          notContains: [0123456789abcdef0123456789abcdef, fedcba9876543210fedcba9876543210]
+- id: quick-poll-002
+  title: "the server checks everything a browser sends against the saved page"
+  operation: quickPollVote
+  given: "page p1"
+  when: "a vote from another site, with no page, a missing page, a poll that is not on the page, an option the poll does not have, and no voter key"
+  then: "403, 422 or 404 with the reason; nothing is counted; a vote from the site itself is accepted"
+  run:
+    records: { page: [{ id: p1, title: Debugging, content: '<quick-poll question="Which tool first?"><input value="DevTools"><input value="Rewrite CSS"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, headers: { origin: "https://elsewhere.example.org" }, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 403, message: "only be sent from this site" }
+      - call: { operation: quickPollVote, credentials: none, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 422, message: "pageId must name a page" }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p9 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 404, message: "No such page" }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-00000000", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 404, message: "not on this page" }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-308d422c, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 422, message: "not one of this poll's options" }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f } }
+        expect: { status: 422, message: "voter key" }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: NOT-A-KEY } }
+        expect: { status: 422, message: "voter key" }
+      - call: { operation: quickPollList }
+        expect: { status: 200, body: { total: 0, items: [] } }
+      - call: { operation: quickPollVote, credentials: none, headers: { origin: "https://haxcms.example.invalid" }, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { counts: { c-141a292f: 1, c-3b654e18: 0 } } }
+- id: quick-poll-003
+  title: "a poll that allows changes moves the vote; signed-in voters are one vote per person and are kept for export"
+  operation: quickPollVote
+  given: "page p2; the mood poll allows changing a vote; a signed-in reader"
+  when: "the reader votes Ready, then Unsure"
+  then: "one vote, now Unsure; the row carries the reader's user id so core can export and erase it"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    records: { page: [{ id: p2, title: Check-in, content: '<quick-poll id="mood" question="How do you feel?" allow-change><input value="Ready"><input value="Unsure"></quick-poll>' }] }
+    steps:
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: quickPollVote, credentials: jwt, query: { pageId: p2 }, body: { activityId: "x#mood", choice: c-0bca3294 } }
+        expect: { status: 200, body: { counts: { c-0bca3294: 1, c-900e13c7: 0 } } }
+      - call: { operation: quickPollVote, credentials: jwt, query: { pageId: p2 }, body: { activityId: "x#mood", choice: c-900e13c7 } }
+        expect: { status: 200, body: { vote: c-900e13c7, counts: { c-0bca3294: 0, c-900e13c7: 1 } } }
+      - exportUser: u2
+        expect: { body: { quick-poll.ballots: [{ userId: u2, poll: mood, choice: c-900e13c7 }] } }
+      - eraseUser: u2
+        expect: { body: { removed: 1 } }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: quickPollList }
+        expect: { body: { total: 0 } }
+- id: quick-poll-004
+  title: "instructor-only results stay with editors"
+  operation: quickPollResults
+  given: "page p2's Secret ballot poll (show-results=never)"
+  when: "a visitor votes and asks for results; an editor asks for results"
+  then: "the visitor gets no counts (hidden); the editor gets them"
+  run:
+    records: { page: [{ id: p2, title: Check-in, content: '<quick-poll question="Secret ballot" show-results="never"><input value="Yes"><input value="No"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p2 }, body: { activityId: "x#quick-poll-3b0e9f15", choice: c-b3a43630, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { vote: c-b3a43630, counts: {}, hidden: true } }
+      - call: { operation: quickPollResults, credentials: none, query: { pageId: p2, activityId: "x#quick-poll-3b0e9f15" } }
+        expect: { status: 200, body: { counts: {}, hidden: true } }
+      - call: { operation: quickPollResults, query: { pageId: p2, activityId: "x#quick-poll-3b0e9f15" } }
+        expect: { status: 200, body: { counts: { c-b3a43630: 1, c-61e6be1a: 0 } }, absent: [hidden] }
+- id: quick-poll-005
+  title: "a closing time without a zone counts as passed once it has passed everywhere"
+  operation: quickPollVote
+  given: "two 'Done yet?' polls that show results after closing: one closes 2026-11-12T09:00 (no zone), one 2026-12-31T09:00Z"
+  when: "at 12:00Z a visitor votes in both and asks for results; at 21:00Z (09:00 in the last time zone) they try again"
+  then: "at 12:00Z both take votes and hide results; at 21:00Z the first refuses votes (409) and shows its results, the second still hides them"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    records: { page: [{ id: p2, title: Check-in, content: '<quick-poll question="Done yet?" show-results="closed" closes="2026-11-12T09:00"><input value="Yes"><input value="No"></quick-poll><quick-poll question="Done yet?" show-results="closed" closes="2026-12-31T09:00Z"><input value="Yes"><input value="No"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p2 }, body: { activityId: "x#quick-poll-dfff89b8", choice: c-b3a43630, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { counts: {}, hidden: true } }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p2 }, body: { activityId: "x#quick-poll-dfff89b8-1", choice: c-61e6be1a, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { counts: {}, hidden: true } }
+      - clock: "2026-11-12T21:00:00Z"
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p2 }, body: { activityId: "x#quick-poll-dfff89b8", choice: c-b3a43630, voter: fedcba9876543210fedcba9876543210 } }
+        expect: { status: 409, message: "This poll is closed" }
+      - call: { operation: quickPollResults, credentials: none, query: { pageId: p2, activityId: "x#quick-poll-dfff89b8" } }
+        expect: { status: 200, body: { counts: { c-b3a43630: 1, c-61e6be1a: 0 } }, absent: [hidden] }
+      - call: { operation: quickPollResults, credentials: none, query: { pageId: p2, activityId: "x#quick-poll-dfff89b8-1" } }
+        expect: { status: 200, body: { counts: {}, hidden: true } }
+- id: quick-poll-006
+  title: "editors clear votes for a page or one poll, and people can vote again"
+  operation: quickPollClear
+  given: "votes in two polls on p2 and one on p1"
+  when: "a reader tries to clear; an editor clears with no page; clears one poll on p2; then all of p2"
+  then: "403; 422; the one poll's votes go; then the rest of p2; p1 is untouched; the cleared voter can vote again"
+  run:
+    stores:
+      ballots:
+        - { pageId: p1, poll: quick-poll-3c3c06cb, voter: "v:aa", choice: c-141a292f, ts: 1 }
+        - { pageId: p2, poll: mood, voter: "v:aa", choice: c-0bca3294, ts: 2 }
+        - { pageId: p2, poll: mood, voter: "v:bb", choice: c-900e13c7, ts: 3 }
+        - { pageId: p2, poll: quick-poll-3b0e9f15, voter: "v:aa", choice: c-b3a43630, ts: 4 }
+    records: { page: [{ id: p2, title: Check-in, content: '<quick-poll id="mood" question="How do you feel?" allow-change><input value="Ready"><input value="Unsure"></quick-poll>' }] }
+    steps:
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: quickPollClear, credentials: jwt, body: { pageId: p2 } }
+        expect: { status: 403, message: "Only site editors" }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: quickPollClear, body: {} }
+        expect: { status: 422, message: "Open Insights for one page" }
+      - call: { operation: quickPollClear, body: { pageId: p2, poll: mood } }
+        expect: { status: 200, body: { cleared: 2 } }
+      - call: { operation: quickPollList }
+        expect: { body: { total: 2, items: [{ pageId: p2, poll: quick-poll-3b0e9f15, onPage: false, question: "(no longer on its page)", options: [{ id: c-b3a43630, label: c-b3a43630, count: 1 }] }, { pageId: p1, total: 1 }] } }
+      - call: { operation: quickPollClear, body: { pageId: p2 } }
+        expect: { status: 200, body: { cleared: 1 } }
+      - call: { operation: quickPollList }
+        expect: { body: { total: 1, items: [{ pageId: p1 }] } }
+      - asUser: null
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p2 }, body: { activityId: "x#mood", choice: c-900e13c7, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200, body: { counts: { c-0bca3294: 0, c-900e13c7: 1 } } }
+- id: quick-poll-007
+  title: "a site can require signing in to vote"
+  operation: quickPollVote
+  given: "visitor voting off"
+  when: "a visitor votes, then a signed-in reader"
+  then: "403 for the visitor with the reason; the reader's vote counts"
+  run:
+    settings: { anonymousVoting: false }
+    records: { page: [{ id: p1, title: Debugging, content: '<quick-poll question="Which tool first?"><input value="DevTools"><input value="Rewrite CSS"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 403, message: "Sign in to vote" }
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: quickPollVote, credentials: jwt, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f } }
+        expect: { status: 200, body: { counts: { c-141a292f: 1, c-3b654e18: 0 } } }
+- id: quick-poll-008
+  title: "the flood guard stops a burst and opens again an hour later"
+  operation: quickPollVote
+  given: "at most 2 votes per hour"
+  when: "three visitors vote in the same hour, then a fourth an hour later"
+  then: "200, 200, 429 with nothing counted for the third; then 200"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    settings: { maxPerHour: 2 }
+    records: { page: [{ id: p1, title: Debugging, content: '<quick-poll question="Which tool first?"><input value="DevTools"><input value="Rewrite CSS"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: "00000000000000000000000000000001" } }
+        expect: { status: 200 }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: "00000000000000000000000000000002" } }
+        expect: { status: 200 }
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: "00000000000000000000000000000003" } }
+        expect: { status: 429, message: "Too many votes" }
+      - clock: "2026-11-12T13:00:00Z"
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p1 }, body: { activityId: "x#quick-poll-3c3c06cb", choice: c-141a292f, voter: "00000000000000000000000000000004" } }
+        expect: { status: 200, body: { counts: { c-141a292f: 3 } } }
+- id: quick-poll-009
+  title: "placed polls get the address that counts their votes, except in static publishes"
+  hook: render.after.content
+  given: "a page with two polls, one with its own endpoint"
+  when: "render in preview, then publish"
+  then: "the first gets the plugin's address with the page id; the second keeps its own; a publish gets none"
+  run:
+    steps:
+      - render: { page: { id: "p 1", content: '<quick-poll question="A"><input value="x"></quick-poll><quick-poll endpoint="https://votes.example.org/x" question="B"></quick-poll>' }, mode: preview }
+        expect: { contains: ['<quick-poll endpoint="x/api/v1/plugins/quick-poll/votes?pageId=p%201" question="A">', '<quick-poll endpoint="https://votes.example.org/x" question="B">'] }
+      - render: { page: { id: p1, content: '<quick-poll question="A"><input value="x"></quick-poll>' }, mode: publish }
+        expect: { contains: ['<quick-poll question="A">'], notContains: [plugins/quick-poll] }
+      - render: { page: { id: p1, content: '<p>No polls</p>' }, mode: preview }
+        expect: { contains: ['<p>No polls</p>'], notContains: [quick-poll] }
+- id: quick-poll-010
+  title: "a deleted page takes its votes with it"
+  hook: page.after.delete
+  given: "votes on p1 and p2"
+  when: "p1 is deleted"
+  then: "only p2's votes are left"
+  run:
+    stores:
+      ballots:
+        - { pageId: p1, poll: quick-poll-3c3c06cb, voter: "v:aa", choice: c-141a292f, ts: 1 }
+        - { pageId: p2, poll: mood, voter: "v:aa", choice: c-0bca3294, ts: 2 }
+    records: { page: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }] }
+    steps:
+      - delete: { type: page, id: p1 }
+      - call: { operation: quickPollList }
+        expect: { body: { total: 1, items: [{ pageId: p2, poll: mood }] } }
+- id: quick-poll-011
+  title: "settings the poll cannot work with are refused"
+  hook: config.before.save
+  given: "the default settings"
+  when: "save a negative or huge flood guard, or a visitor-voting value that is not on or off; then good settings"
+  then: "422 with the reason; the good ones save"
+  run:
+    steps:
+      - config: { plugin: quick-poll, values: { maxPerHour: -1 } }
+        expect: { status: 422, contains: ["whole number from 0 to 100000"] }
+      - config: { plugin: quick-poll, values: { maxPerHour: 100001 } }
+        expect: { status: 422, contains: ["whole number from 0 to 100000"] }
+      - config: { plugin: quick-poll, values: { anonymousVoting: "yes" } }
+        expect: { status: 422, contains: ["on or off"] }
+      - config: { plugin: quick-poll, values: { anonymousVoting: false, maxPerHour: 0 } }
+        expect: { status: 200 }
+- id: quick-poll-012
+  title: "labels come from the saved page, with HAX's character references decoded and spacing evened out"
+  operation: quickPollList
+  given: "a poll whose question and options use &amp;, &lt;, a line break and extra spaces"
+  when: "a visitor votes and an editor lists results"
+  then: "the labels read as the poll shows them"
+  run:
+    records: { page: [{ id: p3, title: Warm-up, content: '<quick-poll question="Tom &amp; Jerry?"><input value="A &lt;b&gt;"><input value="  B&#10;  two "><input slot="x" value="ignored"></quick-poll>' }] }
+    steps:
+      - call: { operation: quickPollVote, credentials: none, query: { pageId: p3 }, body: { activityId: "x#quick-poll-c204ed22", choice: c-f7b905c7, voter: 0123456789abcdef0123456789abcdef } }
+        expect: { status: 200 }
+      - call: { operation: quickPollList }
+        expect: { body: { items: [{ question: "Tom & Jerry?", options: [{ id: c-bc4fc540, label: "A <b>", count: 0 }, { id: c-f7b905c7, label: B two, count: 1, percent: 100 }] }] } }

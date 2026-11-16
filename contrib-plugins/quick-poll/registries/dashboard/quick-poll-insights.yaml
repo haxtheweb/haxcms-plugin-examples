@@ -1,0 +1,15 @@
+# Where editors read results: a section in the site editor's Insights screen, rendered by core from quickPollList.
+id: quick-poll-insights
+surface: site
+placement: slot
+slot: insights.section
+icon: social:poll
+label: Polls
+action:
+  kind: modal
+  title: Poll results
+  sections:
+    - title: Polls with votes
+      operation: quickPollList
+      items: items
+      card: { title: question, description: description, anchor: poll }

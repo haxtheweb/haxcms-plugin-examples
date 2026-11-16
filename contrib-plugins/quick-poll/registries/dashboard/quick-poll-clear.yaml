@@ -1,0 +1,13 @@
+# The reset: a button in the Insights controls bar that clears every poll's votes on the page Insights is showing.
+id: quick-poll-clear
+surface: site
+placement: slot
+slot: insights.action
+icon: icons:delete-sweep
+label: Clear poll votes
+action:
+  kind: run
+  operation: quickPollClear
+  body: { pageId: "{{scope}}" }
+  confirm: Clear every vote in the polls on this page? People can vote again afterwards.
+  done: "Cleared {{cleared}} votes"

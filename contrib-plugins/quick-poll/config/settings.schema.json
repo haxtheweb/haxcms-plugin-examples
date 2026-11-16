@@ -1,0 +1,6 @@
+{
+  "configure": [
+    { "property": "anonymousVoting", "title": "Let visitors vote without signing in", "description": "On: a visitor's browser gets a random key so one browser counts once (stored only as a hash). Off: only signed-in people can vote", "inputMethod": "boolean" },
+    { "property": "maxPerHour", "title": "Most votes per hour", "description": "A flood guard for the whole site, counted without recording who voted. 0 turns it off", "inputMethod": "number" }
+  ]
+}
