@@ -2,8 +2,7 @@
 // hax-plugin-validate: validate HAXcms plugin manifests and their registries.
 // Usage: hax-plugin-validate [--json] [--strict] <plugin.yaml | plugin folder> [...]
 // JSON output matches the other HAX validators: [{ file, errors: [{path,message}], warnings: [...] }]
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import { ajv, compileOwn, validateManifest } from "./manifest-schema.mjs";
 import { parse, parseDocument, parseAllDocuments, isMap, isPair, isScalar, visit } from "yaml";
 import { createRequire } from "node:module";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -25,11 +24,9 @@ if (!targets.length) {
 
 const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 const readAny = (p) => (p.endsWith(".json") ? readJson(p) : parse(readFileSync(p, "utf8")));
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-addFormats(ajv);
-const own = (n) => ajv.compile(readJson(join(root, "schema", n)));
+const own = compileOwn;
 const validators = {
-  manifest: own("plugin.schema.json"),
+  manifest: validateManifest,
   theme: own("theme-registry-entry.schema.json"),
   element: own("element-registry-entry.schema.json"),
   merlin: own("merlin-declaration.schema.json"),

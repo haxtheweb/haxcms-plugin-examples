@@ -12,8 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync, spawn } from "node:child_process";
 import { inflateRawSync } from "node:zlib";
 import { parse } from "yaml";
-import Ajv2020 from "ajv/dist/2020.js";
-import addFormats from "ajv-formats";
+import { validateManifest } from "../scripts/manifest-schema.mjs";
 import { backendNeeds, targetFit, targetSummary, TARGETS } from "../scripts/backend-needs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -96,9 +95,6 @@ const CORE_HOOKS = JSON.parse(readFileSync(join(root, "schema/hook-contracts.jso
 const SPEC_VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
 const USER_TOKEN_REQUIRED = "X-HAXCMS-User-Token header is required for this endpoint";
 const TIERS = { "haxiam-core": 1, "haxiam-contrib": 2, "system-core": 3, "system-contrib": 4, site: 5 };
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-addFormats(ajv);
-const validateManifest = ajv.compile(JSON.parse(readFileSync(join(root, "schema/plugin.schema.json"), "utf8")));
 
 const studly = (id) => id.split("-").map((p) => p[0].toUpperCase() + p.slice(1)).join("") + "Plugin";
 // PHP method names (spec/13): camel case across both "." and "-", so a hook a dashed plugin defines
