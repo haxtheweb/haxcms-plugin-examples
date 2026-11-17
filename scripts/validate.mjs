@@ -189,6 +189,10 @@ function validatePlugin(manifestPath) {
   for (const t of m.targets || []) if ((m.runtimes || []).length && !["nodejs"].some((r) => m.runtimes.includes(r)) && t !== "server") err("/targets", `${t} runs haxcms-nodejs: a plugin without a nodejs runtime cannot list it`);
   if (m.openapi && existsSync(join(dir, m.openapi))) {
     const api = readAny(join(dir, m.openapi));
+    for (const [path, ops] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(ops || {})) {
+      const rl = op && typeof op === "object" ? op["x-hax-rate-limit"] : undefined;
+      if (rl !== undefined && !(rl && Number.isInteger(rl.requests) && rl.requests > 0 && ["second", "minute", "hour"].includes(rl.per))) err(`${m.openapi}/paths/${path}/${verb}`, "x-hax-rate-limit must be { requests: <whole number above 0>, per: second | minute | hour }");
+    }
     for (const path of Object.keys(api.paths || {})) { const first = String(path).split("/").filter(Boolean)[0]; if (RESERVED_PATHS.includes(first)) err(`${m.openapi}/paths/${path}`, `"${first}" is a reserved sub-path of /plugins/<id>/ that core answers itself; choose another path`); }
     const scopes = [api["x-hax-scope"], ...Object.values(api.paths || {}).flatMap((p) => Object.values(p).map((op) => op && op["x-hax-scope"]))].filter((x) => x !== undefined);
     for (const sc of scopes) if (!["site", "system"].includes(sc)) err(`${m.openapi}`, `x-hax-scope must be site or system (got "${sc}")`);

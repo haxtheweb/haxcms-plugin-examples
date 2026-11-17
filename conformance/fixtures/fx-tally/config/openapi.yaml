@@ -1,0 +1,9 @@
+openapi: 3.1.0
+info: { title: fx-tally, version: 0.1.0 }
+paths:
+  /burst:
+    post: { operationId: fxTallyBurst, security: [{ bearerAuth: [] }], responses: { "200": { description: OK } } }
+  /careless:
+    post: { operationId: fxTallyCareless, security: [{ bearerAuth: [] }], responses: { "200": { description: OK } } }
+  /vote:
+    post: { operationId: fxTallyVote, x-hax-public: true, x-hax-rate-limit: { requests: 3, per: minute }, responses: { "200": { description: OK }, "429": { description: Too many requests } } }
