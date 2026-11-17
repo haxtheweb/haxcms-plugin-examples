@@ -8,7 +8,9 @@ export async function step(backend, raw, vars = {}) {
   const out = {};
   const execFrom = (backend.execCalls || []).length;
   const fetchFrom = (backend.fetchCalls || []).length;
-  if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {}, headers: s.call.headers || {} }, { credentials: s.call.credentials || "both" }));
+  if (s.call) Object.assign(out, await backend.call(s.call.operation, { params: s.call.params || {}, query: s.call.query || {}, body: s.call.body || {}, headers: s.call.headers || {} }, { credentials: s.call.credentials || "both", client: s.call.client || null }));
+  // asset: what GET .../plugins/<id>/assets/<path> would answer (spec/07)
+  else if (s.asset) { const r = await backend.asset(s.asset.plugin, s.asset.path); Object.assign(out, { status: r.status, body: r.status === 200 ? { type: r.type } : null }); }
   else if (s.fire) {
     const tx = s.fire.transaction ? { id: "t-fire", origin: s.fire.transaction.origin || "case", bulk: !!s.fire.transaction.bulk, operations: [], marks: {} } : undefined;
     const r = await backend.fire(s.fire.hook, s.fire.subject ?? null, { previous: s.fire.previous, entity: s.fire.entity, transaction: tx });
