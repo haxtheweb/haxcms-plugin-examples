@@ -20,13 +20,18 @@
 //   frontend  its web components in Chrome: load, axe (WCAG 2.0/2.1 AA, incl.
 //             contrast) in light and dark, dark mode, reduced motion, with
 //             ESLint's webcomponents rules (harness/check/frontend.mjs)
+//   targets   where it can run (spec/14): haxcms-nodejs and haxcms-php on a
+//             server, the desktop app, the browser, the command line and a
+//             static publish. Each is "full", "limited" or "no" from what the
+//             plugin needs, and its cases are run again as every target it
+//             fits, so "full" has been tried, not only derived
 //   live      only with --haxcms <haxcms-nodejs checkout>: installs it into a
 //             real running haxcms-nodejs, creates a real site and checks it over
 //             HTTP (harness/check/live-nodejs.cjs)
 //
 // Usage:
 //   hax-plugin-check [options] [<plugin folder> ...]     (default: every plugin in this repo)
-//     --only manifest,cases,node,php,frontend,live      run some layers
+//     --only manifest,cases,node,php,frontend,targets,live   run some layers
 //     --haxcms <path>                                   a haxcms-nodejs with the plugin platform: adds "live"
 //     --json                                            machine-readable report
 //
@@ -38,10 +43,13 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { readFileSync } from "node:fs";
+import { parse as parseYaml } from "yaml";
+import { backendNeeds, targetFit, targetSummary, TARGETS, TARGET_NAMES } from "../../scripts/backend-needs.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
-const LAYERS = ["manifest", "cases", "node", "php", "frontend", "live"];
+const LAYERS = ["manifest", "cases", "node", "php", "frontend", "targets", "live"];
 
 const args = process.argv.slice(2);
 const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
@@ -225,6 +233,80 @@ const checks = {
     return { status: errors.length ? "fail" : "pass", errors, notes };
   },
 
+  // Where the plugin can run. The fit comes from what the plugin needs (scripts/backend-needs.mjs, the same code
+  // the registry of every backend uses); the cases are then run as each target it fits. A target it fits fully
+  // must pass them; on a limited one the count is reported, because a case may be about the very thing that target
+  // lacks. Columns: nodejs and php are the two backends on a hosted server.
+  targets(dir) {
+    const readAny = (f) => (f.endsWith(".json") ? JSON.parse(readFileSync(f, "utf8")) : parseYaml(readFileSync(f, "utf8")));
+    let manifest;
+    let api = null;
+    try {
+      manifest = readAny(join(dir, "plugin.yaml"));
+      if (manifest.openapi && existsSync(join(dir, manifest.openapi))) api = readAny(join(dir, manifest.openapi));
+    } catch (e) {
+      return { status: "skip", notes: [`plugin.yaml or its openapi could not be read (${e.message}); see the manifest layer`] };
+    }
+    const needs = backendNeeds(manifest, api);
+    const fit = targetSummary(manifest, needs);
+    const pack = manifest.kind === "pack";
+    const runtimes = Array.isArray(manifest.runtimes) ? manifest.runtimes : [];
+    const hasCases = existsSync(join(dir, "tests", "cases"));
+    const errors = [];
+    const notes = [];
+    const matrix = {};
+    // the cases as one runtime and target: { pass, total, failed: [ids] } or null when there is nothing to run
+    const tried = (runtime, target) => {
+      if (!hasCases) return null;
+      if (runtime === "php" && !hasPhp) return { skipped: "PHP not installed here" };
+      const r = node(join(root, "harness/run-cases.mjs"), [dir, "--runtime", runtime, "--target", target, "--json"]);
+      try {
+        const results = JSON.parse(r.stdout).results.filter((x) => x.runtime === runtime);
+        return { pass: results.filter((x) => x.ok).length, total: results.length, failed: results.filter((x) => !x.ok).map((x) => x.id) };
+      } catch {
+        return { pass: 0, total: 0, failed: ["the case runner gave no report"] };
+      }
+    };
+    const row = (name, verdict, runtime, target, why) => {
+      const entry = { fit: verdict, ...(why && why.length ? { why } : {}) };
+      if (verdict !== "no" && runtime) {
+        const t = tried(runtime, target);
+        if (t && t.skipped) entry.cases = t.skipped;
+        else if (t && t.total) {
+          entry.cases = `${t.pass}/${t.total}`;
+          if (t.failed.length) {
+            entry.failed = t.failed;
+            if (verdict === "full") errors.push(`${name}: fits fully but ${t.failed.length} case(s) fail there: ${t.failed.slice(0, 8).join(", ")}`);
+            else notes.push(`${name}: limited, ${t.failed.length} case(s) do not pass there: ${t.failed.slice(0, 8).join(", ")}`);
+          }
+        }
+      }
+      matrix[name] = entry;
+    };
+    const reasons = (target) => {
+      const f = targetFit(manifest, needs, target);
+      return [...f.unmet, ...f.limited].map((x) => x.message);
+    };
+    // the two backends on a hosted server
+    for (const rt of ["nodejs", "php"]) {
+      const runs = pack || runtimes.includes(rt);
+      row(rt, !runs ? "no" : fit.server, pack ? null : rt, "server", !runs ? [`no ${rt} code (runtimes: ${runtimes.join(", ") || "none"})`] : reasons("server"));
+    }
+    for (const t of TARGET_NAMES.filter((n) => n !== "server")) {
+      const canRun = pack || runtimes.some((r) => TARGETS.targets[t].runtimes.includes(r));
+      row(t, fit[t], pack ? null : "nodejs", t, canRun ? reasons(t) : [`needs ${TARGETS.targets[t].runtimes.join(" or ")} code (runtimes: ${runtimes.join(", ") || "none"})`]);
+    }
+    // a static publish has no backend at all (spec/14): what the manifest says, or no backend need
+    const staticCapable = manifest.staticCapable === undefined ? !needs.includes("backend") : manifest.staticCapable === true;
+    matrix.static = { fit: staticCapable ? (needs.includes("backend") ? "limited" : "full") : "no", ...(needs.includes("backend") ? { why: [manifest.staticFallback || "its backend code and operations do not exist on a statically published site"] } : {}) };
+    // a plugin that says it is made for a target must fit it
+    for (const t of manifest.targets || []) if (fit[t] === "no") errors.push(`${t}: listed in targets, but the plugin cannot run there: ${reasons(t).join("; ") || "no runtime for it"}`);
+    notes.unshift(Object.entries(matrix).map(([k, v]) => `${k}:${v.fit}${v.cases && /^\d/.test(v.cases) ? `(${v.cases})` : ""}`).join("  "));
+    if (needs.length) notes.push(`needs: ${needs.join(", ")}`);
+    if (!hasCases && !pack) notes.push("no tests/cases: the fit is derived from the manifest and was not tried");
+    return { status: errors.length ? "fail" : "pass", errors, notes, matrix };
+  },
+
   live(dir) {
     if (!haxcms) return { status: "skip", notes: ["pass --haxcms <haxcms-nodejs checkout> to run"] };
     const r = node(join(here, "live-nodejs.cjs"), ["--haxcms", haxcms, "--json", dir], { timeout: 240000 });
@@ -258,6 +340,7 @@ for (const dir of targets) {
     const line = Object.entries(layers).map(([k, v]) => `${k}:${v.status}`).join("  ");
     console.log(`${ok ? "ok  " : "FAIL"} ${plugin}  ${line}`);
     for (const [k, v] of Object.entries(layers)) for (const e of v.errors) console.log(`     ! ${k}: ${e}`);
+    if (layers.targets && layers.targets.notes.length) console.log(`     runs on  ${layers.targets.notes[0]}`);
   }
 }
 if (asJson) console.log(JSON.stringify(results, null, 2));

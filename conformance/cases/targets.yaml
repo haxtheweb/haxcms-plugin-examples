@@ -102,3 +102,19 @@
         expect: { status: 200 }
       - enable: fx-dependent
         expect: { status: 200, status_of: { fx-dependent: active } }
+- id: target-005
+  title: "on the command line a plugin that runs commands is active and one that needs visitors is limited"
+  spec: spec/14-deployment-targets.md
+  given: "fx-routes (a public operation) and fx-exec (exec:run) on the cli target"
+  when: "the registry is read"
+  then: "fx-exec fits fully; fx-routes is limited because nothing is listening for visitors"
+  run:
+    plugins: [fx-routes, fx-exec]
+    target: cli
+    steps:
+      - registry: true
+        expect:
+          status: 200
+          body:
+            fx-routes: { status: active, targets: { cli: limited }, limited: [{ key: backend.visitors }] }
+            fx-exec: { status: active, targets: { cli: full }, limited: [] }
