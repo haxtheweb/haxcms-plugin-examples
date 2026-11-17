@@ -1,0 +1,31 @@
+{
+  "api": "1",
+  "type": "element",
+  "canScale": false,
+  "canEditSource": true,
+  "contentEditable": false,
+  "hideDefaultSettings": false,
+  "gizmo": {
+    "title": "Page feedback",
+    "description": "Asks readers whether the page helped and sends their answer to the site team",
+    "icon": "icons:thumbs-up-down",
+    "color": "blue",
+    "tags": ["Other", "feedback", "rating", "helpful", "survey"],
+    "handles": [],
+    "meta": { "author": "Page feedback plugin contributors" }
+  },
+  "settings": {
+    "configure": [
+      { "attribute": "question", "title": "Question", "description": "The site's question when left empty", "inputMethod": "textfield" },
+      { "attribute": "yes-label", "title": "Yes button", "description": "The site's label when left empty", "inputMethod": "textfield" },
+      { "attribute": "no-label", "title": "No button", "description": "The site's label when left empty", "inputMethod": "textfield" }
+    ],
+    "advanced": [
+      { "attribute": "no-comments", "title": "Hide the comment box", "inputMethod": "boolean" },
+      { "attribute": "repeat", "title": "Let a reader answer again in the same visit", "inputMethod": "boolean" }
+    ]
+  },
+  "demoSchema": [
+    { "tag": "page-feedback", "properties": {}, "content": "" }
+  ]
+}

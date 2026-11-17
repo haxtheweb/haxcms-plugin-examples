@@ -1,0 +1,6 @@
+# The prompt itself. Authors place it from the block list; render.after.content also adds it to pages when the site
+# shows it everywhere.
+tag: page-feedback
+path: frontend/dist/page-feedback.js
+role: block
+haxProperties: frontend/dist/page-feedback.haxProperties.json

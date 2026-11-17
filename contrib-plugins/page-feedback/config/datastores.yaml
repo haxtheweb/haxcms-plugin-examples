@@ -1,0 +1,13 @@
+stores:
+  # every response, per site, on the server only; never travels with the site folder. Rows carry no identity while
+  # the anonymous setting is on (no userId field at all, and never an IP address). When a site turns anonymous off,
+  # rows from signed-in people carry userId, so core exports and erases them with no plugin code.
+  - id: feedback
+    scope: siteData
+    file: feedback.json
+    personalData: true
+    userKey: userId
+  # the next id and the hourly counter of the flood guard ({ seq, windowStart, count }); counts only, nothing about who
+  - id: meta
+    scope: siteData
+    file: meta.json

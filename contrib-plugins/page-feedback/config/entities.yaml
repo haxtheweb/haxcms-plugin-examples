@@ -1,0 +1,7 @@
+# Kept on each page under metadata.plugins.page-feedback (stored in the page, travels with the site).
+metadata:
+  page:
+    fields:
+      hide: { type: boolean, note: "true leaves this page out when the prompt is shown on every page" }
+    form:
+      - { property: hide, title: Hide the feedback prompt on this page, description: "Only matters while the site shows the prompt on every page. A block placed by hand still shows", inputMethod: boolean }

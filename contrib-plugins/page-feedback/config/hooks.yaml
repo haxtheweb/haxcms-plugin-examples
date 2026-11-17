@@ -1,0 +1,18 @@
+# Hooks page-feedback defines and fires. Other plugins subscribe to them like core hooks (a spam filter, a mailer).
+- name: page-feedback.before.submit
+  phase: before
+  when: "a visitor's feedback passed validation and is about to be stored and sent"
+  subject: "`{ pageId, pageTitle, helpful, reasons: [ids], comment }`; never who sent it"
+  returns: "the feedback (may change comment, for example to redact it)"
+  veto: true
+  comment: "hold back or refuse a response"
+  example: "**spam-guard** refuses comments made of links"
+- name: page-feedback.after.submit
+  phase: after
+  when: "the feedback was stored and the webhook, if any, was called"
+  subject: "`{ id, pageId, pageTitle, pageUrl, helpful, reasons: [{ id, label }], comment, at, notifyRoles: [roles] }`; never who sent it"
+  returns: "nothing"
+  veto: false
+  detachable: true
+  comment: "tell people about a response through a channel this plugin does not have"
+  example: "**notifications** emails the roles in notifyRoles when a mail transport exists"

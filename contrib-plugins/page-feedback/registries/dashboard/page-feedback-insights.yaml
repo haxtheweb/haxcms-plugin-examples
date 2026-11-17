@@ -1,0 +1,21 @@
+# Where the site team reads feedback: a section in the site editor's Insights screen (the insights.section slot core
+# keeps, spec/07), rendered by core from this plugin's operations. No admin code ships with the plugin.
+id: page-feedback-insights
+surface: site
+placement: slot
+slot: insights.section
+icon: icons:thumbs-up-down
+label: Feedback
+action:
+  kind: modal
+  title: Page feedback
+  sections:
+    - title: Latest comments
+      operation: pageFeedbackList
+      query: { "filter[hasComment]": "true", "page[limit]": 10 }
+      items: items
+      card: { title: title, description: summary, chip: chip, anchor: id }
+    - title: Pages
+      operation: pageFeedbackSummary
+      items: items
+      card: { title: title, description: description, anchor: pageId }

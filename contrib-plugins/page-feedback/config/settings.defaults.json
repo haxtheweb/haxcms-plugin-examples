@@ -1,0 +1,24 @@
+{
+  "question": "Was this page helpful?",
+  "yesLabel": "Yes",
+  "noLabel": "No",
+  "reasons": [
+    { "id": "confusing", "label": "Confusing" },
+    { "id": "out-of-date", "label": "Out of date" },
+    { "id": "broken", "label": "Broken link or media" },
+    { "id": "missing", "label": "Missing something" }
+  ],
+  "allowComments": true,
+  "commentMaxLength": 1000,
+  "anonymous": true,
+  "showOnEveryPage": false,
+  "inbox": true,
+  "webhookEnabled": false,
+  "webhookUrl": "",
+  "webhookSecretHeader": "x-page-feedback-secret",
+  "webhookIncludeComment": true,
+  "notifyOn": "all",
+  "notifyRoles": "admin, editor",
+  "retentionDays": 0,
+  "maxPerHour": 120
+}

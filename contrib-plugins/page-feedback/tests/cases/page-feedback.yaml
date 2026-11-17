@@ -1,0 +1,383 @@
+- id: page-feedback-001
+  title: "a visitor's answer is stored as plain text and shows up for editors, per response and per page"
+  operation: pageFeedbackSubmit
+  given: "page p1; default settings; a visitor who is not signed in"
+  when: "the visitor answers No with a reason and a comment, then Yes with a stray reason"
+  then: "both are received; the comment is trimmed and kept as text; reasons only count for No; the summary says 50% helpful"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    records: { page: [{ id: p1, title: Responsive images, slug: unit-3/responsive-images, content: "<p>x</p>" }] }
+    steps:
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false, reasons: [confusing, confusing], comment: "  An example of <srcset> with sizes\r\nwould help.\n " } }
+        expect: { status: 200, body: { received: true }, absent: [id, userId] }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true, reasons: [missing] } }
+        expect: { status: 200, body: { received: true } }
+      - call: { operation: pageFeedbackList }
+        expect:
+          status: 200
+          body:
+            total: 2
+            limit: 25
+            offset: 0
+            items:
+              - { id: f2, pageId: p1, helpful: true, reasons: [], comment: "", summary: "(no comment)", label: Helpful, chip: { label: Helpful, icon: "icons:thumb-up" } }
+              - { id: f1, pageId: p1, pageTitle: Responsive images, title: Responsive images, helpful: false, reasons: [confusing], comment: "An example of <srcset> with sizes\nwould help.", at: "2026-11-12T12:00:00.000Z", ts: 1794484800000, handled: false, label: Confusing, chip: { label: Confusing, icon: "icons:thumb-down" } }
+          absent: [userId, userName, ip]
+      - call: { operation: pageFeedbackSummary }
+        expect:
+          status: 200
+          body:
+            items: [{ pageId: p1, title: Responsive images, responses: 2, helpful: 1, helpfulPercent: 50, comments: 1, topReasonId: confusing, topReason: Confusing, description: "50% helpful, 2 responses, top reason: Confusing" }]
+            totals: { responses: 2, helpful: 1, helpfulPercent: 50, unhandled: 2 }
+- id: page-feedback-002
+  title: "the server checks everything a browser sends"
+  operation: pageFeedbackSubmit
+  given: "page p1; comments limited to 10 characters"
+  when: "a rating that is not true or false, a missing page, an unknown reason, reasons that are not a list, a comment that is not text or too long, and a post from another site"
+  then: "422, 404 or 403 with the reason; nothing is stored; a post from the site itself is accepted"
+  run:
+    settings: { commentMaxLength: 10 }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: "yes" } }
+        expect: { status: 422, message: "helpful must be true or false" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { helpful: true } }
+        expect: { status: 422, message: "pageId must name a page" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p9, helpful: true } }
+        expect: { status: 404, message: "No such page" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false, reasons: [rude] } }
+        expect: { status: 422, message: "not one this site offers" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false, reasons: confusing } }
+        expect: { status: 422, message: "reasons must be a short list" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true, comment: 42 } }
+        expect: { status: 422, message: "comment must be text" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true, comment: "eleven char" } }
+        expect: { status: 422, message: "up to 10 characters" }
+      - call: { operation: pageFeedbackSubmit, credentials: none, headers: { origin: "https://elsewhere.example.org" }, body: { pageId: p1, helpful: true } }
+        expect: { status: 403, message: "only be sent from this site" }
+      - call: { operation: pageFeedbackList }
+        expect: { status: 200, body: { total: 0, items: [] } }
+      - call: { operation: pageFeedbackSubmit, credentials: none, headers: { origin: "https://haxcms.example.invalid" }, body: { pageId: p1, helpful: true, comment: "ten chars!" } }
+        expect: { status: 200, body: { received: true } }
+      - call: { operation: pageFeedbackList }
+        expect: { status: 200, body: { total: 1, items: [{ id: f1, comment: "ten chars!" }] } }
+- id: page-feedback-003
+  title: "the flood guard stops a burst and opens again an hour later"
+  operation: pageFeedbackSubmit
+  given: "at most 2 responses per hour"
+  when: "three answers arrive in the same hour, then one an hour later"
+  then: "200, 200, 429 with nothing stored for the third; then 200"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    settings: { maxPerHour: 2 }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false, comment: flood } }
+        expect: { status: 429, message: "Too much feedback" }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 2 }, notContains: [flood] }
+      - clock: "2026-11-12T13:00:00Z"
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 3, items: [{ id: f3, at: "2026-11-12T13:00:00.000Z" }] } }
+- id: page-feedback-004
+  title: "anonymous by default: no identity is stored even for a signed-in sender; named mode stores only what the platform knows"
+  operation: pageFeedbackSubmit
+  given: "page p1; the caller is signed in as u1"
+  when: "u1 answers while anonymous is on; the site turns anonymous off; u1 answers again with a forged userId in the body; a visitor answers"
+  then: "the first and third rows have no identity fields; the second carries u1 from the platform, not the body; core exports and erases it"
+  run:
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    steps:
+      - call: { operation: pageFeedbackSubmit, body: { pageId: p1, helpful: true, comment: first } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 1, items: [{ id: f1 }] }, absent: [userId, userName, ip, email] }
+      - config: { plugin: page-feedback, values: { anonymous: false } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackSubmit, body: { pageId: p1, helpful: false, comment: second, userId: u9, userName: Mallory } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true, comment: third } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackList, query: { "page[limit]": 1 } }
+        expect: { body: { total: 3, items: [{ id: f3, comment: third }] }, absent: [userId, userName] }
+      - call: { operation: pageFeedbackList, query: { "page[limit]": 1, "page[offset]": 1 } }
+        expect: { body: { items: [{ id: f2, userId: u1, userName: Admin }] }, notContains: [u9, Mallory] }
+      - exportUser: u1
+        expect: { body: { page-feedback.feedback: [{ id: f2 }] }, notContains: [first, third] }
+      - eraseUser: u1
+        expect: { body: { removed: 1 } }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 2 }, notContains: [second] }
+- id: page-feedback-005
+  title: "only site editors read, mark and delete feedback"
+  operation: pageFeedbackHandle
+  given: "one stored response"
+  when: "a visitor, then a signed-in reader, then an admin call the admin routes"
+  then: "401 without credentials, 403 for the reader, and the admin can mark it handled and delete it"
+  run:
+    stores:
+      feedback: [{ id: f1, pageId: p1, pageTitle: One, helpful: false, reasons: [broken], comment: "The video is gone.", at: "2026-11-12T12:00:00.000Z", ts: 1794484800000, handled: false }]
+    steps:
+      - call: { operation: pageFeedbackList, credentials: none }
+        expect: { status: 401 }
+      - call: { operation: pageFeedbackSummary, credentials: none }
+        expect: { status: 401 }
+      - call: { operation: pageFeedbackHandle, credentials: none, params: { id: f1 }, body: { handled: true } }
+        expect: { status: 401 }
+      - call: { operation: pageFeedbackDelete, credentials: none, params: { id: f1 } }
+        expect: { status: 401 }
+      - asUser: { id: u2, name: reader, displayName: Reader, roles: [viewer], avatar: null }
+      - call: { operation: pageFeedbackList }
+        expect: { status: 403, notContains: ["The video is gone."] }
+      - call: { operation: pageFeedbackSummary }
+        expect: { status: 403 }
+      - call: { operation: pageFeedbackHandle, params: { id: f1 }, body: { handled: true } }
+        expect: { status: 403 }
+      - call: { operation: pageFeedbackDelete, params: { id: f1 } }
+        expect: { status: 403 }
+      - asUser: { id: u1, name: admin, displayName: Admin, roles: [admin], avatar: null }
+      - call: { operation: pageFeedbackHandle, params: { id: f1 }, body: { handled: "yes" } }
+        expect: { status: 422 }
+      - call: { operation: pageFeedbackHandle, params: { id: f7 }, body: { handled: true } }
+        expect: { status: 404 }
+      - call: { operation: pageFeedbackHandle, params: { id: f1 }, body: { handled: true } }
+        expect: { status: 200, body: { id: f1, handled: true } }
+      - call: { operation: pageFeedbackList, query: { "filter[handled]": "false" } }
+        expect: { body: { total: 0 } }
+      - call: { operation: pageFeedbackSummary }
+        expect: { body: { totals: { responses: 1, unhandled: 0 } } }
+      - call: { operation: pageFeedbackDelete, params: { id: f1 } }
+        expect: { status: 200, body: { deleted: f1 } }
+      - call: { operation: pageFeedbackDelete, params: { id: f1 } }
+        expect: { status: 404 }
+- id: page-feedback-006
+  title: "editors filter by page, rating, comment and day, page through results, and see the least helpful pages first"
+  operation: pageFeedbackList
+  given: "five responses on three pages over three days"
+  when: "list with filters and paging; then the summary"
+  then: "newest first; filters combine; bad filters are 422; a tie for top reason goes to the one listed first in settings"
+  run:
+    stores:
+      feedback:
+        - { id: f1, pageId: p1, pageTitle: Setup, helpful: false, reasons: [out-of-date], comment: "The install steps mention an old Node version.", at: "2026-11-10T09:00:00.000Z", ts: 1794301200000, handled: true }
+        - { id: f2, pageId: p1, pageTitle: Setup, helpful: false, reasons: [confusing, out-of-date], comment: "", at: "2026-11-11T09:00:00.000Z", ts: 1794387600000, handled: false }
+        - { id: f3, pageId: p2, pageTitle: Semantic HTML, helpful: true, reasons: [], comment: "Clear.", at: "2026-11-11T10:00:00.000Z", ts: 1794391200000, handled: false }
+        - { id: f4, pageId: p1, pageTitle: Setup and tools, helpful: true, reasons: [], comment: "", at: "2026-11-12T09:00:00.000Z", ts: 1794474000000, handled: false }
+        - { id: f5, pageId: p3, pageTitle: Images, helpful: false, reasons: [missing, confusing], comment: "", at: "2026-11-12T09:00:00.000Z", ts: 1794474000000, handled: false }
+    steps:
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 5, items: [{ id: f5 }, { id: f4 }, { id: f3 }, { id: f2 }, { id: f1 }] } }
+      - call: { operation: pageFeedbackList, query: { "filter[pageId]": p1, "filter[helpful]": "false" } }
+        expect: { body: { total: 2, items: [{ id: f2 }, { id: f1 }] } }
+      - call: { operation: pageFeedbackList, query: { "filter[hasComment]": "true", "page[limit]": 10 } }
+        expect: { body: { total: 2, limit: 10, items: [{ id: f3, summary: "Clear." }, { id: f1, label: Out of date }] } }
+      - call: { operation: pageFeedbackList, query: { "filter[from]": "2026-11-11", "filter[to]": "2026-11-11" } }
+        expect: { body: { total: 2, items: [{ id: f3 }, { id: f2 }] } }
+      - call: { operation: pageFeedbackList, query: { filter: { pageId: p3 } } }
+        expect: { body: { total: 1, items: [{ id: f5 }] } }
+      - call: { operation: pageFeedbackList, query: { "page[limit]": 2, "page[offset]": 3 } }
+        expect: { body: { total: 5, limit: 2, offset: 3, items: [{ id: f2 }, { id: f1 }] } }
+      - call: { operation: pageFeedbackList, query: { "page[limit]": 5000 } }
+        expect: { body: { limit: 200 } }
+      - call: { operation: pageFeedbackList, query: { "filter[from]": "last week" } }
+        expect: { status: 422, message: "YYYY-MM-DD" }
+      - call: { operation: pageFeedbackList, query: { "filter[helpful]": maybe } }
+        expect: { status: 422 }
+      - call: { operation: pageFeedbackSummary }
+        expect:
+          body:
+            items:
+              - { pageId: p3, title: Images, responses: 1, helpfulPercent: 0, topReason: Confusing, description: "0% helpful, 1 response, top reason: Confusing" }
+              - { pageId: p1, title: Setup and tools, responses: 3, helpful: 1, helpfulPercent: 33, comments: 1, topReasonId: out-of-date, topReason: Out of date }
+              - { pageId: p2, title: Semantic HTML, responses: 1, helpfulPercent: 100, topReasonId: null, topReason: null, description: "100% helpful, 1 response, top reason: none" }
+            totals: { responses: 5, helpful: 2, helpfulPercent: 40, unhandled: 4 }
+- id: page-feedback-007
+  title: "settings that would break the prompt or send feedback somewhere unsafe are refused"
+  hook: config.before.save
+  given: "the default settings"
+  when: "save a webhook that is http, has no host, carries a sign-in, is private or is missing; a secret with no address; bad reasons, numbers, choices and header; then good settings"
+  then: "422 with the reason each time; the good ones save; turning every destination off saves with a warning"
+  run:
+    steps:
+      - config: { plugin: page-feedback, values: { webhookUrl: "http://hooks.example.edu/feedback" } }
+        expect: { status: 422, contains: ["must be an https address with a host"] }
+      - config: { plugin: page-feedback, values: { webhookUrl: "https://" } }
+        expect: { status: 422, contains: ["must be an https address with a host"] }
+      - config: { plugin: page-feedback, values: { webhookUrl: "hooks example" } }
+        expect: { status: 422, contains: ["must be an https address with a host"] }
+      - config: { plugin: page-feedback, values: { webhookUrl: "https://user:pw@hooks.example.edu/feedback" } }
+        expect: { status: 422, contains: ["must be an https address with a host"] }
+      - config: { plugin: page-feedback, values: { webhookUrl: "https://localhost/feedback" } }
+        expect: { status: 422, contains: ["private or local address"] }
+      - config: { plugin: page-feedback, values: { webhookUrl: "https://10.0.0.8/feedback" } }
+        expect: { status: 422, contains: ["private or local address"] }
+      - config: { plugin: page-feedback, values: { webhookEnabled: true } }
+        expect: { status: 422, contains: ["on but has no address"] }
+      - config: { plugin: page-feedback, values: { webhookSecret: test-secret-feedback } }
+        expect: { status: 422, contains: ["needs a webhook address"] }
+      - config: { plugin: page-feedback, values: { webhookUrl: "https://hooks.example.edu/feedback", webhookSecretHeader: Cookie } }
+        expect: { status: 422, contains: ["header name of your own"] }
+      - config: { plugin: page-feedback, values: { reasons: [{ id: "Not An Id", label: Bad }] } }
+        expect: { status: 422, contains: ["lower-case letters, numbers and dashes"] }
+      - config: { plugin: page-feedback, values: { reasons: [{ id: slow, label: Slow }, { id: slow, label: Slow again }] } }
+        expect: { status: 422, contains: ["used twice"] }
+      - config: { plugin: page-feedback, values: { reasons: [{ id: slow, label: " " }] } }
+        expect: { status: 422, contains: ["needs a label"] }
+      - config: { plugin: page-feedback, values: { question: "" } }
+        expect: { status: 422, contains: ["The question needs 1 to 200 characters"] }
+      - config: { plugin: page-feedback, values: { commentMaxLength: 0 } }
+        expect: { status: 422, contains: ["from 1 to 5000"] }
+      - config: { plugin: page-feedback, values: { retentionDays: -3 } }
+        expect: { status: 422, contains: ["from 0 to 3650"] }
+      - config: { plugin: page-feedback, values: { notifyOn: sometimes } }
+        expect: { status: 422, contains: ["all, negative or comments"] }
+      - config: { plugin: page-feedback, values: { notifyRoles: "admin, Site Owner!" } }
+        expect: { status: 422, contains: ["Roles to notify"] }
+      - config: { plugin: page-feedback, values: { webhookEnabled: true, webhookUrl: "https://hooks.example.edu:8443/feedback?site=one", webhookSecret: test-secret-feedback, reasons: [{ id: slow, label: Too slow }], retentionDays: 90, notifyRoles: "admin, course-team" } }
+        expect: { status: 200 }
+      - config: { plugin: page-feedback, values: { inbox: false, webhookEnabled: false } }
+        expect: { status: 200, warnings: ["No destination is on"] }
+- id: page-feedback-008
+  title: "the webhook gets a JSON summary with the secret in its header, only for the responses the site chose"
+  operation: pageFeedbackSubmit
+  given: "a webhook with a secret; only No answers are sent on; Insights is off"
+  when: "a visitor answers Yes, then No"
+  then: "nothing is sent for Yes; one POST for No, to the webhook host, with the secret header; the secret never reaches the caller and nothing is stored"
+  run:
+    settings: { inbox: false, webhookEnabled: true, webhookUrl: "https://hooks.example.edu/feedback", webhookSecret: test-secret-feedback, notifyOn: negative }
+    records: { page: [{ id: p1, title: One, slug: one, content: "" }] }
+    fetch:
+      hooks.example.edu: { status: 200, body: { ok: true } }
+    steps:
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true } }
+        expect: { status: 200, body: { received: true }, fetch: { count: 0 } }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false, reasons: [broken], comment: "The video is gone." } }
+        expect:
+          status: 200
+          body: { received: true }
+          fetch: { count: 1, contains: ['"method":"POST"', "https://hooks.example.edu/feedback", '"headers":["content-type","x-page-feedback-secret"]'], notContains: [test-secret-feedback] }
+          notContains: [test-secret-feedback]
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 0 } }
+- id: page-feedback-009
+  title: "a webhook that redirects cannot take the secret to another host, and a webhook that is down loses no feedback"
+  operation: pageFeedbackSubmit
+  given: "a webhook with a secret that answers with a redirect to another host"
+  when: "a visitor answers; then the webhook goes away entirely and another visitor answers"
+  then: "the redirected hop is refused and nothing reaches the other host; both answers are still received and kept; the log says why"
+  run:
+    settings: { webhookEnabled: true, webhookUrl: "https://hooks.example.edu/feedback", webhookSecret: test-secret-feedback, webhookSecretHeader: X-Team-Key }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    fetch:
+      hooks.example.edu: { status: 302, headers: { location: "https://collector.example.org/steal" } }
+      collector.example.org: { status: 200, body: {} }
+    steps:
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: false } }
+        expect:
+          status: 200
+          body: { received: true }
+          fetch: { count: 1, contains: [hooks.example.edu, '"headers":["content-type","x-team-key"]'], notContains: [collector.example.org] }
+          log: { contains: ["the feedback webhook could not be reached", "collector.example.org not allowed (redirected)"], notContains: [test-secret-feedback] }
+          notContains: [test-secret-feedback]
+      - config: { plugin: page-feedback, values: { webhookUrl: "https://gone.example.edu/feedback" } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true } }
+        expect: { status: 200, body: { received: true }, fetch: { count: 1, contains: [gone.example.edu] } }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 2 } }
+- id: page-feedback-010
+  title: "feedback older than retentionDays is deleted by the daily job and whenever new feedback is stored"
+  given: "retention of 30 days; one response 40 days old, one 10 days old"
+  when: "the prune job runs twice; 25 days pass and a visitor answers"
+  then: "the job removes the old one once; the next answer pushes out the one that is now 35 days old"
+  run:
+    now: "2026-11-12T12:00:00Z"
+    settings: { retentionDays: 30 }
+    records: { page: [{ id: p1, title: One, content: "" }] }
+    stores:
+      meta: { seq: 2, windowStart: 0, count: 0 }
+      feedback:
+        - { id: f1, pageId: p1, pageTitle: One, helpful: true, reasons: [], comment: "old", at: "2026-10-03T12:00:00.000Z", ts: 1791028800000, handled: false }
+        - { id: f2, pageId: p1, pageTitle: One, helpful: false, reasons: [], comment: "recent", at: "2026-11-02T12:00:00.000Z", ts: 1793620800000, handled: false }
+    steps:
+      - schedule: { plugin: page-feedback, id: prune }
+        expect: { status: 200, body: { ran: true, ok: true, result: { removed: 1 } } }
+      - schedule: { plugin: page-feedback, id: prune }
+        expect: { status: 200, body: { result: { removed: 0 } } }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 1, items: [{ id: f2 }] }, notContains: ['"old"'] }
+      - clock: "2026-12-07T12:00:00Z"
+      - call: { operation: pageFeedbackSubmit, credentials: none, body: { pageId: p1, helpful: true } }
+        expect: { status: 200 }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 1, items: [{ id: f3 }] }, notContains: [recent] }
+- id: page-feedback-011
+  title: "with retention off nothing is deleted"
+  given: "retentionDays 0 and a response from 2020"
+  when: "the prune job runs"
+  then: "nothing is removed"
+  run:
+    stores:
+      feedback: [{ id: f1, pageId: p1, pageTitle: One, helpful: true, reasons: [], comment: "", at: "2020-01-01T00:00:00.000Z", ts: 1577836800000, handled: false }]
+    steps:
+      - schedule: { plugin: page-feedback, id: prune }
+        expect: { status: 200, body: { result: { removed: 0 } } }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 1 } }
+- id: page-feedback-012
+  title: "the prompt is added to every page only when the site asks, pages can opt out, and placed blocks get the site's settings"
+  hook: render.after.content
+  given: "a custom question; a page with a placed block, a plain page and a page that opted out"
+  when: "pages render with showOnEveryPage off, then on, then for a static publish"
+  then: "off: only the placed block is configured; on: plain pages get one block, the opted-out page none, the placed block is not doubled; static copies get no address to post to"
+  run:
+    settings: { question: 'Did this "help"?', reasons: [{ id: slow, label: Too slow }] }
+    steps:
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { notContains: ["<page-feedback"] }
+      - render: { page: { id: p2, content: '<p>x</p><page-feedback question="Useful?"></page-feedback>' } }
+        expect:
+          contains:
+            - '<page-feedback data-config="{&quot;endpoint&quot;:&quot;x/api/v1/plugins/page-feedback/feedback&quot;,&quot;pageId&quot;:&quot;p2&quot;,&quot;question&quot;:&quot;Did this \&quot;help\&quot;?&quot;,&quot;yesLabel&quot;:&quot;Yes&quot;,&quot;noLabel&quot;:&quot;No&quot;,&quot;reasons&quot;:[{&quot;id&quot;:&quot;slow&quot;,&quot;label&quot;:&quot;Too slow&quot;}],&quot;allowComments&quot;:true,&quot;commentMaxLength&quot;:1000,&quot;anonymous&quot;:true}" question="Useful?"></page-feedback>'
+      - config: { plugin: page-feedback, values: { showOnEveryPage: true, anonymous: false, allowComments: false } }
+        expect: { status: 200 }
+      - render: { page: { id: p1, content: "<p>x</p>" } }
+        expect: { contains: ['<p>x</p><page-feedback data-config="{&quot;endpoint&quot;:&quot;x/api/v1/plugins/page-feedback/feedback&quot;,&quot;pageId&quot;:&quot;p1&quot;', "&quot;allowComments&quot;:false", "&quot;anonymous&quot;:false}\"></page-feedback></main>"] }
+      - render: { page: { id: p2, content: '<page-feedback></page-feedback><p>x</p>' } }
+        expect: { contains: ['<main><page-feedback data-config="'], notContains: ["<p>x</p><page-feedback"] }
+      - render: { page: { id: p3, content: "<p>x</p>", metadata: { plugins: { page-feedback: { hide: true } } } } }
+        expect: { notContains: ["<page-feedback"] }
+      - render: { page: { id: p1, content: "<p>x</p>" }, mode: publish }
+        expect: { contains: ['<page-feedback data-config="{&quot;endpoint&quot;:null,&quot;pageId&quot;:&quot;p1&quot;'], notContains: ["x/api/v1/plugins/page-feedback/feedback"] }
+- id: page-feedback-013
+  title: "deleting a page deletes its feedback"
+  hook: page.after.delete
+  given: "feedback on p1 and p2"
+  when: "p1 is deleted"
+  then: "only p2's feedback remains"
+  run:
+    records: { page: [{ id: p1, title: One, content: "" }, { id: p2, title: Two, content: "" }] }
+    stores:
+      feedback:
+        - { id: f1, pageId: p1, pageTitle: One, helpful: true, reasons: [], comment: "", at: "2026-11-12T12:00:00.000Z", ts: 1794484800000, handled: false }
+        - { id: f2, pageId: p2, pageTitle: Two, helpful: true, reasons: [], comment: "", at: "2026-11-12T12:00:00.000Z", ts: 1794484800000, handled: false }
+    steps:
+      - delete: { type: page, id: p1 }
+        expect: { body: { deleted: true } }
+      - call: { operation: pageFeedbackList }
+        expect: { body: { total: 1, items: [{ id: f2 }] } }
+- id: page-feedback-014
+  title: "authors find the block in the editor, served from this plugin's assets"
+  given: "the plugin enabled"
+  when: "rebuild"
+  then: "page-feedback is a block and its file comes from the plugin's asset route"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { body: { blocks: [page-feedback], registry: { page-feedback: x/api/v1/plugins/page-feedback/assets/page-feedback.js } } }
