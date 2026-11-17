@@ -355,5 +355,6 @@ else {
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n${results.length - failed}/${results.length} plugins pass${failed ? `; ${failed} fail` : ""}`);
 }
-// exitCode, not exit(): a long --json report written to a pipe is cut off at the pipe's buffer when the process exits at once
-process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+// exit once what was printed has been handed over: exiting at once cuts a long --json report off at the pipe's
+// buffer, and not exiting at all leaves the process waiting on a backend adapter's child process
+process.stdout.write("", () => process.exit(results.every((r) => r.ok) ? 0 : 1));
