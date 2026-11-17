@@ -1,0 +1,6 @@
+- name: fx-stack-mid.after.relay
+  phase: after
+  when: the plugin below pinged and this plugin has done its part
+  subject: "`{ from, at }`"
+  returns: nothing
+  veto: false

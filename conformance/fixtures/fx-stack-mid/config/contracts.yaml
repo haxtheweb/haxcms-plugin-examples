@@ -1,0 +1,5 @@
+# What this layer does for the plugins above it. It implements the contract itself; the plugin above calls it.
+contracts:
+  fx-stack-mid.store:
+    description: Keep something on behalf of the plugin above
+    operations: [put]
