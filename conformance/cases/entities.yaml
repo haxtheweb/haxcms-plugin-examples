@@ -47,3 +47,16 @@
         expect: { body: { data-store.notes: [{ uuid: n1 }] }, notContains: ['"n2"'] }
       - eraseUser: u1
         expect: { body: { removed: 1 } }
+- id: entities-010
+  title: "ctx.storage.update changes a store as one step: twenty at once all count"
+  spec: spec/04-entities-data-upgrades.md
+  given: "fx-tally, a siteData store holding { n }"
+  when: "twenty updates that each add one run at the same moment"
+  then: "n is 20"
+  run:
+    plugins: [fx-tally]
+    steps:
+      - call: { operation: fxTallyBurst }
+        expect: { status: 200, body: { n: 20 } }
+      - call: { operation: fxTallyBurst }
+        expect: { status: 200, body: { n: 40 } }

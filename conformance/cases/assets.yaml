@@ -1,21 +1,64 @@
 - id: assets-001
-  title: "only files in the asset manifest are served"
+  title: "only files in the asset manifest are served, with their type"
   spec: spec/07-registries-settings-assets.md
-  given: "file in frontend/dist not in manifest"
-  when: "GET assets/<id>"
-  then: "404"
+  given: "fx-tally: two files listed under assets, one built file that is not listed"
+  when: "ask for each"
+  then: "the listed script and image answer with their types; the unlisted file is 404"
+  run:
+    plugins: [fx-tally]
+    steps:
+      - asset: { plugin: fx-tally, path: fx-tally-board.js }
+        expect: { status: 200, body: { type: text/javascript } }
+      - asset: { plugin: fx-tally, path: img/dot.svg }
+        expect: { status: 200, body: { type: image/svg+xml } }
+      - asset: { plugin: fx-tally, path: unlisted.js }
+        expect: { status: 404 }
 - id: assets-002
-  title: "src/, config/ and data/ are never served"
+  title: "src/, config/ and data/ are never served, nor anything reached by leaving frontend/dist"
   spec: spec/07-registries-settings-assets.md
-  given: "request ../config/openapi.yaml"
-  when: "GET assets path traversal"
-  then: "404 or 400"
+  given: "fx-tally, and paths that try to leave frontend/dist or name a file type that is not for pages"
+  when: "ask for ../config/openapi.yaml, an encoded dot path, a dotfile, a .php file and a plugin that is not there"
+  then: "404 every time"
+  run:
+    plugins: [fx-tally]
+    steps:
+      - asset: { plugin: fx-tally, path: ../config/openapi.yaml }
+        expect: { status: 404 }
+      - asset: { plugin: fx-tally, path: "img/../../src/nodejs/index.js" }
+        expect: { status: 404 }
+      - asset: { plugin: fx-tally, path: ".env" }
+        expect: { status: 404 }
+      - asset: { plugin: fx-tally, path: sneaky.php }
+        expect: { status: 404 }
+      - asset: { plugin: "../fx-tally", path: fx-tally-board.js }
+        expect: { status: 404 }
+- id: assets-006
+  title: "a plugin that is not enabled serves nothing"
+  spec: spec/07-registries-settings-assets.md
+  given: "fx-tally installed, not on the enabled list"
+  when: "ask for its listed script, enable it, ask again"
+  then: "404, then 200"
+  run:
+    plugins: [fx-tally]
+    load: { enabled: [] }
+    steps:
+      - asset: { plugin: fx-tally, path: fx-tally-board.js }
+        expect: { status: 404 }
+      - enable: fx-tally
+        expect: { status: 200 }
+      - asset: { plugin: fx-tally, path: fx-tally-board.js }
+        expect: { status: 200 }
 - id: assets-003
   title: "a hash mismatch refuses the asset"
   spec: spec/07-registries-settings-assets.md
-  given: "file edited after build"
-  when: "GET asset"
-  then: "refused"
+  given: "fx-tally: edited.js is listed with the hash of what the build saw, and was changed afterwards"
+  when: "ask for it"
+  then: "404"
+  run:
+    plugins: [fx-tally]
+    steps:
+      - asset: { plugin: fx-tally, path: edited.js }
+        expect: { status: 404 }
 - id: assets-004
   title: "restricted assets are excluded from remix and export for others"
   spec: spec/07-registries-settings-assets.md

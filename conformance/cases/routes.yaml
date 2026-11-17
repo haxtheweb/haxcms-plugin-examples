@@ -72,8 +72,40 @@
   when: "MCP client lists tools"
   then: "only the opted-in operation is listed; calling it applies the caller's permissions"
 - id: routes-008
-  title: "public operations are rate limited by the backend's limiter, and x-hax-rate-limit tightens one operation"
+  title: "anonymous calls are limited per operation and caller, and x-hax-rate-limit sets the limit"
   spec: spec/05-routes-and-security.md
-  given: "fx-routes /public with x-hax-rate-limit 10 a minute, served over HTTP"
-  when: "11 requests from one address in a minute"
-  then: "the first 10 answer, the 11th is 429 with Retry-After; a backend proves this in its own HTTP tests, because the limiter counts addresses the engine never sees"
+  given: "fx-tally /vote: public, x-hax-rate-limit 3 a minute"
+  when: "one caller votes four times, another votes once, a minute passes and the first votes again"
+  then: "three count, the fourth is 429 with retry-after, the other caller is not affected, and the first can vote again after the minute"
+  run:
+    plugins: [fx-tally]
+    now: "2026-01-01T00:00:00Z"
+    steps:
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200, body: { n: 1 } }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200 }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200, body: { n: 3 } }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 429, body: { error: too many requests } }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.9" }
+        expect: { status: 200, body: { n: 4 } }
+      - clock: "2026-01-01T00:01:01Z"
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200, body: { n: 5 } }
+- id: routes-009
+  title: "a signed-in caller is not counted against the anonymous limit"
+  spec: spec/05-routes-and-security.md
+  given: "fx-tally /vote, limit 3 a minute"
+  when: "a signed-in caller votes five times"
+  then: "all five count"
+  run:
+    plugins: [fx-tally]
+    steps:
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+        expect: { status: 200, body: { n: 5 } }
