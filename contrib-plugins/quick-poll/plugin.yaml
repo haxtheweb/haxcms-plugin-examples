@@ -1,0 +1,39 @@
+# Quick poll (community plugin, experimental). The quick-poll block plus the server side it needs: counting votes,
+# keeping one vote per person, showing results only when the poll allows, and letting editors read and clear results.
+# Exercises: a public write that trusts nothing the browser says about the poll (the server reads the poll from the
+# page's saved content), a block that also works with no backend, personal data kept only for signed-in voters
+# (visitors are a hash of a random browser key), and an Insights section plus an Insights action.
+specVersion: "0.1.0"
+id: quick-poll
+uuid: 95415511-e5ba-4144-b0e3-deb22b1aa314
+title: Quick poll
+description: A poll block whose votes are counted on the server, with results for learners when the poll allows and a reset for editors.
+version: 0.1.0
+lifecycle: experimental              # the block's markup and the stored ballots may still change before 1.0
+category: content
+icon: social:poll
+tags: [poll, survey, insights]
+siteTypes: [course, documentation, blog]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+settings: config/settings.schema.json
+settingsScope: site                 # each site decides whether visitors who are not signed in may vote
+datastores: config/datastores.yaml
+tagPrefix: quick-
+staticCapable: true
+staticFallback: Static copies still show the poll and keep the reader's vote in that browser; counting votes and showing results need the server.
+capabilities: ["items:read", "userData:read", "userData:write", "output:inject"]
+privacy:
+  tracking: false
+  categories: [functional]
+  requiresConsent: []
+  cookies: []
+hooks:
+  - name: config.before.save        # refuses a flood guard out of range
+  - name: render.after.content      # gives each placed poll the address that counts its votes
+  - name: page.after.delete         # a deleted page's votes go with it

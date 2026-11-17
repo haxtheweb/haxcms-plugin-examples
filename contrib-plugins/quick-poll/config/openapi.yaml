@@ -1,0 +1,66 @@
+openapi: 3.1.0
+info: { title: Quick poll, version: 0.1.0 }
+paths:
+  /votes:
+    post:
+      operationId: quickPollVote
+      summary: Vote in a poll. Open to visitors when the site allows; the server reads the poll from the page itself.
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 20, per: minute }
+      parameters:
+        - { name: pageId, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [activityId, choice]
+              properties:
+                activityId: { type: string, minLength: 1, maxLength: 2000 }
+                choice: { type: string, maxLength: 20 }
+                voter: { type: string, description: "32 hex characters the poll keeps in this browser; required when not signed in", maxLength: 32 }
+                previous: { type: string, maxLength: 20, description: "Sent by the block on a changed vote; ignored: the server knows the earlier vote" }
+      responses:
+        "200": { description: "{ vote, counts }, or { vote, counts: {}, hidden: true } when results are not shown to this caller yet" }
+        "403": { description: "Sent from another site, or the site needs voters to sign in" }
+        "404": { description: "No such page, or the poll is not on it" }
+        "409": { description: "The poll is closed, or the vote is already in and the poll does not allow changing it" }
+        "422": { description: The option or the voter key is not acceptable }
+        "429": { description: Too many votes this hour }
+    get:
+      operationId: quickPollResults
+      summary: The counts for one poll, when this caller may see them
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 60, per: minute }
+      parameters:
+        - { name: pageId, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+        - { name: activityId, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 2000 } }
+      responses:
+        "200": { description: "{ counts }, or { counts: {}, hidden: true }" }
+        "404": { description: "No such page, or the poll is not on it" }
+        "422": { description: pageId or activityId missing }
+  /polls:
+    get:
+      operationId: quickPollList
+      summary: Every poll with votes, for site editors
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: "{ items, total }" }, "403": { description: Not a site editor } }
+  /polls/clear:
+    post:
+      operationId: quickPollClear
+      summary: Clear the votes of every poll on a page, or of one poll
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [pageId]
+              properties:
+                pageId: { type: string, maxLength: 200 }
+                poll: { type: string, maxLength: 2000, description: "A poll key from quickPollList; leave out to clear the whole page" }
+      responses: { "200": { description: "{ cleared }" }, "403": { description: Not a site editor }, "422": { description: No page given } }

@@ -1,0 +1,13 @@
+stores:
+  # one row per vote: { pageId, poll, voter, choice, ts }, plus userId for signed-in voters so core exports and erases
+  # them with no plugin code. A visitor's voter is "v:" and a hash of the page, the poll and the browser's random key,
+  # so the same browser cannot be followed from one poll to another. Never an IP address or a name.
+  - id: ballots
+    scope: siteData
+    file: ballots.json
+    personalData: true
+    userKey: userId
+  # the hourly counter of the flood guard ({ windowStart, count }); counts only, nothing about who
+  - id: meta
+    scope: siteData
+    file: meta.json
