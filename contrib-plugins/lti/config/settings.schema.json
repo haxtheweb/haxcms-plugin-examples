@@ -1,0 +1,5 @@
+{ "configure": [
+  { "property": "toolUrl", "title": "Tool URL", "description": "This HAXcms's public base URL (https://cms.example.edu). Required: core has no system-level public URL to read yet. Launches may only open addresses under it", "inputMethod": "textfield", "required": true },
+  { "property": "instructorsEdit", "title": "Teachers can edit", "description": "People the LMS calls Instructor, Content Developer or course Administrator arrive as editors. Turn off to make every launch read-only", "inputMethod": "boolean" },
+  { "property": "keysetUrls", "title": "LMS key set URLs", "description": "Filled in for you when you add or remove an LMS, one URL per line. The plugin may only fetch from these hosts", "inputMethod": "textarea" }
+] }
