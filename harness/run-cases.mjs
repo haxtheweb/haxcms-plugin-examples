@@ -105,5 +105,6 @@ else {
   for (const n of notRun) console.log(`skip ${manifest.id} ${n.id}: ${n.reason}`);
   console.log(`${failed.length ? "FAIL" : "ok  "} ${manifest.id}: ${results.length - failed.length}/${results.length} executable checks passed`);
 }
-// exitCode, not exit(): a long --json report written to a pipe is cut off when the process exits at once
-process.exitCode = failed.length ? 1 : 0;
+// exit once what was printed has been handed over: exiting at once cuts a long --json report off at the pipe's
+// buffer, and not exiting at all leaves the process waiting on a backend adapter's child process
+process.stdout.write("", () => process.exit(failed.length ? 1 : 0));
