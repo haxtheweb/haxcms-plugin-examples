@@ -548,4 +548,4 @@ else {
     r.warnings.forEach((w) => console.log(`  warning ${w.path}: ${w.message}`));
   }
 }
-process.exit(failed ? 1 : 0);
+process.exitCode = failed ? 1 : 0;
