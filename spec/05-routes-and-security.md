@@ -16,7 +16,7 @@ Some standards fix a URL at the root of the origin (RFC 8615), outside `/v1/plug
 
 ## Reserved paths
 
-Core answers these itself under `/v1/plugins/`, so a plugin operation cannot use them (the validator refuses one that does): `assets/`, `openapi.json`, `openapi.yaml`, `enable`, `disable` and `settings` under `/plugins/<id>/`, and the plugin id `contributions`. The registry and enablement routes are in spec/03.
+Core answers these itself under `/v1/plugins/`, so a plugin operation cannot use them (the validator refuses one that does): `assets/`, `openapi.json`, `openapi.yaml`, `enable`, `disable` and `settings` under `/plugins/<id>/`, and the plugin id `contributions`. `.../plugins/openapi.json` and `.yaml` are the merged contract for the scope (spec/13 section 5). The registry and enablement routes are in spec/03.
 
 ## Delegated access and MCP
 
