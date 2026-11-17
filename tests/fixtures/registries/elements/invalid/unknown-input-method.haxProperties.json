@@ -1,0 +1,77 @@
+{
+  "api": "1",
+  "type": "element",
+  "canScale": true,
+  "canEditSource": true,
+  "contentEditable": false,
+  "hideDefaultSettings": false,
+  "designSystem": {
+    "primary": true,
+    "accent": true,
+    "card": true,
+    "text": false,
+    "designTreatment": false
+  },
+  "gizmo": {
+    "title": "Awesome explosion",
+    "description": "A burst of explosions.",
+    "icon": "icons:view-agenda",
+    "color": "blue",
+    "tags": [
+      "Content",
+      "awesome"
+    ],
+    "handles": [
+      {
+        "type": "image",
+        "source": "image",
+        "alt": "alt",
+        "title": "heading"
+      }
+    ],
+    "meta": {
+      "author": "HAXTheWeb core team"
+    },
+    "shortcut": [
+      {
+        "type": "markdown",
+        "trigger": ">fc",
+        "description": "Insert a feature card (type >fc then space)"
+      }
+    ]
+  },
+  "settings": {
+    "configure": [
+      {
+        "property": "intensity",
+        "title": "Intensity",
+        "description": "How big the explosion is.",
+        "inputMethod": "sparkles",
+        "options": {
+          "1": "Small",
+          "2": "Medium",
+          "3": "Huge"
+        }
+      }
+    ]
+  },
+  "documentation": {
+    "howTo": "https://haxtheweb.org/welcome",
+    "purpose": "https://haxtheweb.org/welcome"
+  },
+  "demoSchema": [
+    {
+      "tag": "awesome-explosion",
+      "properties": {
+        "heading": "Works offline",
+        "image": "https://haxtheweb.org/files/hax (1).png",
+        "alt": "The HAX logo",
+        "layout": "left"
+      },
+      "content": "<p>Sites keep working without a network connection.</p>"
+    }
+  ],
+  "x-analytics": {
+    "category": "marketing"
+  }
+}

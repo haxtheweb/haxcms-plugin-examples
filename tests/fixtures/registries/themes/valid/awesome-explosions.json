@@ -1,0 +1,10 @@
+{
+  "element": "awesome-explosions-theme",
+  "path": "frontend/dist/awesome-explosions-theme.js",
+  "name": "Awesome explosions",
+  "thumbnail": "frontend/dist/awesome-explosions.jpg",
+  "description": "A theme where everything explodes.",
+  "category": ["Fun", "Website"],
+  "priority": 10,
+  "supportedPalettes": null
+}

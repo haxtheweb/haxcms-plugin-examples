@@ -1,0 +1,8 @@
+option:
+  title: Insert awesome explosion
+  icon: icons:flare
+  tags: [awesome, block]
+  path: HAX/insert/awesome-explosion
+  context: [HAX]
+  eventName: hax-super-daemon-insert-tag
+  value: { tag: awesome-explosion }

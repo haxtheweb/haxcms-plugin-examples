@@ -1,0 +1,1 @@
+export default { hooks: { "render.before.content": async (ctx) => ({ ...ctx.subject, content: ctx.subject.content.replace(/<fx-hello><\/fx-hello>/g, "<fx-hello><template shadowrootmode=\"open\">Hello</template></fx-hello>") }) } };

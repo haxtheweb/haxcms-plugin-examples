@@ -1,0 +1,4 @@
+{"configure": [
+  {"property": "key", "title": "Key", "inputMethod": "textfield", "x-secret": true, "x-secret-egress": ["other.example.net"]},
+  {"property": "label", "title": "Label", "inputMethod": "textfield", "x-secret-egress": ["api.example.org"]}
+]}

@@ -1,0 +1,146 @@
+- id: routes-001
+  title: "every plugin path is mounted under /v1/plugins/<id>/"
+  spec: spec/05-routes-and-security.md
+  given: "plugin declares /explosions"
+  when: "request /system/api/v1/plugins/example/explosions"
+  then: "200 with credentials"
+- id: routes-002
+  title: "a plugin cannot place a route outside its prefix"
+  spec: spec/05-routes-and-security.md
+  given: "openapi declares /v1/sites"
+  when: "load"
+  then: "plugin rejected"
+- id: routes-003
+  title: "an operation without explicit security is rejected"
+  spec: spec/05-routes-and-security.md
+  given: "operation lacks security and x-hax-public"
+  when: "load"
+  then: "plugin rejected"
+  run:
+    validate: fx-no-security
+    expect: { errors: ["declares no security"] }
+- id: routes-004
+  title: "a disabled plugin's paths return 404"
+  spec: spec/05-routes-and-security.md
+  given: "plugin disabled"
+  when: "request any path"
+  then: "404"
+  run:
+    plugins: [fx-routes]
+    load: { disabled: [fx-routes] }
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 404 }
+- id: routes-005
+  title: "an x-hax-public operation answers without credentials; a secured one beside it does not"
+  spec: spec/05-routes-and-security.md
+  given: "fx-routes: /public is x-hax-public, /jwt needs a token"
+  when: "call both with no credentials"
+  then: "200 and 401"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesPublic, credentials: none }
+        expect: { status: 200, body: { ok: true } }
+      - call: { operation: fxRoutesJwt, credentials: none }
+        expect: { status: 401 }
+- id: routes-006
+  title: "no response outside doubly authenticated callers contains the HAXcms version"
+  spec: spec/05-routes-and-security.md
+  given: "JWT only"
+  when: "list plugins and entities"
+  then: "no version field"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - call: { operation: fxRoutesSecret, credentials: none }
+        expect: { status: 401, notContains: ["26.10.1"] }
+      - call: { operation: fxRoutesSecret, credentials: jwt }
+        expect: { status: 401, notContains: ["26.10.1"], message: "X-HAXCMS-User-Token header is required" }
+      - call: { operation: fxRoutesSecret, credentials: both }
+        expect: { status: 200, body: { version: "26.10.1" } }
+- id: routes-007
+  title: "unauthenticated /x/api/v1/entities lists only site-scope descriptors"
+  spec: spec/05-routes-and-security.md
+  given: "no credentials, ?scope=system"
+  when: "GET entities"
+  then: "no plugin or system descriptors"
+- id: route-090
+  title: "only x-hax-mcp operations become MCP tools"
+  spec: spec/05-routes-and-security.md
+  given: "MCP plugin enabled; plugin with one x-hax-mcp operation and one without"
+  when: "MCP client lists tools"
+  then: "only the opted-in operation is listed; calling it applies the caller's permissions"
+- id: routes-008
+  title: "anonymous calls are limited per operation and caller, and x-hax-rate-limit sets the limit"
+  spec: spec/05-routes-and-security.md
+  given: "fx-tally /vote: public, x-hax-rate-limit 3 a minute"
+  when: "one caller votes four times, another votes once, a minute passes and the first votes again"
+  then: "three count, the fourth is 429 with retry-after, the other caller is not affected, and the first can vote again after the minute"
+  run:
+    plugins: [fx-tally]
+    now: "2026-01-01T00:00:00Z"
+    steps:
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200, body: { n: 1 } }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200 }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200, body: { n: 3 } }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 429, body: { error: too many requests } }
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.9" }
+        expect: { status: 200, body: { n: 4 } }
+      - clock: "2026-01-01T00:01:01Z"
+      - call: { operation: fxTallyVote, credentials: none, client: "203.0.113.5" }
+        expect: { status: 200, body: { n: 5 } }
+- id: routes-009
+  title: "a signed-in caller is not counted against the anonymous limit"
+  spec: spec/05-routes-and-security.md
+  given: "fx-tally /vote, limit 3 a minute"
+  when: "a signed-in caller votes five times"
+  then: "all five count"
+  run:
+    plugins: [fx-tally]
+    steps:
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+      - call: { operation: fxTallyVote }
+        expect: { status: 200, body: { n: 5 } }
+- id: routes-010
+  title: "each plugin's contract is served with its operations at their mounted paths and nothing server-side"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-proxy (a site operation that proxies with a key) and fx-routes (system operations)"
+  when: "the contract is read for each plugin, for all plugins, and for one scope"
+  then: "a plugin's document lists only its own operations under /plugins/<id>/, x-hax-proxy is never in it, and the scope filter keeps site and system apart"
+  run:
+    plugins: [fx-proxy, fx-routes]
+    load: { settings: { fx-proxy: { key: k1 } } }
+    steps:
+      - openapi: { plugin: fx-proxy }
+        expect: { status: 200, body: { title: "HAXcms plugin fx-proxy", count: 1, leaked: false, operations: { fxProxySearch: "get /x/api/v1/plugins/fx-proxy/search" } } }
+      - openapi: { plugin: fx-routes }
+        expect: { status: 200, body: { count: 4, operations: { fxRoutesPublic: "get /system/api/v1/plugins/fx-routes/public" } } }
+      - openapi: { scope: site }
+        expect: { status: 200, body: { title: "HAXcms plugins", count: 1, leaked: false } }
+      - openapi: { scope: system }
+        expect: { status: 200, body: { count: 4 } }
+      - openapi: true
+        expect: { status: 200, body: { count: 5 } }
+- id: routes-011
+  title: "there is no contract document for a plugin that is not on, or for a scope it has nothing in"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-routes (system operations only), and no plugin named fx-absent"
+  when: "the contract is read for fx-absent, and for fx-routes at site scope"
+  then: "both are 404"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - openapi: { plugin: fx-absent }
+        expect: { status: 404 }
+      - openapi: { plugin: fx-routes, scope: site }
+        expect: { status: 404 }
+      - openapi: { plugin: fx-routes, scope: system }
+        expect: { status: 200, body: { count: 4 } }

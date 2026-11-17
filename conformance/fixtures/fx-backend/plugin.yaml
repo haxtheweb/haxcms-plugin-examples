@@ -1,0 +1,22 @@
+specVersion: "0.1.0"
+id: fx-backend
+uuid: 5c03f77c-fdd7-47ef-a5b7-776331df6f4a
+title: fx-backend (backend integration fixture)
+description: Conformance fixture for a backend's own integration tests; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+entities: config/entities.yaml
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+implements:
+  - name: insights.check
+    provides: [word.count]
+capabilities: ["items:read", "userData:read", "userData:write", "output:managedFiles"]
+managedFiles:
+  - { path: fx-backend.txt, title: Listed page titles, type: text/plain }
+hooks:
+  - name: page.before.save
+  - name: rebuild.after

@@ -1,0 +1,3 @@
+{ "configure": [
+  { "property": "issuer", "title": "Issuer URL", "inputMethod": "textfield", "required": true }
+] }

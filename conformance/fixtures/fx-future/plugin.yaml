@@ -1,0 +1,9 @@
+specVersion: "99.0.0"
+id: fx-future
+uuid: e5f8bdbd-fd0d-5aa4-b694-826935ff6c66
+title: fx-future (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js

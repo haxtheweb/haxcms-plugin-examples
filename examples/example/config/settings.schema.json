@@ -1,0 +1,29 @@
+{
+  "configure": [
+    {
+      "property": "greeting",
+      "title": "Greeting",
+      "description": "Required before the plugin activates (see plugin.before.requirements in src/). Shown by the awesome-counter singleton.",
+      "inputMethod": "textfield",
+      "required": true
+    },
+    {
+      "property": "intensity",
+      "title": "Intensity",
+      "description": "How big the explosions are.",
+      "inputMethod": "select",
+      "options": {
+        "1": "Small",
+        "2": "Medium",
+        "3": "Huge"
+      }
+    },
+    {
+      "property": "apiKey",
+      "title": "API key",
+      "description": "A secret; never returned by the API.",
+      "inputMethod": "textfield",
+      "x-secret": true
+    }
+  ]
+}

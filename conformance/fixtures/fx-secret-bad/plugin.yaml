@@ -1,0 +1,10 @@
+specVersion: "0.1.0"
+id: fx-secret-bad
+uuid: 915cf65d-f12b-5bfd-8f2f-05d9b1428a0a
+title: fx-secret-bad (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+kind: pack
+settings: settings.schema.json
+capabilities: ["network:egress", "settings:secret"]
+egress: [api.example.org]

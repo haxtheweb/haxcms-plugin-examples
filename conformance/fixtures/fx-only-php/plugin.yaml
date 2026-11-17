@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-only-php
+uuid: 92567e3d-0fef-4daf-a6b5-6b597ca1c5fb
+title: fx-only-php (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [php]
+entry:
+  php: src/php/Plugin.php
+hooks:
+  - name: page.after.save

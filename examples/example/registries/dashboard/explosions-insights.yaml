@@ -1,0 +1,17 @@
+# A site-surface contribution: the same declarative UI, rendered in the site editor's admin screens instead of the
+# dashboard. This one fills the insights.section slot, adding an "Explosions" section to the Insights screen of every
+# site the plugin is enabled for. Core keeps the slot names stable (spec/07) and never names this plugin.
+id: explosions-insights
+surface: site
+placement: slot
+slot: insights.section
+icon: icons:flare
+label: Explosions
+action:
+  kind: modal
+  title: Explosions on this site
+  sections:
+    - title: Recent explosions
+      operation: exampleListExplosions
+      items: items
+      card: { title: name, description: summary, anchor: id }

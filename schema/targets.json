@@ -1,0 +1,44 @@
+{
+  "$comment": "Where a HAXcms backend runs and what a plugin can count on there (spec/14). `needs` are derived from a plugin's manifest by scripts/backend-needs.mjs; a backend says which target it is, and the loader compares the two. Read by the validator, the reference engine and both backends, so the table exists once.",
+  "needs": {
+    "backend": { "title": "a running HAXcms backend", "from": "backend code (entry) or operations (openapi)", "hard": true },
+    "process": { "title": "running commands on the machine", "from": "exec:run capability", "hard": true },
+    "visitors": { "title": "a backend that visitors and other services can reach", "from": "an x-hax-public or optional-auth operation", "hard": false },
+    "schedule": { "title": "scheduled jobs", "from": "schedules", "hard": false },
+    "network": { "title": "outbound requests", "from": "network:egress capability", "hard": false },
+    "secrets": { "title": "secret settings kept on a server", "from": "settings:secret capability", "hard": false }
+  },
+  "targets": {
+    "server": {
+      "title": "hosted server",
+      "about": "haxcms-nodejs or haxcms-php on a host people reach over the web",
+      "runtimes": ["nodejs", "php"],
+      "provides": ["backend", "process", "visitors", "schedule", "network", "secrets"],
+      "partial": {}
+    },
+    "desktop": {
+      "title": "desktop app",
+      "about": "haxcms-nodejs inside haxcms-desktop, on one person's computer",
+      "runtimes": ["nodejs"],
+      "provides": ["backend", "process", "network", "secrets"],
+      "partial": { "schedule": "jobs run only while the app is open" }
+    },
+    "cli": {
+      "title": "command line",
+      "about": "haxcms-nodejs loaded in-process by the hax CLI for one command, with no server listening",
+      "runtimes": ["nodejs"],
+      "provides": ["backend", "process", "network", "secrets"],
+      "partial": { "schedule": "a job runs only when a command runs it" }
+    },
+    "browser": {
+      "title": "browser",
+      "about": "haxcms-nodejs bundled into a Worker by haxcms-browser, in one person's browser tab",
+      "runtimes": ["nodejs"],
+      "provides": ["backend"],
+      "partial": {
+        "network": "only hosts that allow cross-origin requests answer",
+        "secrets": "kept in this browser's storage, where the person using it can read them"
+      }
+    }
+  }
+}

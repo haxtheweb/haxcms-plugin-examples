@@ -1,0 +1,160 @@
+# HAX backend platform contract
+
+Part of the HAXcms plugin specification (decision source: https://github.com/haxtheweb/issues/issues/3176).
+
+What every HAX backend (haxcms-nodejs, haxcms-php, and anything later) implements so plugins load and behave the same everywhere. It covers loading and running plugins on the **backend** only. How front-end assets (web components, themes) are produced is separate and already has its own tooling; the front end only receives what this contract serves.
+
+A backend conforms when it passes the conformance cases (`conformance/`) and runs every example plugin's own cases through its adapter (section 9). The reference harness in `harness/` implements this contract in memory and is the executable form of this document: when the two disagree, fix one of them in the same change.
+
+## 1. Where things live
+
+| What | Node | PHP |
+|---|---|---|
+| Core plugins (tier 3) | `src/plugins/<id>/` | `system/plugins/<id>/` |
+| System contrib (tier 4) | `<HAXCMS_ROOT>/_plugins/<id>/` | same |
+| Site plugins (tier 5) | `<site>/_plugins/<id>/` | same |
+| Deployment config: required, locked, blocked | `<HAXCMS_ROOT>/_config/plugins/plugins.yaml` | same |
+| Lock config (installed version, source, range, tested, signed), per scope | `_config/plugins/plugins.yaml` in that scope | same |
+| Plugin settings (CMI), system scope | `<HAXCMS_ROOT>/_config/plugins/config/<id>.json` | same |
+| Plugin settings (CMI), site scope | `<site>/_config/plugins/config/<id>.json` | same |
+| Secret settings (never in a site folder, never in git) | `<HAXCMS_ROOT>/_config/plugins/secrets/<id>.json`; site scope under `<HAXCMS_ROOT>/_config/siteData/<siteUuid>/plugins/<id>.secrets.json` | same |
+| Data stores | spec/04 table (`site`, `siteData`, `system`, `manifest`, `package`) | same |
+
+Core plugin folders are mirrored between the two backends (one folder per plugin with both `src/nodejs` and `src/php`). Work lands in Node first, then PHP passes the same cases.
+
+## 2. Loader lifecycle
+
+The loader runs at boot and again on any install, enable, disable, update or settings change that affects status ("rescan"). Each step either passes the plugin on or records a reason and leaves it out; one bad plugin never stops boot.
+
+1. **Discover** plugin folders in every tier, lowest priority first (HAXiam core, HAXiam contrib, system core, system contrib, site). A higher tier wins a name collision, with a warning naming both versions.
+2. **Read and validate** `plugin.yaml` against `schema/plugin.schema.json`, plus its referenced files. Unknown keys refuse the plugin. A `specVersion` newer than the backend supports refuses it with a version message. A plugin with code whose `runtimes` leave out this backend's runtime is refused with `no <runtime> implementation: this plugin ships <runtimes> only` (load-118, load-119): it never loads as active with every operation answering 501 and its hooks skipped. Packs and declarative plugins (only `x-hax-proxy` operations) load on every backend. Plugins shipped with HAXcms (core and contrib tiers) ship every runtime; one written for a single backend works there and is refused, with that reason, on the other.
+3. **Apply the registry** (spec/03): `blocked` plugins are refused; `locked` and `required` plugins are enabled and cannot be disabled; any other plugin is enabled only when the scope's `enabled` list names it. A plugin that is not enabled is `available`: none of its code is loaded and it takes no further part below.
+4. **Resolve relationships**: missing or out-of-range `dependencies` keep a plugin disabled with the reason; `conflicts` warn; `suggests` only inform.
+5. **Order** enabled plugins: dependencies before dependents, then required first, then tier low to high, then id. This order is the "loading cascade" used everywhere below.
+6. **Status**: work out what the plugin needs from a backend and how this backend's target fits (spec/14), then run `plugin.before.requirements` / `plugin.after.requirements`; a plugin with unmet requirements (a need the target lacks, a required setting without a value, whatever the hooks add) is enabled but **inactive** and contributes nothing below until they are met. Needs the target only half meets are recorded as `limited` and the plugin stays active.
+7. **Load entries** of active plugins for the backend's runtime (section 3). A load error turns the plugin off (`failed`) with the error recorded.
+8. **Register**, for each active plugin in cascade order: routes into the unified contract (section 5); entities and annotations; contracts and implementations; registries (themes, elements, skeletons, Merlin, appstore, locales, dashboard contributions, CLI commands, skills); hook subscriptions, with aliases expanded (section 6). Then fire `register.before.*` / `register.after.*`.
+9. **Ready.** Serve. A disabled or inactive plugin is absent from every surface (spec/07, separation rule).
+
+Install and enable additionally run, in order: the validator and `exec` scan (CLI only), upgrade steps when the version changed, `plugin.before.install` / `plugin.after.install` on the first enable in a scope, then `plugin.before.enable` / `plugin.after.enable`. A failure anywhere turns the plugin back off with the reason.
+
+## 3. Entry points
+
+**Node** (`entry.nodejs`, an ES module). The default export (or named exports) may contain:
+
+```js
+export default {
+  operations: { [operationId]: async (ctx, request) => response },
+  hooks:      { [hookName]:   async (ctx) => subject | undefined },
+  // scheduled job handlers named in plugin.yaml `schedules`
+  async tidy(ctx) {},
+};
+```
+
+Plugins that implement a contract add `contracts: { "<contract>": { <operation>: async (ctx, input) => result } }`. Core contracts are listed in `schema/core-contracts.yaml` (`import.platform`, `import.file`, `log.sink`, `privacy.export`, `privacy.delete`, `insights.check`); core calls the active implementers its dispatch rule selects.
+
+**PHP** (`entry.php`). The file defines one class, `<StudlyId>Plugin` (`announcements` → `AnnouncementsPlugin`, `data-store` → `DataStorePlugin`). Operations are public methods named exactly as the `operationId`; hooks are public methods named by camel-casing the hook across both `.` and `-` (`page.before.save` → `pageBeforeSave`, `fx-definer.after.ping` → `fxDefinerAfterPing`); schedule handlers are public methods named as in `schedules`; contract operations are methods named camel(contract) + Studly(operation) (`import.platform` `convert` → `importPlatformConvert`). One instance per process, so a plugin keeps no request state on `$this`. PHP has one class table per process: only one copy of a plugin can be loaded in a request (the tier that wins, section 2); a backend must not load a losing copy's code. The validator rejects a subscription without a handler in every runtime the plugin lists (conformance hook-104).
+
+Both runtimes keep logic in plain modules the entry calls (the announcements plugin does this), so the two can be compared call for call.
+
+**Logic shared with the front end.** Analysis that also runs in the browser (Insights' static checks, which the site editor runs before any backend support exists) lives once as a pure ES module under `frontend/dist/` (the only folder the browser can load from, spec/07 assets): no I/O, no globals, input in and plain data out. The front-end element imports it as a sibling asset and the Node entry by relative path (`../../frontend/dist/<module>.js`), so both load the same file; the PHP entry ports it, and the plugin's executable cases run the same fixtures through both runtimes (section 9), so the three cannot drift silently. A core required plugin must list both runtimes (spec/02); being shared with the front end does not change that.
+
+## 4. The context object (`ctx`)
+
+Values that cross the boundary between a plugin and core (store writes, saved records, hook return values, contract results) are JSON data: a backend normalizes them as a JSON round trip would, so a PHP `stdClass` arrives as an object the next plugin, in either runtime, reads the same way. PHP cannot tell an empty object from an empty list; comparisons treat them alike (`harness/expect.mjs`).
+
+Passed to every hook, operation and scheduled job. Node uses properties and methods as written; PHP uses the same names as properties (`$ctx->subject`) and methods (`$ctx->veto(...)`), with associative arrays for data.
+
+| Member | Available in | What it is |
+|---|---|---|
+| `subject` | hooks | the thing the hook is about, per `schema/hook-contracts.json` |
+| `previous` | hooks where the contract lists one | the stored version before the operation |
+| `request` | `rest.after.request` | the request that produced the response |
+| `target`, `format`, `upload` | `site.*.duplicate`, `site.*.export`, `file.before.save` | extra operation details |
+| `veto(message, status = 409)` | before hooks | fail the whole operation with an error to the caller; returns a value the hook should return |
+| `warn(message, severity = "warning")` | hooks, operations | collect a warning the UI can show; the operation continues |
+| `respond(html)` | `render.before` | short-circuit the render with a finished document |
+| `settings` | everywhere | the plugin's settings for the current scope, read-only; secret values are present server-side and never serialized to clients |
+| `config.save(values, { scope })` | everywhere | write the plugin's own settings (an install migration moving a value out of `site.json`, for example); validated against its settings schema and run through `config.before.save` / `config.after.save` like any other save; `scope` follows `settingsScope` |
+| `plugins.list()` / `plugins.skills(audience)` | everywhere | read-only list of active plugins (`{ id, version, privacy, capabilities, skills, implements }`; how cookie consent knows whether any tracker is enabled, and how a contract's definer finds its implementers: `implements` holds contract names), and the skills of active plugins for one audience with their files, read by core (how agent-skills publishes them) |
+| `assets.url(path)` | everywhere | the URL of one of the plugin's own files under `frontend/dist`, valid on the live site and in a static publish (spec/07, assets) |
+| `storage.read(storeId)` / `storage.write(storeId, value)` / `storage.update(storeId, fn)` | everywhere | the plugin's own stores (spec/04); `package` stores are read-only; `siteData` stores resolve to the current site. `update` reads the store, hands the value to `fn`, and writes what `fn` returns, as one step: updates of one store queue behind each other in a process and take a lock between processes, so a counter two people change at once counts both. Use it for anything that changes a store based on what is in it; `read` then `write` can lose a change |
+| `package.read(path, { binary })` / `package.list(folder)` | everywhere | read a file, or list files recursively, under the plugin's `data/` folder; refuses paths outside it |
+| `files.put(path, data)` / `files.remove(path)` | everywhere | the site's own files (uploads) under `files/`; needs `files:write`; `data` is bytes (base64 in PHP) |
+| `files.writeManaged(path, content)` / `files.readManaged(path)` | everywhere | write a generated file into the site (service worker, discovery index); needs `output:managedFiles` and a path matching the manifest's `managedFiles` patterns (`*` within a folder, `**` across folders); one plugin owns each path |
+| `haxcms` | everywhere | `{ version, runtime, target }` (`runtime` is `nodejs` or `php`; `target` is `server`, `desktop` or `browser`, spec/14) |
+| `plugin` | everywhere | `{ id, version, scope }` of the running plugin |
+| `registries.theme(element)` | everywhere | the merged theme registry entry (core and active plugins) for a theme element, or `null`; read-only. Lets a plugin check, for example, `colorSchemes` before offering a dark mode |
+| `archive.read(data, { match, maxEntries, maxBytes, binary })` | everywhere | read a zip archive (base64) and return `{ path: text }` (or base64 with `binary: true`, for images in an export) for entries whose path matches `match` (a regular expression). Core owns the limits (5000 entries, 100 MB expanded by default) so importers of docx, pptx, xlsx and site exports never ship their own zip code |
+| `contracts.call(name, op, input, { plugin? })` | everywhere | call a core contract that another active plugin implements and get its result (dispatch rules apply: a markdown file goes to whichever plugin accepts `.md`). Lets plugins compose without importing each other's code: the GitHub-based site importers hand each markdown file to `import.file`. The callee runs with its own capabilities; list it in `dependencies` when the call is required |
+| `entityType` | entity hooks | the concrete entity type of the record (`file`, or `mediaItem` when a subscription to `file` sees an extending entity); `null` elsewhere |
+| `site` | site-scope calls | `{ id, name, path, url }`, otherwise `null`. `url` is the public base URL with a trailing slash: `metadata.site.domain` from `site.json`, else the deployment's domain plus the site's base path (the fallback core uses for feeds today) |
+| `now()` | everywhere | the current time in milliseconds. Plugins use it instead of the runtime clock so generated output is reproducible: test harnesses freeze it, and both backends then write identical files |
+| `user` | when a user is involved | the limited record (`id, name, displayName, roles, avatar`), the full record only with `users:full`, otherwise `null` |
+| `log.info / .warn / .error(message, data?)` | everywhere | the unified log, tagged with plugin, hook or operation, and scope |
+| `fetch(url, init)` | everywhere | outbound HTTP, only with `network:egress` to a host `egress` allows (a listed host, a host from a named setting, the host of a contract call's `input.url` for `{ input: url }`, or any public host for `{ any: true }`). Redirects are followed up to five hops and every hop is checked again, egress first and then the private-address guard, so a redirect cannot reach a host the plugin may not. A request carrying a secret setting's value to a host that field's `x-secret-egress` does not name is refused the same way (spec/07). Node returns a standard `Response`; PHP returns `['status', 'headers', 'body', 'json']` (`json` is the decoded body or `null`) |
+| `hooks.fire(name, subject, { previous })` | everywhere | fire a hook **this plugin defines** (`hookDefinitions`, or a core contract whose `definedBy` is this plugin, such as `git.*` for `git`); returns `{ subject, veto?, warnings }` after every subscriber ran. Core hooks are fired by the platform only |
+| `entities.get(type, id?)` / `entities.list(type, query?)` / `entities.save(type, record)` / `entities.delete(type, id)` | everywhere | core records outside the plugin's own stores: `site` (its `site.json`; `id` defaults to the current site), `page`, `file`, `config` (`core` is the core configuration, for moving settings such as API keys out of it), and entity types other plugins define. `list("page", { listed: true })` returns only what an anonymous visitor can open: published (`metadata.published` not false), not hidden from the menu (`metadata.hideInMenu`), and not a fragment named by `rebuild.before` (region content). Feeds, sitemaps, search indexes and `llms.txt` all use this one rule. Reading needs the matching `:read` capability (`site:read`, `items:read` for pages, `files:read`, `settings:read` for config), saving the `:write` one. `save` runs the normal entity hooks (and their aliases) inside the current transaction, so a plugin's own changes are extended and vetoed like anyone else's; it returns `{ record, veto?, conflict? }`. A record that changed after this plugin read it is refused with `conflict: true` instead of overwriting the other change: re-read and save again |
+| `pluginEnabled(id)` | everywhere | whether another plugin is enabled and active in this scope |
+| `transaction` | everywhere | `{ id, origin, bulk, atomic, operations, marks, ok?, failed?, run(fn, { bulk, origin, atomic }) }` (spec/06, Transactions; `atomic` is opt-in and `run` rejects when an atomic transaction rolls back). In PHP `transaction` is an array and `run` is spelled `$ctx->runTransaction($fn, $opts)`, which throws on rollback |
+| `exec(cmd, args, { cwd?, timeout?, input?, files? })` | everywhere | run a command from the plugin's `exec` list (needs `exec:run`) with an argument list, never a shell; returns `{ code, stdout, stderr }`. `files: { name: { content, mode? } }` are written to a private temp folder for the length of the run and removed afterwards; arguments refer to it as `{tmp}` (an SSH key for rsync never touches the site or the log). A command outside the list is refused. Both backends run it the same way: no shell; the temp folder is private (0700) and each file is written 0600 unless `mode` says otherwise, under a plain name (no `/`, no `..`); `cwd` must be inside the site folder (default: the site folder; on the system engine, which has no site, the command runs in the temp folder); the environment is only `PATH`, `HOME` (the temp folder) and `LANG=C.UTF-8`, so no backend secret leaks into a child; `timeout` is in milliseconds, 60 s by default and at most 300 s, and a run past it is killed and throws `exec "<cmd>" timed out after N ms`; stdout or stderr over 10 MB kills the run and throws `exec "<cmd>" stdout exceeded 10 MB`. A non-zero exit code is a result, not an error. Test harnesses answer `exec` from fakes (`run.exec` in a case) and record each call |
+
+`ctx.exec` is the sanctioned way to run a process: the backend enforces the `exec` list at run time, and test cases can fake the command. Spawning with the runtime's own API is still possible for long-lived or streaming use (the git plugin's `execFile`), but then only the static scan guards it; the validator checks that every literal command name in a spawn or `ctx.exec` call is in the `exec` list and warns when the name is computed.
+
+### Upgrade steps
+
+A plugin that changes its data shape between versions ships one step per version: a recipe in `migrations/<NNNN>-<name>.md` (for people and agents) and the code, as `upgrades: { "<version>": async (ctx) => {} }` in the Node entry and `upgrade_<major>_<minor>_<patch>($ctx)` methods in PHP. On a version change the loader runs, in version order, every step newer than the installed version and not newer than the new one, between `plugin.before.upgrade` and `plugin.after.upgrade`, inside one transaction; a throwing step turns the plugin off with the reason. Steps use the same `ctx` (stores, `entities` for data that used to live in `site.json`), and keep a read fallback to the old location so a site whose upgrade has not run still works.
+
+## 5. Operations and the unified contract
+
+- **Mounting.** Each operation mounts under `/x/api/v1/plugins/<id>/` (site scope, the default) or `/system/api/v1/plugins/<id>/` (`x-hax-scope: system`), from the plugin's `config/openapi.yaml`. Plugins cannot place routes elsewhere. Each plugin's document is also served at `.../plugins/<id>/openapi.json` and `.yaml`, and the merged document for a scope at `.../plugins/openapi.json` and `.yaml`: every operation at its mounted path with its declared security, and nothing server-side (`x-hax-proxy` never leaves the server). They ask for the same credentials as the registry of that scope. One plugin's document is 404 while the plugin is off or has no operation at that scope. Core's own routes under `.../plugins` (registry, enable, disable, settings, assets, contributions and these documents) are part of the backend's system and site OpenAPI documents, the same in every backend; a backend keeps one list of them and tests its documents against it.
+- **Before the handler runs**, the platform enforces `security` from the contract (both credentials when both are listed) and the rate limit for anonymous calls: a call with no credentials to a public or optional-auth operation is counted per operation and caller address, 60 a minute unless the operation's `x-hax-rate-limit: { requests, per }` (`second`, `minute` or `hour`) says otherwise, and the one over the limit is answered `429` with `Retry-After` (routes-008). A signed-in caller is not counted. Validating parameters and body against the schema is specified and not built yet (GAPS 1v).
+- **Handler signature.** `(ctx, request)` where `request` is `{ params, query, body, headers, files }`.
+- **Response.** Return `{ status, headers?, body }`, or a plain value meaning `200` with that body. `body` may be bytes for binary responses. A value is read as a response only when `status` is an integer and it has no keys other than `status`, `headers` and `body`; a record that happens to have `status` and `body` fields (a comment whose status is `"pending"`) is a plain value. To return a record that would match, wrap it: `{ status: 200, body: record }`.
+- **Errors.** A thrown error becomes `500` with a generic message; the detail goes to the log only. A veto from a hook inside the operation becomes its status (default `409`) with the veto message.
+- **Atomic operations.** `x-hax-transaction: atomic` (per operation, or at the document root as a default) runs the handler inside one atomic transaction (spec/06): if it throws or vetoes, every write it made is put back and the response says `rolledBack: true`. Leave it out for the default behaviour. Any other value is rejected by the validator.
+- **Front end.** Every operation is callable from the dashboard as `@system/<operationId>` or `@site/<operationId>`, registered from the contract.
+
+## 6. Hook dispatch
+
+- **Subscriptions** come from `hooks` in `plugin.yaml`. An alias (core or plugin-defined) expands to its targets with their `entities` and `changed` filters; the plugin still receives it under the name it subscribed with, and it fires once per operation.
+- **Order**: `priority` (higher first, default 0), then the loading cascade.
+- **Calling**: the platform calls the hook with `ctx`. A returned value replaces the subject for the next hook after validation against the contract's subject schema; an invalid return is discarded and logged; returning nothing leaves the subject as it is. Fields a plugin adds to a schema it did not declare in `entities` are discarded with a warning. When a later hook overwrites a field an earlier hook set, the change stands and a warning names both plugins.
+- **Veto** (before hooks only) stops the chain and fails the operation.
+- **Errors and timeouts**: a thrown error or a timeout (before hooks 5 s by default, up to 30 s with `timeout`; detached after hooks 60 s) is logged and the chain continues with the previous subject. PHP cannot stop a running function: a PHP backend lets a subscriber that runs past its limit finish, then discards its result and logs the same time-out a Node backend logs; one that never returns is bounded by `max_execution_time`. Either way the time-out is logged and the result is not used. `detached: true` after hooks run after the response is sent; they are refused where the contract says they cannot detach.
+- **Config hooks while inactive.** A plugin's own `config.*` hooks run even while it is inactive, so it can validate the setting that would activate it.
+- **Every** discard, warning, veto, timeout and error updates the plugin's health counters (the dashboard chip) and goes to the log plugin when it is enabled.
+
+## 7. Settings and secrets
+
+`ctx.settings` is assembled from the plugin's settings schema defaults, then the system-scope file, then the site-scope file (site wins), then secrets from the secrets file. Writes go through `config.before.save` / `config.after.save` and are validated against the settings schema; secret values are write-only through every API and CLI, and leave the server only towards the hosts their field's `x-secret-egress` names (spec/07). `plugin.before.requirements` is re-run after every save.
+
+## 8. What the backend serves for other surfaces
+
+- `GET /x/api/v1/plugins/<id>/assets/<path>` and the same under `/system/api/v1/`: one of the plugin's front-end files (spec/07, assets), with no credentials, `X-Content-Type-Options: nosniff` and a content type from the extension. Served only for a plugin that is on, from `frontend/dist`, for the extensions pages load (scripts, styles, images, fonts, JSON), and, once `hax plugin build` has written the manifest's `assets`, only the files listed there whose hash still matches. Everything else is the same 404 (assets-001 to assets-003, assets-006).
+- `GET /system/api/v1/plugins` and `GET /x/api/v1/plugins`: the plugin registry (spec/03): status, needs, fit per target, limits, dependents. `POST .../plugins/<id>/enable` and `.../disable` in either scope change it.
+- `GET /system/api/v1/plugins/contributions`: dashboard contributions, Merlin declarations, `admin` elements, locale overlays and advertised `contracts` from active plugins. Both credentials.
+- `GET /x/api/v1/plugins/contributions`: the same for one site's admin screens: site-surface contributions, site-scope Merlin declarations, locale overlays and advertised `contracts` from plugins enabled for that site. Site credentials. `contributions` is therefore a reserved plugin id.
+- The site's appstore payload and `wc-registry.json` include plugin fragments at rebuild time (spec/07).
+- `.well-known/agent-skills` includes active plugins' `site` (per site) and `system` (system front end) skills at rebuild.
+- The CLI, which embeds the Node backend in-process, reads `registries/cli/` of active plugins.
+
+## 8a. Byte-identical output
+
+Files a plugin generates (managed files, JSON it serves) must be byte-identical between backends, so digests and caches agree: JSON with two-space indentation (PHP's `JSON_PRETTY_PRINT` uses four, so re-indent), slashes and Unicode unescaped, LF line endings, a trailing newline for files, and a missing optional value written as `null` rather than left out (Node drops `undefined` keys, PHP keeps `null`). The agent-skills and outline parity tests caught these.
+
+## 8b. Site and system engines
+
+Plugins run in one of two kinds of engine. A **site engine** serves one site: `ctx.site` is that site, and site records, site-scope stores (`site`, `siteData`, `manifest`), site files, rendering and rebuilds are that site's. The **system engine** serves HAXcms as a whole: system-scope operations (`x-hax-scope: system`), dashboard contributions and system-scope schedules run there. In it `ctx.site` is `null`, system and package stores work as usual, and anything that needs a site (a site-scope store, `entities` calls for `site` / `page` / `file`, site files, rendering, a rebuild) is refused with `<what>: needs a site; this is the system engine`. Legacy settings that point into `site.json` read as unset there and are not moved. A system operation never borrows some site's engine; a plugin that needs a site takes one as a parameter and works through the API for it.
+
+## 8c. One engine, many requests
+
+A long-running backend (haxcms-nodejs) keeps one engine per site and serves every request for that site with it, several at a time. Nothing about one request may live on the engine: not the user, not the open transaction, not the re-entry guard. The engine gives each request a view of itself (`forUser(user)` in the reference engine) that shares plugins, stores and records and has its own user and transaction. A backend that sets the user on the shared engine hands one person's request another person's identity whenever two overlap; haxcms-nodejs did, and its tests now run overlapping requests to prove it does not. A backend that starts fresh for every request (haxcms-php) has nothing to share.
+
+A backend must also cost nothing where no plugin listens: with no active plugin subscribed to a hook, firing it reads no page, no store and no file.
+
+## 9. Proving conformance
+
+- **Adapter interface.** A backend is tested through an adapter module exporting `createBackend(opts)`, whose result offers the methods `harness/steps.mjs` calls (load, call, fire, render, enable, disable, registry, asset, saveConfig, upgrade, saveEntity, deleteEntity, rebuild, callContract, contractImplementers, advertisedContracts, runSchedule, importFile, exportUser, eraseUser, transaction, flushLog, status, and optionally reload) and the state it reads (`records`, `log`, `execCalls`, `fetchCalls`, `managed`, `site.path`, `currentTx`). Any method may be asynchronous; the step runner awaits every one. `reload()` re-reads records from the backend's durable storage, so a case can check that what is on disk matches (an atomic transaction that fails must put back site.json and page files, not only the in-memory copy; hook-100). The in-memory reference implements it all; haxcms-nodejs runs its engine in-process (`test/plugins/haxcms-adapter.mjs`) and haxcms-php runs its native PHP engine in a PHP process driven over stdin (`test/plugins/haxcms-php-adapter.mjs`), each over a real HAXcms site.
+- **Cases.** Spec conformance cases (`conformance/cases/*.yaml`) describe platform behavior. Plugin test cases (`tests/cases/*.yaml` in each plugin) may carry a machine-readable `run` block (schema in `schema/test-case.schema.json`) that any adapter executes.
+- **Parity.** For plugins with code in both runtimes, the same executable cases run through the Node and PHP adapters and must give the same results. Fixtures with code ship both runtimes too, so `node conformance/run.mjs --runtime php` runs the conformance cases over the PHP entries. Three implementations then check each other: the reference engine running Node code, the reference engine running PHP code through its bridge, and haxcms-php's native engine; `run-cases.mjs --json --outputs` gives every step's output (without `parityIgnore` keys) so a backend can be compared with the reference case by case, not only pass or fail.
