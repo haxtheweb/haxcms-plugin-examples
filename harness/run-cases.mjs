@@ -27,6 +27,24 @@ const skipped = [];
 if (runtimes.includes("php") && !hasPhp) { runtimes = runtimes.filter((r) => r !== "php"); skipped.push("php (not installed)"); }
 
 import { canon } from "./expect.mjs";
+import { backendNeeds, targetSummary } from "../scripts/backend-needs.mjs";
+
+// With --target: a case that brings other plugins along (run.with) cannot say anything about this plugin on a
+// target one of them cannot run on. Returns the first such companion, or null.
+const notRun = [];
+function companionThatCannotRun(c) {
+  if (!targetArg) return null;
+  for (const w of c.run.with || []) {
+    try {
+      const d = join(root, w);
+      const m = parse(readFileSync(join(d, "plugin.yaml"), "utf8"));
+      const f = m.openapi && existsSync(join(d, m.openapi)) ? join(d, m.openapi) : null;
+      const api = f ? (f.endsWith(".json") ? JSON.parse(readFileSync(f, "utf8")) : parse(readFileSync(f, "utf8"))) : null;
+      if (targetSummary(m, backendNeeds(m, api))[targetArg] === "no") return m.id || w;
+    } catch { /* the load reports a companion that cannot be read */ }
+  }
+  return null;
+}
 import { step } from "./steps.mjs";
 
 async function runCase(c, runtime) {
@@ -62,6 +80,8 @@ for (const f of files) {
   for (const c of cases) {
     if (!c.run) continue;
     if (targetArg && c.run.target && c.run.target !== targetArg) continue;
+    const blocked = companionThatCannotRun(c);
+    if (blocked) { notRun.push({ id: c.id, reason: `needs ${blocked}, which cannot run on the ${targetArg} target` }); continue; }
     const rts = runtimes.filter((rt) => !c.runtimes || c.runtimes.includes(rt));
     const per = {};
     for (const rt of rts) {
@@ -77,10 +97,12 @@ for (const f of files) {
   }
 }
 const failed = results.filter((r) => !r.ok);
-if (asJson) console.log(JSON.stringify({ plugin: manifest.id, runtimes, skipped, results }, null, 2));
+if (asJson) console.log(JSON.stringify({ plugin: manifest.id, runtimes, skipped, ...(targetArg ? { target: targetArg, notRun } : {}), results }, null, 2));
 else {
   for (const r of results) console.log(`${r.ok ? "ok  " : "FAIL"} ${manifest.id} ${r.id} [${r.runtime}]${r.ok ? "" : "\n      " + r.errors.join("\n      ")}`);
   for (const s of skipped) console.log(`skip ${manifest.id} ${s}`);
+  for (const n of notRun) console.log(`skip ${manifest.id} ${n.id}: ${n.reason}`);
   console.log(`${failed.length ? "FAIL" : "ok  "} ${manifest.id}: ${results.length - failed.length}/${results.length} executable checks passed`);
 }
-process.exit(failed.length ? 1 : 0);
+// exitCode, not exit(): a long --json report written to a pipe is cut off when the process exits at once
+process.exitCode = failed.length ? 1 : 0;
