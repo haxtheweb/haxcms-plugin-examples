@@ -186,7 +186,9 @@ else {
     for (const e of r.errors) console.log(`     ! ${e}`);
   }
 }
-process.exitCode = results.some((r) => r.errors.length) ? 1 : 0;
+// exit once what was printed has been handed over: exiting at once cuts a long --json report off at the pipe's
+// buffer, and not exiting at all leaves the process waiting on a backend adapter's child process
+process.stdout.write("", () => process.exit(results.some((r) => r.errors.length) ? 1 : 0));
 
 async function checkPlugin(dir) {
   const plugin = relative(process.cwd(), dir) || dir;
