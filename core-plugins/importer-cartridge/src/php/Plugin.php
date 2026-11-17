@@ -94,8 +94,24 @@ class ImporterCartridgePlugin {
   private static function attr($attrs, $name) {
     return preg_match('/(?:^|\s)' . preg_quote($name, '/') . '="([^"]*)"/', $attrs, $m) ? self::decode($m[1]) : '';
   }
+  // plain text of a fragment: everything from a "<" to the next ">" is left out by scanning (an unclosed "<" drops the
+  // rest), so no tag can be left behind; entities are decoded afterwards
+  private static function untag($s) {
+    $out = '';
+    $i = 0;
+    $n = strlen($s);
+    while ($i < $n) {
+      $lt = strpos($s, '<', $i);
+      if ($lt === false) { $out .= substr($s, $i); break; }
+      $out .= substr($s, $i, $lt - $i);
+      $gt = strpos($s, '>', $lt + 1);
+      if ($gt === false) { break; }
+      $i = $gt + 1;
+    }
+    return $out;
+  }
   private static function text($s) {
-    return trim(preg_replace('/\s+/', ' ', self::decode(preg_replace('/<[^>]*>/', '', (string) ($s ?? '')))));
+    return trim(preg_replace('/\s+/', ' ', self::decode(self::untag((string) ($s ?? '')))));
   }
   private static function body($html) {
     return trim(preg_match('/<body[^>]*>([\s\S]*)<\/body>/i', $html, $m) ? $m[1] : $html);

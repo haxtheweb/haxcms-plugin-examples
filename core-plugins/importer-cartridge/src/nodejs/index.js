@@ -90,7 +90,22 @@ const MEDIA = "\\.(png|jpe?g|gif|webp|svg|pdf|mp3|m4a|mp4|webm|vtt|srt|docx?|ppt
 const decode = (s) => String(s ?? "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
 const tag = (xml, name) => { const m = new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`).exec(String(xml ?? "")); return m ? m[1].trim() : ""; };
 const attr = (attrs, name) => { const m = new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(attrs); return m ? decode(m[1]) : ""; };
-const text = (s) => decode(String(s ?? "").replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim();
+// plain text of a fragment: everything from a "<" to the next ">" is left out by scanning (an unclosed "<" drops the
+// rest), so no tag can be left behind; entities are decoded afterwards
+const untag = (s) => {
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    const lt = s.indexOf("<", i);
+    if (lt < 0) { out += s.slice(i); break; }
+    out += s.slice(i, lt);
+    const gt = s.indexOf(">", lt + 1);
+    if (gt < 0) break;
+    i = gt + 1;
+  }
+  return out;
+};
+const text = (s) => decode(untag(String(s ?? ""))).replace(/\s+/g, " ").trim();
 const body = (html) => { const m = /<body[^>]*>([\s\S]*)<\/body>/i.exec(html); return (m ? m[1] : html).trim(); };
 const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
 // where a file of the cartridge lives in the new site: files/<path under web_resources>, each segment made safe
