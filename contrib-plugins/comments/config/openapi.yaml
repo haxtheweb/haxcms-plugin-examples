@@ -6,7 +6,7 @@ paths:
       operationId: commentsList
       summary: Comments on a page. Anonymous callers get approved comments only, and only when anonymousRead is on.
       security: [{}, { bearerAuth: [] }]   # optional auth (spec/05): {} lets anonymous calls reach the handler
-      x-hax-rate-limit: 60/minute
+      x-hax-rate-limit: { requests: 60, per: minute }
       parameters: [{ name: pageId, in: path, required: true, schema: { type: string } }]
       responses: { "200": { description: OK }, "401": { description: Visitors cannot read comments on this site } }
     post:
