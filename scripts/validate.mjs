@@ -548,4 +548,6 @@ else {
     r.warnings.forEach((w) => console.log(`  warning ${w.path}: ${w.message}`));
   }
 }
-process.exitCode = failed ? 1 : 0;
+// exit once what was printed has been handed over: exiting at once cuts a long --json report off at the pipe's
+// buffer, and not exiting at all leaves the process waiting on a backend adapter's child process
+process.stdout.write("", () => process.exit(failed ? 1 : 0));
