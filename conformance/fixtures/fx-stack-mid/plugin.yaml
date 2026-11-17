@@ -1,0 +1,16 @@
+specVersion: "0.1.0"
+id: fx-stack-mid
+uuid: 72e9bc03-a89f-5bcd-a658-37041caef7bf
+title: fx-stack-mid (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+dependencies: [fx-definer]
+hookDefinitions: config/hooks.yaml
+contracts: config/contracts.yaml
+implements: [fx-stack-mid.store]
+hooks:
+  - name: fx-definer.after.ping
