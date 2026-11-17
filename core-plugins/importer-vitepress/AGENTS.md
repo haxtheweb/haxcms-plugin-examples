@@ -6,8 +6,9 @@ convertVitepressToSite.js, main path only (see README, "Not ported yet").
 
 ## Rules
 - Return { title, items, files } or { error }; never throw out of convert (internal errors are caught and returned).
-- Never execute the repository's config: read it with the literal reader only. Fetch only api.github.com and
-  raw.githubusercontent.com, through ctx.fetch.
+- Never execute the repository's config: read it with the literal reader only. Never fetch or open a zip here: the
+  site's files come from `ctx.contracts.call("import-source.tree", "list" | "read", ...)`; import-source is a
+  dependency and the only plugin that reaches GitHub.
 - Markdown goes through `ctx.contracts.call("import.file", "convert", { name: "page.md", data })`; import-markdown is a
   dependency. Container wrappers and VideoEmbed players are built around separately converted markdown runs, because
   the converter passes raw HTML through only inline.
@@ -24,3 +25,4 @@ convertVitepressToSite.js, main path only (see README, "Not ported yet").
 - A page reads "Read this page on the source site": its markdown file could not be fetched (a sidebar link to a page
   that does not exist), or the 500-page cap was reached.
 - "markdown could not be converted": import-markdown is not enabled.
+- "no active implementer of import-source.tree": import-source is not enabled.

@@ -4,8 +4,8 @@
 // (never executed), pages, front matter titles, containers and Vue components. Markdown goes to import.file
 // (import-markdown) through the platform.
 class ImporterVitepressPlugin {
-  const API = 'https://api.github.com';
-  const RAW = 'https://raw.githubusercontent.com';
+  // what the importer needs out of a repository or a zip of one: markdown pages and the config
+  const SOURCE_MATCH = '(\.md|\.vitepress/config\.(mjs|mts|js|ts))$';
   const MAX_PAGES = 500;
   const CONFIG = '/(^|\/)\.vitepress\/config\.(mjs|mts|js|ts)$/';
   const IMPORTABLE = '/\.(jpg|jpeg|png|gif|webm|webp|mp4|mp3|mov|csv|ppt|pptx|xlsx|doc|xls|docx|pdf|rtf|txt|vtt|xml)$/i';
@@ -132,11 +132,6 @@ class ImporterVitepressPlugin {
       if ($piece === '..') { array_pop($parts); } else { $parts[] = $piece; }
     }
     return implode('/', $parts);
-  }
-
-  public static function parseRepo($url) {
-    if (!preg_match('/^https?:\/\/(?:www\.)?github\.com\/([^\/?#]+)\/([^\/?#]+)(?:\/tree\/([^\/?#]+))?/i', trim((string) $url), $m)) { return null; }
-    return ['owner' => $m[1], 'name' => preg_replace('/\.git$/i', '', $m[2]), 'branch' => !empty($m[3]) ? $m[3] : null];
   }
 
   private static function frontMatter($md) {
@@ -297,44 +292,29 @@ class ImporterVitepressPlugin {
     return ['sidebar' => $sidebar, 'title' => self::stringValue($src, 'title'), 'base' => self::stringValue($src, 'base'), 'siteUrl' => self::stringValue($src, 'siteUrl')];
   }
 
-  // ---- reading the site: GitHub (core's path) or an uploaded zip of the repository ----
+  // ---- reading the site: a GitHub repository or an uploaded zip of one, both through import-source ----
 
-  private function fromGithub($ctx, $url) {
-    $gh = self::parseRepo($url);
-    if (!$gh) { return ['error' => 'url must be a GitHub repository (https://github.com/<owner>/<repo>)']; }
-    $getJson = function ($u, $what) use ($ctx) {
-      try { $r = $ctx->fetch($u); } catch (Exception $e) { throw new Exception("unable to reach $what"); }
-      if ($r['status'] >= 400) { throw new Exception("unable to read $what (HTTP {$r['status']})"); }
-      return $r['json'];
-    };
-    $repo = $gh['owner'] . '/' . $gh['name'];
-    $info = $getJson(self::API . "/repos/$repo", "the repository $repo");
-    $branch = $gh['branch'] ?: ((is_array($info) && !empty($info['default_branch'])) ? $info['default_branch'] : 'main');
-    $tree = $getJson(self::API . "/repos/$repo/git/trees/" . self::encComponent($branch) . '?recursive=1', "the file tree of $repo");
+  /** The site's files through import-source (list, then read what is needed): [name, repo, branch, paths, read, readMany, rawUrl]. */
+  private function openSource($ctx, $input) {
+    $upload = (!empty($input['files']) && is_array($input['files'])) ? ['files' => $input['files'], 'match' => self::SOURCE_MATCH] : null;
+    $listed = $ctx->contracts->call('import-source.tree', 'list', $upload ?: ['url' => $input['url']]);
+    if (!is_array($listed) || isset($listed['error']) || !isset($listed['paths']) || !is_array($listed['paths'])) {
+      return ['error' => (is_array($listed) && isset($listed['error'])) ? $listed['error'] : "the site's files could not be listed"];
+    }
     $paths = [];
-    foreach ((is_array($tree) && isset($tree['tree']) && is_array($tree['tree'])) ? $tree['tree'] : [] as $t) {
-      if (is_array($t) && ($t['type'] ?? null) === 'blob' && isset($t['path']) && is_string($t['path'])) { $paths[$t['path']] = true; }
-    }
-    $rawUrl = function ($p) use ($repo, $branch) { return self::RAW . "/$repo/" . self::encPath($branch) . '/' . self::encPath($p); };
-    $read = function ($p) use ($ctx, $rawUrl) { try { $r = $ctx->fetch($rawUrl($p)); return $r['status'] < 400 ? $r['body'] : null; } catch (Exception $e) { return null; } };
-    return ['name' => $gh['name'], 'repo' => $repo, 'branch' => $branch, 'paths' => $paths, 'read' => $read, 'rawUrl' => $rawUrl];
-  }
-
-  private function fromArchive($ctx, $file) {
-    try { $texts = $ctx->archive->read((string) ($file['data'] ?? ''), ['match' => '(\.md|\.vitepress/config\.(mjs|mts|js|ts))$']); } catch (Exception $e) { return ['error' => 'the file is not a zip archive']; }
-    $keys = array_map('strval', array_keys($texts ?: []));
-    usort($keys, [self::class, 'byText']);
-    $first = $keys ? explode('/', $keys[0])[0] . '/' : '';
-    $cut = 0;
-    if ($first !== '/' && $keys) {
-      $all = true;
-      foreach ($keys as $k) { if (strpos($k, $first) !== 0 || strlen($k) <= strlen($first)) { $all = false; break; } }
-      if ($all) { $cut = strlen($first); }
-    }
-    $files = []; $paths = [];
-    foreach ($keys as $k) { $files[substr($k, $cut)] = $texts[$k]; $paths[substr($k, $cut)] = true; }
-    $read = function ($p) use ($files) { return array_key_exists($p, $files) ? preg_replace('/\r\n?/', "\n", (string) $files[$p]) : null; };
-    return ['name' => preg_replace('/\.zip$/i', '', (string) ($file['name'] ?? 'site')), 'repo' => null, 'branch' => null, 'paths' => $paths, 'read' => $read, 'rawUrl' => null];
+    foreach ($listed['paths'] as $p) { $paths[(string) $p] = true; }
+    $from = $upload ? $upload + ['prefix' => $listed['prefix'] ?? ''] : ['repo' => $listed['repo'] ?? null, 'branch' => $listed['branch'] ?? null];
+    $readMany = function ($wanted) use ($ctx, $from) {
+      $out = [];
+      if (!$wanted) { return $out; }
+      $got = $ctx->contracts->call('import-source.tree', 'read', $from + ['paths' => array_values($wanted)]);
+      foreach ((is_array($got) && isset($got['files']) && is_array($got['files'])) ? $got['files'] : [] as $f) { $out[(string) $f['path']] = $f['data'] ?? null; }
+      return $out;
+    };
+    $read = function ($p) use ($readMany) { $got = $readMany([$p]); return (isset($got[$p]) && is_string($got[$p])) ? $got[$p] : null; };
+    $rawBase = $listed['rawBase'] ?? null;
+    $rawUrl = $rawBase ? function ($p) use ($rawBase) { return $rawBase . '/' . self::encPath($p); } : null;
+    return ['name' => $listed['name'] ?? 'site', 'repo' => $listed['repo'] ?? null, 'branch' => $listed['branch'] ?? null, 'paths' => $paths, 'read' => $read, 'readMany' => $readMany, 'rawUrl' => $rawUrl];
   }
 
   // ---- the outline ----
@@ -614,13 +594,14 @@ class ImporterVitepressPlugin {
       $items[] = ['id' => 'item-' . (count($items) + 1), 'title' => $node['title'], 'slug' => $slug, 'parent' => $parent ? $parent['id'] : null, 'order' => $node['order'], 'indent' => $node['depth'], 'content' => '<p></p>', 'metadata' => $metadata];
       if ($node['path']) { $st['slugByPath'][$node['path']] = $slug; }
     }
-    $read = 0;
+    // the first MAX_PAGES pages are read in one call, in outline order; the rest link to the source site
+    $wanted = []; $isWanted = [];
+    foreach ($outline as $k => $node) { if ($node['path'] && count($wanted) < self::MAX_PAGES) { $isWanted[$k] = true; $wanted[] = $node['path']; } }
+    $texts = ($src['readMany'])($wanted);
     foreach ($outline as $k => $node) {
       if (!$node['path']) { continue; }
       $source = $items[$k]['metadata']['source'] ?? null;
-      if ($read >= self::MAX_PAGES) { $items[$k]['content'] = self::fallback($source); continue; }
-      $text = ($src['read'])($node['path']);
-      $read++;
+      $text = (isset($isWanted[$k]) && isset($texts[$node['path']]) && is_string($texts[$node['path']])) ? $texts[$node['path']] : null;
       $items[$k]['content'] = $text === null ? self::fallback($source) : self::renderPage($ctx, $text, $node, $items[$k], $st);
     }
     return ['title' => ($src['config']['title'] !== null && $src['config']['title'] !== '') ? $src['config']['title'] : $src['name'], 'items' => $items, 'files' => $st['files']];
@@ -634,7 +615,7 @@ class ImporterVitepressPlugin {
    * tree), then each page with its front matter title, containers and Vue components. Markdown is converted by
    * import.file, and repository images and files the pages use are listed for core to fetch.
    *
-   * @param object $ctx    Platform context (spec/13); $ctx->fetch() reaches only api.github.com and raw.githubusercontent.com.
+   * @param object $ctx    Platform context (spec/13); the repository or zip is read through import-source.tree, so nothing is fetched here.
    * @param array  $input  [url] of the repository (https://github.com/<owner>/<repo>, optionally /tree/<branch>), or [files => [[name, data (base64)]]] with one .zip.
    * @return array  [title, items, files] or [error].
    */
@@ -644,9 +625,8 @@ class ImporterVitepressPlugin {
       if (!empty($input['files']) && is_array($input['files'])) {
         $f = is_array($input['files'][0] ?? null) ? $input['files'][0] : [];
         if (!preg_match('/\.zip$/i', (string) ($f['name'] ?? ''))) { return ['error' => 'expected a .zip of the VitePress site']; }
-        $src = $this->fromArchive($ctx, $f);
-      } elseif (!empty($input['url'])) { $src = $this->fromGithub($ctx, $input['url']); }
-      else { return ['error' => 'url or files is required']; }
+      } elseif (empty($input['url'])) { return ['error' => 'url or files is required']; }
+      $src = $this->openSource($ctx, $input);
       if (isset($src['error'])) { return $src; }
       return $this->importSite($ctx, $src);
     } catch (Exception $e) {

@@ -4,7 +4,7 @@
   when: "convert with the repository URL"
   then: "Guide landing page, its three children, Home; the sidebar label is replaced by the front matter title; containers mapped; logo listed in files; the missing page links to the published site; only GitHub's hosts fetched"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     fetch:
       "https://api.github.com/repos/oer-lab/web-course": { status: 200, body: { default_branch: main } }
       "https://api.github.com/repos/oer-lab/web-course/git/trees/main?recursive=1":
@@ -100,7 +100,7 @@
   when: "convert with files: [notes.zip]"
   then: "Home, Birds of the marsh, Ferns in tree order; the config is not executed; nothing fetched"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     steps:
       - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { files: [{ name: notes.zip, data: "UEsDBBQAAAAIADiUWF0coNDLbAAAAIkAAAAfAAAAbm90ZXMtbWFpbi8udml0ZXByZXNzL2NvbmZpZy5qc12NMQoCMRRE+5xiuigsa59WsLTxBJFM1i/JRpIvCJK7u7ta2T7evJH8KFXxxsSZ1SsvEnj1FR2xlgw7HtqXjPdmDV+bHhj9My0zA6hoooM9CVPAuSibHVZ+Y+axzFEmt/R/Ffd/tNujD6abD1BLAwQUAAAACAA4lFhdNzoS+A0AAAALAAAAJQAAAG5vdGVzLW1haW4vLnZpdGVwcmVzcy90aGVtZS9oaWRkZW4ubWTLyy9RSFQoSExP5QIAUEsDBBQAAAAIADiUWF1wnGVdLQAAAC8AAAATAAAAbm90ZXMtbWFpbi9pbmRleC5tZFNWcMtMzUlR8MsvSS3m4gouSSwqUSjPLMlQiE7KLEopjtXQ0wcz9HJTNPW4AFBLAwQUAAAACAA4lFhdAOy0hFUAAABbAAAAEwAAAG5vdGVzLW1haW4vYmlyZHMubWTT1dXlKsksyUm1UnDKLEopVshPUyjJSFXITSwqzuDSBcpyWVlZKWTmpeVzORVl5qUraCVl5uUnl+YAFWjpgSS5uBSjM1KL8vNiNfT0wQy9rIJ0TS4AUEsDBBQAAAAIADiUWF1y7uHKFAAAABIAAAAaAAAAbm90ZXMtbWFpbi9wbGFudHMvZmVybnMubWRzSy3KK1bIycxOVSjOSExJ1eMCAFBLAwQUAAAACAA4lFhdfKHvKQoAAAAIAAAAFAAAAG5vdGVzLW1haW4vaGVyb24uanBn+3/j/wMvN083AFBLAQIUAxQAAAAIADiUWF0coNDLbAAAAIkAAAAfAAAAAAAAAAAAAACAAQAAAABub3Rlcy1tYWluLy52aXRlcHJlc3MvY29uZmlnLmpzUEsBAhQDFAAAAAgAOJRYXTc6EvgNAAAACwAAACUAAAAAAAAAAAAAAIABqQAAAG5vdGVzLW1haW4vLnZpdGVwcmVzcy90aGVtZS9oaWRkZW4ubWRQSwECFAMUAAAACAA4lFhdcJxlXS0AAAAvAAAAEwAAAAAAAAAAAAAAgAH5AAAAbm90ZXMtbWFpbi9pbmRleC5tZFBLAQIUAxQAAAAIADiUWF0A7LSEVQAAAFsAAAATAAAAAAAAAAAAAACAAVcBAABub3Rlcy1tYWluL2JpcmRzLm1kUEsBAhQDFAAAAAgAOJRYXXLu4coUAAAAEgAAABoAAAAAAAAAAAAAAIAB3QEAAG5vdGVzLW1haW4vcGxhbnRzL2Zlcm5zLm1kUEsBAhQDFAAAAAgAOJRYXXyh7ykKAAAACAAAABQAAAAAAAAAAAAAAIABKQIAAG5vdGVzLW1haW4vaGVyb24uanBnUEsFBgAAAAAGAAYArAEAAGUCAAAAAA==" }] } }
         expect:
@@ -120,7 +120,7 @@
   when: "convert"
   then: "error results and no fetch at all"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     fetch:
       docs.example.org: { status: 200, body: "should not be read" }
     steps:
@@ -136,7 +136,7 @@
   when: "convert each"
   then: "error results; the default branch is not looked up when the URL names one"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     fetch:
       "https://api.github.com/repos/acme/docs": { status: 200, body: { default_branch: main } }
       "https://api.github.com/repos/acme/docs/git/trees/v2?recursive=1": { status: 200, body: { tree: [{ path: README.md, type: blob }, { path: guide.md, type: blob }] } }

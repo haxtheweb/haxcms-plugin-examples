@@ -1,0 +1,116 @@
+# Executable cases for import-source (run by harness/run-cases.mjs in Node and PHP, with a parity check).
+# Fixtures are synthetic. The zips are written inline: field-notes.zip is what GitHub's "Download ZIP" gives
+# (everything under field-notes-main/: index.md with CRLF line ends, plants/ferns.md, images/dot.png, hugo.toml);
+# flat.zip has no single top folder (content/_index.md, hugo.toml).
+- id: import-source-001
+  title: "a GitHub repository is listed from its default branch"
+  given: "oer-lab/field-notes whose default branch is trunk; its tree holds three files and a folder"
+  when: "list with the repository URL"
+  then: "the files in tree order (folders left out), the branch looked up, and where raw files are fetched from; two requests, both to GitHub's API"
+  run:
+    fetch:
+      "https://api.github.com/repos/oer-lab/field-notes": { status: 200, body: { default_branch: trunk } }
+      "https://api.github.com/repos/oer-lab/field-notes/git/trees/trunk?recursive=1":
+        status: 200
+        body: { tree: [{ path: hugo.toml, type: blob }, { path: drafts, type: tree }, { path: content/_index.md, type: blob }, { path: "static/img/a b.png", type: blob }] }
+    steps:
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { url: "https://github.com/oer-lab/field-notes.git" } }
+        expect:
+          body:
+            - plugin: import-source
+              result:
+                kind: github
+                name: field-notes
+                repo: oer-lab/field-notes
+                branch: trunk
+                prefix: ""
+                rawBase: "https://raw.githubusercontent.com/oer-lab/field-notes/trunk"
+                paths: [hugo.toml, content/_index.md, "static/img/a b.png"]
+          notContains: [drafts]
+          fetch: { count: 2, notContains: [raw.githubusercontent.com] }
+- id: import-source-002
+  title: "a branch named in the URL is the one listed"
+  given: "https://github.com/acme/docs/tree/v2"
+  when: "list"
+  then: "the v2 tree is read and rawBase points at v2"
+  run:
+    fetch:
+      "https://api.github.com/repos/acme/docs": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/acme/docs/git/trees/v2?recursive=1": { status: 200, body: { tree: [{ path: _config.yml, type: blob }] } }
+    steps:
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { url: "https://github.com/acme/docs/tree/v2" } }
+        expect:
+          body: [{ result: { kind: github, branch: v2, rawBase: "https://raw.githubusercontent.com/acme/docs/v2", paths: [_config.yml] } }]
+          fetch: { count: 2, contains: [trees/v2] }
+- id: import-source-003
+  title: "repository files are read from the raw host; one that is missing comes back null"
+  given: "acme/docs on v2 with _config.yml; about.md is not there"
+  when: "read [_config.yml, about.md, _config.yml]"
+  then: "each path once, in the order asked; about.md has data null; two requests, both to the raw host"
+  run:
+    fetch:
+      "https://raw.githubusercontent.com/acme/docs/v2/_config.yml": { status: 200, body: "title: Docs\n" }
+      "https://raw.githubusercontent.com/acme/docs/v2/about.md": { status: 404, body: "404: Not Found" }
+    steps:
+      - contract: { name: import-source.tree, op: read, plugin: import-source, input: { repo: acme/docs, branch: v2, paths: [_config.yml, about.md, _config.yml] } }
+        expect:
+          body: [{ result: { files: [{ path: _config.yml, data: "title: Docs\n" }, { path: about.md, data: null }] } }]
+          fetch: { count: 2, notContains: [api.github.com] }
+- id: import-source-004
+  title: "an uploaded zip lists the same paths a repository would, without its download folder"
+  given: "field-notes.zip (everything under field-notes-main/), then flat.zip (no single top folder)"
+  when: "list each; then list field-notes.zip with match limited to markdown"
+  then: "sorted paths with field-notes-main/ removed and reported as prefix; flat.zip keeps its paths; match leaves only the markdown; nothing fetched"
+  run:
+    steps:
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { files: [{ name: field-notes.zip, data: "UEsDBBQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAZmllbGQtbm90ZXMtbWFpbi9QSwMEFAAAAAgAAAAhXG/XnXUgAAAAHgAAABkAAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kU1Zwy0zNSVHIyy9JLebl4uUKLkksKlHISC1K1ePlAgBQSwMEFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAABmaWVsZC1ub3Rlcy1tYWluL3BsYW50cy9mZXJucy5tZHNLLcorVsjJzE5VKM5ITEnV4wIAUEsDBBQAAAAIAAAAIVweOOCmEAAAAA4AAAAfAAAAZmllbGQtbm90ZXMtbWFpbi9pbWFnZXMvZG90LnBuZ+sM8HPn5ZLiYmBkYv7/DwBQSwMEFAAAAAgAAAAhXOnZqTQYAAAAFgAAABoAAABmaWVsZC1ub3Rlcy1tYWluL2h1Z28udG9tbCvJLMlJVbBVUHLLTM1JUcjLL0ktVuICAFBLAQIUAxQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAAAAAAAAAAACAAQAAAABmaWVsZC1ub3Rlcy1tYWluL1BLAQIUAxQAAAAIAAAAIVxv1511IAAAAB4AAAAZAAAAAAAAAAAAAACAAS8AAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kUEsBAhQDFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAAAAAAAAAAAAAIABhgAAAGZpZWxkLW5vdGVzLW1haW4vcGxhbnRzL2Zlcm5zLm1kUEsBAhQDFAAAAAgAAAAhXB444KYQAAAADgAAAB8AAAAAAAAAAAAAAIAB2AAAAGZpZWxkLW5vdGVzLW1haW4vaW1hZ2VzL2RvdC5wbmdQSwECFAMUAAAACAAAACFc6dmpNBgAAAAWAAAAGgAAAAAAAAAAAAAAgAElAQAAZmllbGQtbm90ZXMtbWFpbi9odWdvLnRvbWxQSwUGAAAAAAUABQBpAQAAdQEAAAAA" }] } }
+        expect:
+          body:
+            - result:
+                kind: archive
+                name: field-notes
+                repo: null
+                branch: null
+                prefix: "field-notes-main/"
+                rawBase: null
+                paths: [hugo.toml, images/dot.png, index.md, plants/ferns.md]
+          notContains: ["field-notes-main/index.md"]
+          fetch: { count: 0 }
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { files: [{ name: flat.zip, data: "UEsDBBQAAAAIAAAAIVwbIwPXCQAAAAcAAAARAAAAY29udGVudC9faW5kZXgubWRTVvDIz03lAgBQSwMEFAAAAAgAAAAhXP8jXywRAAAADwAAAAkAAABodWdvLnRvbWwrySzJSVWwVVByy0ksUeICAFBLAQIUAxQAAAAIAAAAIVwbIwPXCQAAAAcAAAARAAAAAAAAAAAAAACAAQAAAABjb250ZW50L19pbmRleC5tZFBLAQIUAxQAAAAIAAAAIVz/I18sEQAAAA8AAAAJAAAAAAAAAAAAAACAATgAAABodWdvLnRvbWxQSwUGAAAAAAIAAgB2AAAAcAAAAAAA" }] } }
+        expect: { body: [{ result: { kind: archive, name: flat, prefix: "", paths: [content/_index.md, hugo.toml] } }] }
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { match: "\\.md$", files: [{ name: field-notes.zip, data: "UEsDBBQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAZmllbGQtbm90ZXMtbWFpbi9QSwMEFAAAAAgAAAAhXG/XnXUgAAAAHgAAABkAAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kU1Zwy0zNSVHIyy9JLebl4uUKLkksKlHISC1K1ePlAgBQSwMEFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAABmaWVsZC1ub3Rlcy1tYWluL3BsYW50cy9mZXJucy5tZHNLLcorVsjJzE5VKM5ITEnV4wIAUEsDBBQAAAAIAAAAIVweOOCmEAAAAA4AAAAfAAAAZmllbGQtbm90ZXMtbWFpbi9pbWFnZXMvZG90LnBuZ+sM8HPn5ZLiYmBkYv7/DwBQSwMEFAAAAAgAAAAhXOnZqTQYAAAAFgAAABoAAABmaWVsZC1ub3Rlcy1tYWluL2h1Z28udG9tbCvJLMlJVbBVUHLLTM1JUcjLL0ktVuICAFBLAQIUAxQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAAAAAAAAAAACAAQAAAABmaWVsZC1ub3Rlcy1tYWluL1BLAQIUAxQAAAAIAAAAIVxv1511IAAAAB4AAAAZAAAAAAAAAAAAAACAAS8AAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kUEsBAhQDFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAAAAAAAAAAAAAIABhgAAAGZpZWxkLW5vdGVzLW1haW4vcGxhbnRzL2Zlcm5zLm1kUEsBAhQDFAAAAAgAAAAhXB444KYQAAAADgAAAB8AAAAAAAAAAAAAAIAB2AAAAGZpZWxkLW5vdGVzLW1haW4vaW1hZ2VzL2RvdC5wbmdQSwECFAMUAAAACAAAACFc6dmpNBgAAAAWAAAAGgAAAAAAAAAAAAAAgAElAQAAZmllbGQtbm90ZXMtbWFpbi9odWdvLnRvbWxQSwUGAAAAAAUABQBpAQAAdQEAAAAA" }] } }
+        expect: { body: [{ result: { prefix: "field-notes-main/", paths: [index.md, plants/ferns.md] } }], notContains: [hugo.toml, dot.png] }
+- id: import-source-005
+  title: "files are read out of the zip as text, or as base64 for media"
+  given: "field-notes.zip and the prefix list reported"
+  when: "read index.md and a file that is not there; then read images/dot.png with binary"
+  then: "CRLF line ends become LF; the missing file is null; the image comes back as base64 of its bytes"
+  run:
+    steps:
+      - contract: { name: import-source.tree, op: read, plugin: import-source, input: { prefix: "field-notes-main/", paths: [index.md, nope.md], files: [{ name: field-notes.zip, data: "UEsDBBQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAZmllbGQtbm90ZXMtbWFpbi9QSwMEFAAAAAgAAAAhXG/XnXUgAAAAHgAAABkAAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kU1Zwy0zNSVHIyy9JLebl4uUKLkksKlHISC1K1ePlAgBQSwMEFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAABmaWVsZC1ub3Rlcy1tYWluL3BsYW50cy9mZXJucy5tZHNLLcorVsjJzE5VKM5ITEnV4wIAUEsDBBQAAAAIAAAAIVweOOCmEAAAAA4AAAAfAAAAZmllbGQtbm90ZXMtbWFpbi9pbWFnZXMvZG90LnBuZ+sM8HPn5ZLiYmBkYv7/DwBQSwMEFAAAAAgAAAAhXOnZqTQYAAAAFgAAABoAAABmaWVsZC1ub3Rlcy1tYWluL2h1Z28udG9tbCvJLMlJVbBVUHLLTM1JUcjLL0ktVuICAFBLAQIUAxQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAAAAAAAAAAACAAQAAAABmaWVsZC1ub3Rlcy1tYWluL1BLAQIUAxQAAAAIAAAAIVxv1511IAAAAB4AAAAZAAAAAAAAAAAAAACAAS8AAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kUEsBAhQDFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAAAAAAAAAAAAAIABhgAAAGZpZWxkLW5vdGVzLW1haW4vcGxhbnRzL2Zlcm5zLm1kUEsBAhQDFAAAAAgAAAAhXB444KYQAAAADgAAAB8AAAAAAAAAAAAAAIAB2AAAAGZpZWxkLW5vdGVzLW1haW4vaW1hZ2VzL2RvdC5wbmdQSwECFAMUAAAACAAAACFc6dmpNBgAAAAWAAAAGgAAAAAAAAAAAAAAgAElAQAAZmllbGQtbm90ZXMtbWFpbi9odWdvLnRvbWxQSwUGAAAAAAUABQBpAQAAdQEAAAAA" }] } }
+        expect:
+          body: [{ result: { files: [{ path: index.md, data: "# Field notes\n\nStart here.\n" }, { path: nope.md, data: null }] } }]
+          fetch: { count: 0 }
+      - contract: { name: import-source.tree, op: read, plugin: import-source, input: { prefix: "field-notes-main/", binary: true, paths: [images/dot.png], files: [{ name: field-notes.zip, data: "UEsDBBQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAZmllbGQtbm90ZXMtbWFpbi9QSwMEFAAAAAgAAAAhXG/XnXUgAAAAHgAAABkAAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kU1Zwy0zNSVHIyy9JLebl4uUKLkksKlHISC1K1ePlAgBQSwMEFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAABmaWVsZC1ub3Rlcy1tYWluL3BsYW50cy9mZXJucy5tZHNLLcorVsjJzE5VKM5ITEnV4wIAUEsDBBQAAAAIAAAAIVweOOCmEAAAAA4AAAAfAAAAZmllbGQtbm90ZXMtbWFpbi9pbWFnZXMvZG90LnBuZ+sM8HPn5ZLiYmBkYv7/DwBQSwMEFAAAAAgAAAAhXOnZqTQYAAAAFgAAABoAAABmaWVsZC1ub3Rlcy1tYWluL2h1Z28udG9tbCvJLMlJVbBVUHLLTM1JUcjLL0ktVuICAFBLAQIUAxQAAAAAAAAAIVwAAAAAAAAAAAAAAAARAAAAAAAAAAAAAACAAQAAAABmaWVsZC1ub3Rlcy1tYWluL1BLAQIUAxQAAAAIAAAAIVxv1511IAAAAB4AAAAZAAAAAAAAAAAAAACAAS8AAABmaWVsZC1ub3Rlcy1tYWluL2luZGV4Lm1kUEsBAhQDFAAAAAgAAAAhXHLu4coUAAAAEgAAACAAAAAAAAAAAAAAAIABhgAAAGZpZWxkLW5vdGVzLW1haW4vcGxhbnRzL2Zlcm5zLm1kUEsBAhQDFAAAAAgAAAAhXB444KYQAAAADgAAAB8AAAAAAAAAAAAAAIAB2AAAAGZpZWxkLW5vdGVzLW1haW4vaW1hZ2VzL2RvdC5wbmdQSwECFAMUAAAACAAAACFc6dmpNBgAAAAWAAAAGgAAAAAAAAAAAAAAgAElAQAAZmllbGQtbm90ZXMtbWFpbi9odWdvLnRvbWxQSwUGAAAAAAUABQBpAQAAdQEAAAAA" }] } }
+        expect: { body: [{ result: { files: [{ path: images/dot.png, data: "iVBORw0KGgoAAQID//4=" }] } }] }
+- id: import-source-006
+  title: "anything that is not a GitHub repository or a zip is an error, and nothing is fetched for it"
+  given: "a URL on another host; no input; an upload that is not a zip; read without paths; read without a branch; a binary read of a repository"
+  when: "list or read"
+  then: "error results and no fetch at all"
+  run:
+    fetch:
+      docs.example.org: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { url: "https://docs.example.org/guide/" } }
+        expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }
+      - contract: { name: import-source.tree, op: list, plugin: import-source, input: { files: [{ name: site.zip, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "the file is not a zip archive" } }] }
+      - contract: { name: import-source.tree, op: read, plugin: import-source, input: { repo: acme/docs, branch: v2, paths: [] } }
+        expect: { body: [{ result: { error: "paths is required" } }] }
+      - contract: { name: import-source.tree, op: read, plugin: import-source, input: { repo: "acme/docs/../../other", branch: v2, paths: [a.md] } }
+        expect: { body: [{ result: { error: "repo (<owner>/<repo>) and branch are required" } }] }
+      - contract: { name: import-source.tree, op: read, plugin: import-source, input: { repo: acme/docs, branch: v2, binary: true, paths: [logo.png] } }
+        expect: { body: [{ result: { error: "binary reads are for zip uploads; list a repository file by its URL (rawBase) instead" } }], fetch: { count: 0 } }
