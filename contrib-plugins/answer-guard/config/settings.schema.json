@@ -1,0 +1,8 @@
+{ "configure": [
+  { "property": "protect", "title": "Protect questions", "description": "auto: only when the site has no open license (a private course, not OER); always; never", "inputMethod": "select", "options": { "auto": "Auto (private sites only)", "always": "Always", "never": "Never" } },
+  { "property": "elements", "title": "Question elements", "description": "Comma-separated tags whose answer keys are kept on the server (elements with light-DOM <input data-correct> answers)", "inputMethod": "textfield" },
+  { "property": "blockUntrusted", "title": "Ignore scripted input", "description": "Drop clicks, keys and drags a script generated (event.isTrusted is false) on guarded questions; they are always counted", "inputMethod": "boolean" },
+  { "property": "minAnswerMs", "title": "Fast answer threshold (ms)", "description": "Flag an answer checked sooner than this after the question appeared", "inputMethod": "number" },
+  { "property": "minCheckIntervalMs", "title": "Time between checks (ms)", "description": "A learner must wait this long between checks of the same question, which slows trying every option", "inputMethod": "number" },
+  { "property": "honorPrompt", "title": "Honor prompt", "description": "Shown once per page before the first check; leave empty for none", "inputMethod": "textfield" }
+] }

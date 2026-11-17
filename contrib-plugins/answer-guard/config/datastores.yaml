@@ -1,0 +1,14 @@
+stores:
+  - id: keys           # answer keys by page and question key; server only, never in the site folder or a response
+    scope: siteData
+    file: keys.json
+  - id: attempts       # each check a learner made; core exports and erases by userId
+    scope: siteData
+    file: attempts.json
+    personalData: true
+    userKey: userId
+  - id: signals        # integrity flags sent by the monitor; core exports and erases by userId
+    scope: siteData
+    file: signals.json
+    personalData: true
+    userKey: userId

@@ -1,0 +1,44 @@
+# Answer guard (fake community plugin). Speed bumps against "AI, answer this for me" on question blocks in private
+# (non-OER) course sites. It cannot stop a determined person or agent; it removes the free answer key from what
+# learners receive, grades on the server, slows brute force, filters synthetic input and shows instructors flags.
+# Exercises: content redaction in two read paths (render.before.content and entity.after.read on page) with an
+# editor exemption, an answer index kept in a server-only store from page saves, a plugin decision driven by a core
+# record (the site's license), an injected singleton that talks to the plugin's own learner routes, two personalData
+# stores core exports and erases, and a site-surface Insights section for instructors.
+specVersion: "0.1.0"
+id: answer-guard
+uuid: 0761d135-7869-4861-a0f3-1228285bfe60
+title: Answer guard
+description: Keeps answer keys out of the page on private course sites, checks answers on the server and flags automated answering for instructors.
+version: 0.1.0
+category: assessment
+icon: icons:verified-user
+tags: [integrity, ai, quiz]
+siteTypes: [course]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+tagPrefix: answer-guard-
+staticCapable: false   # grading needs the server; static copies keep the authored answers (see README)
+capabilities: ["items:read", "site:read", "userData:read", "userData:write", "output:inject"]
+privacy:
+  tracking: true          # integrity signals about learners, shown to the site's instructors
+  categories: [functional]
+  requiresConsent: []
+  cookies: []
+  recipients: []
+hooks:
+  - name: page.after.save         # index the answer keys of the saved page
+  - name: page.after.delete       # drop that page's keys
+  - name: plugin.after.enable     # index every existing page when enabled
+  - name: entity.after.read       # redact keys from page content learners load through the API
+    entities: [page]
+  - name: render.before.content   # redact keys from served pages and mark guarded questions
+  - name: render.after.body       # the monitor singleton, only on pages with guarded questions
