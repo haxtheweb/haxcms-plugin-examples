@@ -251,6 +251,8 @@ const checks = {
     const fit = targetSummary(manifest, needs);
     const pack = manifest.kind === "pack";
     const runtimes = Array.isArray(manifest.runtimes) ? manifest.runtimes : [];
+    // no backend code of its own (a pack, or operations core answers itself such as x-hax-proxy): any backend runs it
+    const codeless = pack || !manifest.entry;
     const hasCases = existsSync(join(dir, "tests", "cases"));
     const errors = [];
     const notes = [];
@@ -294,11 +296,11 @@ const checks = {
     };
     // the two backends on a hosted server
     for (const rt of ["nodejs", "php"]) {
-      const runs = pack || runtimes.includes(rt);
+      const runs = codeless || runtimes.includes(rt);
       row(rt, !runs ? "no" : fit.server, pack ? null : rt, "server", !runs ? [`no ${rt} code (runtimes: ${runtimes.join(", ") || "none"})`] : reasons("server"));
     }
     for (const t of TARGET_NAMES.filter((n) => n !== "server")) {
-      const canRun = pack || runtimes.some((r) => TARGETS.targets[t].runtimes.includes(r));
+      const canRun = codeless || runtimes.some((r) => TARGETS.targets[t].runtimes.includes(r));
       row(t, fit[t], pack ? null : "nodejs", t, canRun ? reasons(t) : [`needs ${TARGETS.targets[t].runtimes.join(" or ")} code (runtimes: ${runtimes.join(", ") || "none"})`]);
     }
     // a static publish has no backend at all (spec/14): what the manifest says, or no backend need
