@@ -1,0 +1,60 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "PokeAPI",
+        "icon": "icons:style",
+        "color": "red",
+        "author": "PokeAPI",
+        "description": "Pokémon as interactive cards: stats, abilities and cries.",
+        "status": "available",
+        "tags": [
+          "games",
+          "cards",
+          "education"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/pokeapi",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "page": "page",
+                "total_pages": "total_pages",
+                "total_items": "total"
+              }
+            },
+            "search": {
+              "query": {
+                "title": "Name or number",
+                "type": "string"
+              }
+            },
+            "data": {},
+            "resultMap": {
+              "defaultGizmoType": "pokemon",
+              "items": "items",
+              "preview": {
+                "title": "title",
+                "details": "details",
+                "image": "image",
+                "id": "name"
+              },
+              "gizmo": {
+                "id": "name",
+                "title": "title",
+                "source": "image",
+                "alt": "title"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

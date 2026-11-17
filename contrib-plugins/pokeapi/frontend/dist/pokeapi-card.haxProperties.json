@@ -1,0 +1,81 @@
+{
+  "api": "1",
+  "type": "element",
+  "canScale": true,
+  "canEditSource": true,
+  "contentEditable": false,
+  "hideDefaultSettings": false,
+  "gizmo": {
+    "title": "Pokémon card",
+    "description": "A Pokémon as an interactive card that flips to show its stats, from PokeAPI",
+    "icon": "icons:style",
+    "color": "red",
+    "tags": [
+      "Content",
+      "games",
+      "cards",
+      "pokemon"
+    ],
+    "handles": [
+      {
+        "type": "pokemon",
+        "id": "pokemon"
+      }
+    ],
+    "meta": {
+      "author": "PokeAPI plugin contributors"
+    }
+  },
+  "settings": {
+    "configure": [
+      {
+        "attribute": "pokemon",
+        "title": "Pokémon",
+        "description": "Name or number (pikachu, 25, mr-mime)",
+        "inputMethod": "textfield",
+        "required": true
+      },
+      {
+        "attribute": "flipped",
+        "title": "Start on the stats side",
+        "description": "Readers can still turn the card over",
+        "inputMethod": "boolean"
+      },
+      {
+        "attribute": "lang",
+        "title": "Language of the card's words",
+        "description": "Names, kind and game text; the page's language when left empty",
+        "inputMethod": "select",
+        "options": {
+          "": "Page language",
+          "en": "English - en",
+          "de": "Deutsch - de",
+          "es": "Español - es",
+          "fr": "Français - fr",
+          "it": "Italiano - it",
+          "ja": "日本語 - ja",
+          "ko": "한국어 - ko",
+          "zh-hans": "简体中文 - zh-hans",
+          "zh-hant": "繁體中文 - zh-hant"
+        }
+      }
+    ],
+    "advanced": [
+      {
+        "attribute": "api-base",
+        "title": "PokeAPI address",
+        "description": "Only for a self-hosted copy of PokeAPI that needs no key (cards load in readers' browsers)",
+        "inputMethod": "textfield"
+      }
+    ]
+  },
+  "demoSchema": [
+    {
+      "tag": "pokeapi-card",
+      "properties": {
+        "pokemon": "pikachu"
+      },
+      "content": ""
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "apiBase": "https://pokeapi.co/api/v2",
+  "apiKeyHeader": "x-api-key",
+  "cacheHours": 24
+}

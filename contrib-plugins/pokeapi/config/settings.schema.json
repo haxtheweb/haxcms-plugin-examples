@@ -1,0 +1,31 @@
+{
+  "configure": [
+    {
+      "property": "apiBase",
+      "title": "PokeAPI address",
+      "description": "Leave as https://pokeapi.co/api/v2 unless you run your own copy of PokeAPI",
+      "inputMethod": "textfield",
+      "required": true
+    },
+    {
+      "property": "apiKey",
+      "title": "Mirror key",
+      "description": "Only for a self-hosted mirror that asks for one. PokeAPI itself needs no key. Stored on the server, sent only to the mirror",
+      "inputMethod": "textfield",
+      "x-secret": true,
+      "x-secret-egress": [{ "setting": "apiBase" }]
+    },
+    {
+      "property": "apiKeyHeader",
+      "title": "Mirror key header",
+      "description": "The request header the mirror reads the key from",
+      "inputMethod": "textfield"
+    },
+    {
+      "property": "cacheHours",
+      "title": "Keep the Pokémon list for (hours)",
+      "description": "PokeAPI asks clients to cache. Searches use the stored list until it is this old",
+      "inputMethod": "number"
+    }
+  ]
+}
