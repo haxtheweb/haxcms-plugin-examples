@@ -1,0 +1,48 @@
+{
+  "api": "1",
+  "type": "element",
+  "canScale": true,
+  "canEditSource": true,
+  "contentEditable": false,
+  "hideDefaultSettings": false,
+  "gizmo": {
+    "title": "Melody staff",
+    "description": "A melody written as note names, drawn on a staff",
+    "icon": "av:music-note",
+    "color": "purple",
+    "tags": [
+      "Content",
+      "music",
+      "melody"
+    ],
+    "handles": [],
+    "meta": {
+      "author": "Music blocks contributors"
+    }
+  },
+  "settings": {
+    "configure": [
+      {
+        "attribute": "notes",
+        "title": "Notes",
+        "description": "Note names with octave, separated by spaces (C4 D4 E4)",
+        "inputMethod": "textfield",
+        "required": true
+      },
+      {
+        "attribute": "label",
+        "title": "Description for screen readers",
+        "inputMethod": "textfield"
+      }
+    ]
+  },
+  "demoSchema": [
+    {
+      "tag": "music-staff",
+      "properties": {
+        "notes": "E4 G4 A4 G4 E4"
+      },
+      "content": ""
+    }
+  ]
+}

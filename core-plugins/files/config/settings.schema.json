@@ -1,0 +1,1 @@
+{ "configure": [ { "property": "maxUploadMb", "title": "Largest upload (MB)", "description": "Uploads bigger than this are refused", "inputMethod": "number" } ] }

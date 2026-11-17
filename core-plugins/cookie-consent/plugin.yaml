@@ -1,0 +1,27 @@
+# Cookie consent: asks visitors before any tracking plugin runs. New (nothing like it exists in core today).
+# It never names a tracker: it asks the platform which active plugins declare privacy.tracking (ctx.plugins.list()).
+specVersion: "0.1.0"
+id: cookie-consent
+uuid: 4b7c2e1a-9d3f-4a6b-8e5c-1f0a2b3c4d5e
+title: Cookie consent
+description: Shows a consent banner on published pages, only while an enabled plugin tracks visitors, and tells trackers what the visitor allowed.
+version: 0.1.0
+category: security
+icon: icons:verified-user
+tags: [privacy, consent]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true                     # ships with HAXcms, opt-in (enabling a tracker that depends on it enables it)
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: both            # a deployment default, each site may override the wording and policy link
+tagPrefix: cookie-consent-
+staticCapable: true            # the banner and the consent state are client-side; published sites keep working
+capabilities: ["output:inject"]
+privacy:
+  tracking: false              # it records the visitor's choice in their own browser only
+hooks:
+  - name: render.after.body    # add the banner only when some active plugin tracks

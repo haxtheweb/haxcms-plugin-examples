@@ -1,0 +1,15 @@
+# A fake community skeleton pack: starting points for workshop sites. Declarative only.
+specVersion: "0.1.0"
+id: workshop-skeleton-pack
+uuid: 7c9e1b3d-5f7a-4c9e-1b3d-5f7a9c1e3b5d
+title: Workshop starters (fake)
+description: Site starting points for running a workshop (a fake community pack used to test skeleton packs).
+version: 1.0.0
+kind: pack
+category: content
+icon: icons:assignment
+tags: [skeletons, workshops]
+siteTypes: [course]
+docs: { readme: README.md, agents: AGENTS.md }
+license: MIT
+suggests: [neon-theme-pack, game-pack, comments]   # the series uses the neon theme; both enable the game pack, the day also comments

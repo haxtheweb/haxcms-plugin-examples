@@ -1,0 +1,18 @@
+openapi: 3.1.0
+info: { title: Flickr, version: 0.1.0 }
+paths:
+  /search:
+    get:
+      operationId: flickrSearch
+      summary: Search Flickr (core adds the key; only the listed parameters pass through)
+      security: [{ bearerAuth: [] }]
+      x-hax-proxy:
+        url: https://api.flickr.com/services/rest
+        query:
+          api_key: "{{settings.apiKey}}"
+          method: "flickr.photos.search"
+          format: "json"
+          nojsoncallback: "1"
+          extras: "license,description,url_l,url_s"
+        pass: [license, page, per_page, safe_search, text]
+      responses: { "200": { description: OK }, "502": { description: Flickr could not be reached } }

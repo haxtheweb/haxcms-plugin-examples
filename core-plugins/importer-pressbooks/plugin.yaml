@@ -1,0 +1,26 @@
+# Pressbooks importer: extracted from core (systemRoutes/v1/routes/imports/convertPressbooksToSite.js). Reads a
+# Pressbooks book through its REST API (front matter, parts with their chapters, back matter), or splits an uploaded
+# Pressbooks XHTML export into the same tree. Implements import.platform; it may fetch only the book the person names
+# (egress { input: url }).
+specVersion: "0.1.0"
+id: importer-pressbooks
+uuid: bda230a2-41c4-40dc-ad91-0d2bdc76aa05
+title: Import from Pressbooks
+description: Turns a Pressbooks book (its address or an XHTML export) into a new site, keeping parts, chapters and order.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, pressbooks]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the Pressbooks book the person names through that site's REST API (table of contents, metadata, each section)."
+staticCapable: false

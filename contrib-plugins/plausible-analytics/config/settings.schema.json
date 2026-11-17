@@ -1,0 +1,7 @@
+{
+  "configure": [
+    { "property": "domain", "title": "Site domain", "description": "The domain as registered in Plausible, e.g. example.com", "inputMethod": "textfield", "required": true },
+    { "property": "host", "title": "Plausible host", "description": "Leave as plausible.io unless you self-host", "inputMethod": "textfield" },
+    { "property": "waitForConsent", "title": "Wait for analytics consent", "description": "Plausible sets no cookies; turn this on if your policy still asks first", "inputMethod": "boolean" }
+  ]
+}

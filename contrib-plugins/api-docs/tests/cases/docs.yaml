@@ -1,0 +1,25 @@
+- id: api-docs-001
+  title: "the combined document mounts every active plugin's operations and hides proxy details"
+  given: "youtube (an x-hax-proxy with a key template) and comments active"
+  when: "GET /system/api/v1/plugins/api-docs/openapi"
+  then: "paths under each plugin's prefix, tagged by plugin; no upstream URL or key template"
+  run:
+    with: [contrib-plugins/youtube, contrib-plugins/comments]
+    settings: {}
+    steps:
+      - config: { plugin: youtube, values: { apiKey: AIza-test-key } }
+      - call: { operation: apiDocsContract }
+        expect:
+          status: 200
+          contains: ['"/x/api/v1/plugins/youtube/search"', '"/x/api/v1/plugins/comments/pages/{pageId}/comments"', '"/system/api/v1/plugins/api-docs/openapi"', '"tags":["comments"]']
+          notContains: [x-hax-proxy, googleapis.com, "settings.apiKey", AIza-test-key]
+- id: api-docs-002
+  title: "scope filter"
+  given: "the same plugins"
+  when: "?scope=system"
+  then: "only system routes"
+  run:
+    with: [contrib-plugins/comments]
+    steps:
+      - call: { operation: apiDocsContract, query: { scope: system } }
+        expect: { contains: ['"/system/api/v1/plugins/api-docs/openapi"'], notContains: ["/x/api/"] }

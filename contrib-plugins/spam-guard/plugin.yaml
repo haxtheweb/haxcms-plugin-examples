@@ -1,0 +1,23 @@
+# Spam guard (fake community plugin). Exercises a community plugin subscribing to a hook another community plugin
+# defines (comments.before.create), as a hard dependency: without comments it has nothing to guard.
+specVersion: "0.1.0"
+id: spam-guard
+uuid: 6b8d0f1a-3c5e-4a7b-9d0f-1a3c5e7b9d0f
+title: Spam guard
+description: Refuses comments with too many links and holds ones with blocked words for review.
+version: 0.1.0
+category: security
+icon: icons:report
+tags: [spam, comments, moderation]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+dependencies: [comments]
+staticCapable: true
+capabilities: []
+hooks:
+  - name: comments.before.create

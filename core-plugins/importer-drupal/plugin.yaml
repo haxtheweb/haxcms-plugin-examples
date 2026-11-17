@@ -1,0 +1,26 @@
+# Drupal importer: extracted from core (systemRoutes/v1/routes/imports/convertDrupalToSite.js and
+# convertDrupalToSite.php). Reads a Drupal site through JSON:API (pages, books, files, media, menu links) and turns it
+# into a new site that follows the site's own menu. Implements import.platform; it may fetch only the site the person
+# points it at (egress { input: url }).
+specVersion: "0.1.0"
+id: importer-drupal
+uuid: 54a5a8f6-77c7-447f-8384-5293625b8d64
+title: Import from Drupal
+description: Copies a Drupal site's pages, book pages, files and media into a new site, following the site's menu.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, drupal]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+capabilities: ["network:egress"]
+egress:
+  - input: url
+    reason: "It reads the Drupal site the person names through its JSON:API: pages, books, files, media and menu links."
+staticCapable: false

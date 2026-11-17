@@ -1,0 +1,12 @@
+{
+  "configure": [
+    {
+      "property": "apiKey",
+      "title": "Flickr API key",
+      "description": "Stored on the server; never sent to browsers",
+      "inputMethod": "textfield",
+      "required": true,
+      "x-secret": true
+    }
+  ]
+}

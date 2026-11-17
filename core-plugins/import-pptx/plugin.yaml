@@ -1,0 +1,22 @@
+# PowerPoint import: extracted from core (systemRoutes/v1/routes/importPptx.js, which converts slides to HTML with a
+# vendored pptx-in-html-out and then runs core's importHtmlToItems). As a plugin it implements import.file for .pptx:
+# each slide becomes an h2 section (its title placeholder, then its text as nested lists), and core makes the pages.
+specVersion: "0.1.0"
+id: import-pptx
+uuid: 7d9f1b2c-4e6a-4c8d-8f1b-2c4e6a8d0f2c
+title: Import PowerPoint slides
+description: Turns a .pptx deck into pages, one per slide, with the slide's points as lists.
+version: 0.1.0
+category: authoring
+icon: icons:slideshow
+tags: [import, pptx, slides]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements:
+  - { name: import.file, accepts: [.pptx] }
+staticCapable: false

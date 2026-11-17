@@ -1,0 +1,1 @@
+{ "configure": [ { "property": "wordsPerMinute", "title": "Words per minute", "inputMethod": "number" }, { "property": "label", "title": "Label", "description": "{n} is replaced by the minutes", "inputMethod": "textfield" } ] }

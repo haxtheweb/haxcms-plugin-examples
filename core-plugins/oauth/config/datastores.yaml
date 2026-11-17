@@ -1,0 +1,5 @@
+stores:
+  - { id: clients, scope: system, file: clients.json }   # registered clients (public clients only: no client secrets)
+  - { id: codes, scope: system, file: codes.json }       # authorization codes: hashes, single use, 60 s
+  - { id: grants, scope: system, file: grants.json, personalData: true }   # what a person approved: client, resource, scopes, site
+  - { id: tokens, scope: system, file: tokens.json }     # access, refresh and personal tokens: hashes only

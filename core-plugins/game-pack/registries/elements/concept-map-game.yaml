@@ -1,0 +1,4 @@
+tag: concept-map-game
+path: "@haxtheweb/micro-game-base/lib/concept-map-game.js"
+role: block
+haxProperties: "@haxtheweb/micro-game-base/lib/concept-map-game.haxProperties.json"

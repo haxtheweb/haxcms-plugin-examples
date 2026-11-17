@@ -1,0 +1,15 @@
+# Dailymotion videos: one of the keyless appstore providers core adds to every editor today (HAXAppStoreService), moved to the
+# community set as a showcase: off by default. The browser calls the public API (api.dailymotion.com) directly, so there is no
+# route, no key and no code: a pack with one appstore fragment.
+specVersion: "0.1.0"
+id: appstore-dailymotion
+uuid: e8430ced-1c23-5718-b034-b1493a3957bf
+title: Dailymotion videos
+description: Search Dailymotion for videos to embed. No API key needed.
+version: 0.1.0
+kind: pack
+category: media
+icon: av:play-circle-filled
+tags: [appstore, video]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0

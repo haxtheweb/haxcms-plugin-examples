@@ -1,0 +1,23 @@
+- id: dark-mode-toggle-001
+  title: "the toggle appears on a theme with both schemes, with settings baked in"
+  hook: render.after.body
+  given: "clean-one supports light and dark; default dark"
+  when: "a page renders with clean-one"
+  then: "the element and its script are at the end of the body"
+  run:
+    settings: { default: dark, position: bottom-left }
+    steps:
+      - render: { page: { id: p1, content: "x" }, theme: clean-one }
+        expect: { contains: ['<dark-mode-toggle default="dark" position="bottom-left">', "plugins/dark-mode-toggle/assets/dark-mode-toggle.js"] }
+- id: dark-mode-toggle-002
+  title: "no toggle on single-scheme themes, including a plugin's dark-only theme"
+  given: "clean-two (light only) and neon-glow-theme from neon-theme-pack (dark only)"
+  when: "pages render with each"
+  then: "no toggle either time"
+  run:
+    with: [contrib-plugins/neon-theme-pack]
+    steps:
+      - render: { page: { id: p1, content: "x" }, theme: clean-two }
+        expect: { notContains: [dark-mode-toggle] }
+      - render: { page: { id: p1, content: "x" }, theme: neon-glow-theme }
+        expect: { notContains: [dark-mode-toggle] }

@@ -1,0 +1,17 @@
+- id: import-pptx-001
+  title: "one page per slide, in slide-number order, points as nested lists"
+  given: "tests/fixtures/sample.pptx: slides 1, 2 and 10 (stored out of lexical order), slide 2 with an indented point"
+  when: "imported as a site"
+  then: "Welcome, Agenda, Wrap up; Agenda's Talks is nested under Morning"
+  run:
+    steps:
+      - importFile: { file: tests/fixtures/sample.pptx, method: site }
+        expect:
+          status: 200
+          body:
+            plugin: import-pptx
+            title: Kickoff
+            items:
+              - { title: Welcome, content: "<ul><li>Goals for today</li><li>Meet the team</li></ul>" }
+              - { title: Agenda, content: "<ul><li>Morning<ul><li>Talks</li></ul></li><li>Afternoon &amp; lab</li></ul>" }
+              - { title: Wrap up, content: "<ul><li>Questions?</li></ul>" }

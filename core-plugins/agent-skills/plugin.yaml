@@ -1,0 +1,26 @@
+# Agent skills discovery: extracted from core and required. Today HAXCMS.rebuildAgentSkills() copies a curated set of
+# skills from the site boilerplate into every site's .well-known/agent-skills/ with an index.json (agentskills.io
+# discovery 0.2.0, sha256 digests) and an .htaccess. As a plugin it ships that core set as package data, adds the
+# `site` skills of every active plugin, and writes the folder as managed files at rebuild.
+specVersion: "0.1.0"
+id: agent-skills
+uuid: 8a0c2e4f-6b8d-4f1a-9c3e-5b7d9f1a3c5e
+title: Agent skills discovery
+description: Publishes skills that teach AI agents how to read and work on the site, at .well-known/agent-skills.
+version: 0.1.0
+category: developer
+icon: icons:extension
+tags: [agents, discovery]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+required: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+staticCapable: true
+capabilities: ["output:managedFiles"]
+managedFiles: [".well-known/agent-skills/**"]
+hooks:
+  - name: rebuild.after       # write index.json, every skill file and .htaccess

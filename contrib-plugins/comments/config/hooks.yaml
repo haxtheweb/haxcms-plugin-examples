@@ -1,0 +1,18 @@
+# Hooks comments defines and fires. Other plugins subscribe to them like core hooks (spam-guard, notifications).
+- name: comments.before.create
+  phase: before
+  when: "a comment is about to be stored"
+  subject: "`{ pageId, authorId, authorName, body, status }` (status is pending or approved)"
+  returns: "the comment (may change body or status, for example to pending)"
+  veto: true
+  comment: "hold or refuse a comment"
+  example: "**spam-guard** refuses links from new accounts and holds comments with blocked words"
+- name: comments.after.create
+  phase: after
+  when: "the comment was stored"
+  subject: "the stored comment `{ id, pageId, authorId, authorName, body, status }`"
+  returns: "nothing"
+  veto: false
+  detachable: true
+  comment: "react to a new comment"
+  example: "**notifications** tells moderators a comment is waiting"

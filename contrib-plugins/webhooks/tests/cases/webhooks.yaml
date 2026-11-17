@@ -1,0 +1,35 @@
+- id: webhooks-001
+  title: "a page save posts a signed message to every configured URL, and only to those"
+  hook: page.after.save
+  given: "two endpoints on different hosts"
+  when: "a page is created"
+  then: "two POSTs; hosts come from the setting; the secret is never sent or returned"
+  run:
+    settings: { endpoints: "https://hooks.example.org/hax\nhttps://ci.example.net/build", secret: s3cret }
+    fetch: { hooks.example.org: { status: 200, body: ok }, ci.example.net: { status: 204, body: "" } }
+    steps:
+      - save: { type: page, record: { id: p1, title: One, slug: one, content: "x" } }
+        expect: { fetch: { count: 2, contains: ["https://hooks.example.org/hax", "https://ci.example.net/build"] }, notContains: [s3cret] }
+- id: webhooks-002
+  title: "only the hosts in the setting are called"
+  given: "endpoints on hooks.example.org only; the harness would also answer for other.example.com"
+  when: "a page is saved"
+  then: "one call, to hooks.example.org"
+  run:
+    settings: { endpoints: "https://hooks.example.org/hax", secret: s }
+    fetch: { hooks.example.org: { status: 200, body: ok }, other.example.com: { status: 200, body: ok } }
+    steps:
+      - save: { type: page, record: { id: p1, title: One, content: "x" } }
+        expect: { fetch: { count: 1, notContains: [other.example.com] } }
+- id: webhooks-003
+  title: "http and private addresses are refused when saving settings"
+  hook: config.before.save
+  given: "an http URL, then an internal one"
+  when: "save"
+  then: "422 each"
+  run:
+    steps:
+      - config: { plugin: webhooks, values: { endpoints: "http://hooks.example.org/x", secret: s } }
+        expect: { status: 422, message: "only https" }
+      - config: { plugin: webhooks, values: { endpoints: "https://169.254.169.254/latest", secret: s } }
+        expect: { status: 422, message: "private addresses" }

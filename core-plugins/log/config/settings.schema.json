@@ -1,0 +1,4 @@
+{ "configure": [
+  { "property": "maxEntries", "title": "Entries to keep", "description": "Oldest entries are dropped beyond this", "inputMethod": "number" },
+  { "property": "level", "title": "Lowest level kept", "description": "info, warn or error", "inputMethod": "select", "options": { "info": "Info", "warn": "Warnings", "error": "Errors" } }
+] }

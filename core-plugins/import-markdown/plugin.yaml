@@ -1,0 +1,22 @@
+# Markdown import: core converts markdown today (systemRoutes/v1/routes/convertMdToHtml.js, markdown-it) for the editor
+# and for site importers. As a plugin it implements import.file for .md and .markdown, with front matter as the title,
+# and core makes the pages. The same small converter is reused by the site importers that read markdown sources.
+specVersion: "0.1.0"
+id: import-markdown
+uuid: 0a2c4e5f-7b9d-4f1a-8c4e-5f7b9d1f3a5e
+title: Import Markdown
+description: Turns a Markdown file into pages, one per heading.
+version: 0.1.0
+category: authoring
+icon: icons:text-format
+tags: [import, markdown]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements:
+  - { name: import.file, accepts: [.md, .markdown] }
+staticCapable: false

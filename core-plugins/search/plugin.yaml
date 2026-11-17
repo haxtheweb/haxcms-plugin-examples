@@ -1,0 +1,25 @@
+# Site search index: extracted from core. Today HAXCMS.updateAlternateFormats() writes lunrSearchIndex.json on every
+# save for every item, so the text of unpublished pages is readable by anyone who fetches the file. The site-search
+# element reads the same file. As a plugin it indexes only public pages (listed: true), in the same format.
+specVersion: "0.1.0"
+id: search
+uuid: 3e5a7c9d-1f3b-4d5e-8a7c-9e1f3b5d7a9c
+title: Site search
+description: Builds the search index the site search box uses, from public pages only.
+version: 0.1.0
+category: navigation
+icon: icons:search
+tags: [search, lunr]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+staticCapable: true            # search runs in the browser against the published index
+capabilities: ["items:read", "output:managedFiles"]
+managedFiles:
+  - { path: lunrSearchIndex.json, title: Search index, type: application/json }
+hooks:
+  - name: rebuild.after

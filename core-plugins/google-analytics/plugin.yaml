@@ -1,0 +1,37 @@
+# Google Analytics: extracted from core. Today the measurement id lives in site.json at
+# metadata.site.settings.gaID (site settings form, SEO section; saved by saveManifest and saveSeoSettings) and the
+# site shell (boilerplate index.html, ghpages.html) loads gtag with it, without asking for consent.
+# As a plugin it owns the setting, asks for consent first (through cookie-consent), and core keeps no trace of it.
+specVersion: "0.1.0"
+id: google-analytics
+uuid: 9a3e6f21-4c8d-4b1e-a7f2-5d0c3b9e8a14
+title: Google Analytics
+description: Adds Google Analytics to published pages after the visitor consents, using the measurement id set for each site.
+version: 0.1.0
+category: analytics
+icon: icons:timeline
+tags: [analytics, tracking]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true                         # ships with HAXcms; opt-in per site
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site                # each site has its own measurement id, as gaID was per site
+dependencies: [cookie-consent]     # enabling analytics enables consent (after confirmation)
+staticCapable: true                # the loader is baked into published pages; works on static hosting
+capabilities: ["output:inject"]    # core moves gaID out of site.json itself (legacy.settings), so no site:* needed
+privacy:
+  tracking: true
+  categories: [analytics]
+  requiresConsent: [analytics]       # cookie-consent asks for exactly these
+  cookies: [_ga, _ga_*]
+  recipients: [www.googletagmanager.com, www.google-analytics.com]
+legacy:
+  settings:
+    measurementId: metadata.site.settings.gaID   # read as a fallback; core moves it into this setting on first enable
+hooks:
+  - name: config.before.save         # refuse a malformed id
+  - name: render.before.head         # the consent-gated loader, id baked in

@@ -1,0 +1,28 @@
+# Notifications (fake community plugin). Exercises: detached after hooks on hooks other plugins define
+# (comments.after.create) and on core (schedule.after.run), soft subscriptions (comments is only suggested), and
+# egress with a secret webhook URL whose host is fixed in the manifest.
+specVersion: "0.1.0"
+id: notifications
+uuid: 7c9e1a2b-4d6f-4b8c-8e1a-2b4d6f8c0e1a
+title: Notifications
+description: Posts to a Slack channel when a comment waits for review or a scheduled job fails.
+version: 0.1.0
+category: administration
+icon: social:notifications
+tags: [slack, alerts]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+suggests: [comments]
+staticCapable: false
+capabilities: ["network:egress", "settings:secret"]
+egress: [hooks.slack.com]
+hooks:
+  - name: config.before.save
+  - name: comments.after.create
+    detached: true
+  - name: schedule.after.run
+    detached: true

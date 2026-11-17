@@ -1,0 +1,20 @@
+- id: sitemap-001
+  title: "public pages only, ranked by depth"
+  hook: rebuild.after
+  given: "a top page, a child, a grandchild, an unpublished page, a hidden page, and a region page (with regions)"
+  when: "rebuild"
+  then: "three urls with priorities 1.0, 0.7, 0.5; the unpublished, hidden and region pages are absent"
+  run:
+    with: [core-plugins/regions]
+    records:
+      site: { metadata: { site: { domain: "https://example.org" } } }
+      page: [{ id: a, title: A, slug: a, order: 0 }, { id: b, title: B, slug: a/b, parent: a, order: 1, metadata: { updated: 1767225600 } }, { id: c, title: C, slug: a/b/c, parent: b, order: 2 }, { id: u, title: U, slug: u, metadata: { published: false } }, { id: h, title: H, slug: h, metadata: { hideInMenu: "true" } }, { id: r, title: Banner, slug: banner }]
+    steps:
+      - config: { plugin: regions, values: { header: [{ node: r }] } }
+      - rebuild: {}
+      - managed: sitemap.xml
+        expect:
+          contains: ["<loc>https://example.org/a</loc>", "<priority>1.0</priority>", "<loc>https://example.org/a/b</loc>\n    <lastmod>2026-01-01T00:00:00.000Z</lastmod>\n    <priority>0.7</priority>", "<loc>https://example.org/a/b/c</loc>", "<priority>0.5</priority>"]
+          notContains: ["example.org/u<", "example.org/h<", banner]
+      - managed: sitemap-index.xml
+        expect: { contains: ["<loc>https://example.org/sitemap.xml</loc>"] }

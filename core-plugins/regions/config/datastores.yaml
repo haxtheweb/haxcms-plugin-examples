@@ -1,0 +1,4 @@
+# The published copy of the region map. Settings (CMI, private) are the source; config.after.save writes this copy
+# into site.json at metadata.plugins.regions.map so static sites and the region element can read it.
+stores:
+  - { id: map, scope: manifest }

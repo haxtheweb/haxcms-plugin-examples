@@ -1,0 +1,5 @@
+{ "configure": [
+  { "property": "on", "title": "Maintenance mode on", "inputMethod": "boolean" },
+  { "property": "message", "title": "Message for visitors", "inputMethod": "textfield" },
+  { "property": "pauseJobs", "title": "Pause scheduled jobs", "inputMethod": "boolean" }
+] }

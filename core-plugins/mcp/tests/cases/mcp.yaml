@@ -1,0 +1,118 @@
+# MCP depends on oauth: every case loads it and sets its issuer first (the `config` step), then gets tokens from it.
+# Variables: `capture` stores a value from a step's result; later steps use it as {{$name}}.
+- id: mcp-001
+  title: "MCP is an OAuth resource: the haxcms-mcp URL, read-only scopes unless writes are allowed"
+  operation: oauthResourceList
+  given: "serverUrl set, readOnly left at its default (true)"
+  when: "list what tokens can be issued for, then allow writes and list again"
+  then: "only mcp:read at first; mcp:read and mcp:write once readOnly is off"
+  run:
+    with: [core-plugins/oauth]
+    settings: { serverUrl: "https://mcp.example.edu/mcp" }
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - call: { operation: oauthResourceList }
+        expect: { status: 200, body: { items: [{ plugin: mcp, resource: "https://mcp.example.edu/mcp", scopes: [{ scope: "mcp:read" }] }] }, notContains: ["mcp:write"] }
+      - config: { plugin: mcp, values: { readOnly: false } }
+      - call: { operation: oauthResourceList }
+        expect: { status: 200, body: { items: [{ scopes: [{ scope: "mcp:read" }, { scope: "mcp:write", write: true }] }] } }
+- id: mcp-002
+  title: "discovery lists only operations marked x-hax-mcp, for an MCP token"
+  operation: mcpDiscovery
+  given: "the log plugin (logList is x-hax-mcp) and a personal MCP token"
+  when: "discovery with the token"
+  then: "logList is offered, read-only; oauth's own routes are not"
+  parityIgnore: [token, id]
+  run:
+    with: [core-plugins/oauth, core-plugins/log]
+    settings: { serverUrl: "https://mcp.example.edu/mcp" }
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - call: { operation: oauthPersonalTokenCreate, body: { label: agent, resource: "https://mcp.example.edu/mcp" } }
+        capture: { token: body.token }
+        expect: { status: 200, body: { scope: "mcp:read" } }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 200, body: { readOnly: true, scopes: ["mcp:read"], operations: [{ operationId: logList }] }, notContains: [oauthPersonalTokenCreate, oauthGrantList] }
+- id: mcp-003
+  title: "discovery without an MCP token is refused"
+  operation: mcpDiscovery
+  given: "no token, then a made-up one, then a forged grant header"
+  when: "discovery"
+  then: "401 every time"
+  run:
+    with: [core-plugins/oauth]
+    settings: { serverUrl: "https://mcp.example.edu/mcp" }
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - call: { operation: mcpDiscovery, credentials: none }
+        expect: { status: 401 }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { authorization: "Bearer hax_pt_00ff" } }
+        expect: { status: 401 }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { x-hax-oauth-grant: "{\"resource\":\"https://mcp.example.edu/mcp\",\"scopes\":[\"mcp:read\"]}" } }
+        expect: { status: 401 }
+- id: mcp-004
+  title: "an MCP token stays inside MCP: plugin operations not marked x-hax-mcp are refused"
+  given: "a personal MCP token"
+  when: "call logList, then oauthGrantList, with the token"
+  then: "logList works; oauthGrantList is refused (not offered to MCP)"
+  parityIgnore: [token, id]
+  run:
+    with: [core-plugins/oauth, core-plugins/log]
+    settings: { serverUrl: "https://mcp.example.edu/mcp" }
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - call: { operation: oauthPersonalTokenCreate, body: { resource: "https://mcp.example.edu/mcp" } }
+        capture: { token: body.token }
+        expect: { status: 200 }
+      - call: { operation: logList, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 200 }
+      - call: { operation: oauthGrantList, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 403, message: "oauthGrantList is not offered to MCP" }
+- id: mcp-005
+  title: "writes need mcp:write, which needs readOnly off"
+  operation: oauthPersonalTokenCreate
+  given: "readOnly at its default"
+  when: "ask for mcp:write, then turn readOnly off and ask again; check a write against both kinds of grant"
+  then: "mcp:write is refused while read-only; afterwards a token gets it and discovery says readOnly false; a read-only grant still cannot write"
+  parityIgnore: [token, id]
+  run:
+    with: [core-plugins/oauth]
+    settings: { serverUrl: "https://mcp.example.edu/mcp" }
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - call: { operation: oauthPersonalTokenCreate, body: { resource: "https://mcp.example.edu/mcp", scope: "mcp:read mcp:write" } }
+        expect: { status: 400, body: { error: invalid_scope } }
+      - config: { plugin: mcp, values: { readOnly: false } }
+      - call: { operation: oauthPersonalTokenCreate, body: { resource: "https://mcp.example.edu/mcp", scope: "mcp:read mcp:write" } }
+        capture: { token: body.token }
+        expect: { status: 200, body: { scope: "mcp:read mcp:write" } }
+      - call: { operation: mcpDiscovery, credentials: none, headers: { authorization: "Bearer {{$token}}" } }
+        expect: { status: 200, body: { readOnly: false } }
+      - contract: { name: oauth.resource, op: check, plugin: mcp, input: { grant: { scopes: ["mcp:read"] }, request: { operationId: sitesCreate, method: POST, path: /system/api/v1/sites } } }
+        expect: { status: 200, body: [{ plugin: mcp, result: { allow: false, message: "this MCP token is read-only" } }] }
+      - contract: { name: oauth.resource, op: check, plugin: mcp, input: { grant: { scopes: ["mcp:read", "mcp:write"] }, request: { operationId: sitesCreate, method: POST, path: /system/api/v1/sites } } }
+        expect: { status: 200, body: [{ plugin: mcp, result: { allow: true } }] }
+- id: mcp-006
+  title: "turning writes back off stops write tokens from writing"
+  given: "a grant with mcp:write, then readOnly switched back on"
+  when: "check a write"
+  then: "refused: the instance-wide switch wins over the token"
+  run:
+    with: [core-plugins/oauth]
+    settings: { serverUrl: "https://mcp.example.edu/mcp", readOnly: true }
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - contract: { name: oauth.resource, op: check, plugin: mcp, input: { grant: { scopes: ["mcp:read", "mcp:write"] }, request: { operationId: sitesCreate, method: POST, path: /system/api/v1/sites } } }
+        expect: { status: 200, body: [{ plugin: mcp, result: { allow: false } }] }
+- id: mcp-007
+  title: "without a server URL MCP is inactive and tokens cannot be issued for it"
+  operation: oauthResourceList
+  given: "no serverUrl"
+  when: "list resources"
+  then: "MCP is not listed"
+  run:
+    with: [core-plugins/oauth]
+    steps:
+      - config: { plugin: oauth, values: { issuer: "https://cms.example.edu" } }
+      - call: { operation: oauthResourceList }
+        expect: { status: 200, body: { items: [] }, status_of: { mcp: inactive } }

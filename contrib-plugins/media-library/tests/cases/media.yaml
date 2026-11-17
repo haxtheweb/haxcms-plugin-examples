@@ -1,0 +1,29 @@
+- id: media-library-001
+  title: "an uploaded image gets a library record; a text file does not; the record's own save does not loop"
+  hook: file.after.save
+  given: "files and media-library active"
+  when: "logo.png and notes.txt are saved as files"
+  then: "one mediaItem (for logo.png) waiting for alt text"
+  run:
+    with: [core-plugins/files]
+    steps:
+      - save: { type: file, record: { uuid: f1, name: logo.png, path: files/logo.png } }
+      - save: { type: file, record: { uuid: f2, name: notes.txt, path: files/notes.txt } }
+      - call: { operation: mediaLibraryList, query: { missingAlt: "1" } }
+        expect: { status: 200, body: [{ uuid: f1, name: logo.png, alt: "" }], notContains: [notes.txt] }
+- id: media-library-002
+  title: "alt text is set, and cannot be blanked without marking the image decorative"
+  hook: entity.before.update
+  given: "f1 in the library"
+  when: "describe it, then try to blank the alt"
+  then: "saved; then 422; marking it decorative works"
+  run:
+    with: [core-plugins/files]
+    records: { mediaItem: [{ uuid: f1, name: logo.png, path: files/logo.png, alt: "", decorative: false }] }
+    steps:
+      - call: { operation: mediaLibraryDescribe, params: { uuid: f1 }, body: { alt: "HAX logo", credit: HAX team, license: CC-BY-4.0 } }
+        expect: { status: 200, body: { alt: HAX logo, license: CC-BY-4.0 } }
+      - call: { operation: mediaLibraryDescribe, params: { uuid: f1 }, body: { alt: " " } }
+        expect: { status: 422 }
+      - call: { operation: mediaLibraryDescribe, params: { uuid: f1 }, body: { alt: "", decorative: true } }
+        expect: { status: 200, body: { decorative: true } }

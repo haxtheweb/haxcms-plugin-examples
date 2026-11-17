@@ -1,0 +1,22 @@
+# Word import: extracted from core (systemRoutes/v1/routes/importDocx.js, which runs mammoth and then core's shared
+# importHtmlToItems). As a plugin it implements import.file for .docx: it only turns the document into HTML; core
+# splits that HTML into pages by headings, the same way for every file type.
+specVersion: "0.1.0"
+id: import-docx
+uuid: 6c8e0a1b-3d5f-4b7c-9e0a-1b3d5f7c9e1b
+title: Import Word documents
+description: Turns a .docx file into pages, one per heading, keeping lists, tables, links and emphasis.
+version: 0.1.0
+category: authoring
+icon: icons:description
+tags: [import, docx, word]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements:
+  - { name: import.file, accepts: [.docx] }
+staticCapable: false

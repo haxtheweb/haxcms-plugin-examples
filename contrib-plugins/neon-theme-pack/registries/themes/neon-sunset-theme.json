@@ -1,0 +1,9 @@
+{
+  "element": "neon-sunset-theme",
+  "path": "frontend/dist/neon-sunset-theme.js",
+  "name": "Neon sunset",
+  "thumbnail": "frontend/dist/neon.svg",
+  "description": "Neon glow in warm colors.",
+  "category": ["Fun"],
+  "extends": "neon-glow-theme"
+}

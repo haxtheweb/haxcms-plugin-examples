@@ -1,0 +1,12 @@
+# Spanish overlay: only changed keys, by <registry>.<id>.<dot path>
+dashboard.first-steps.label: Hacer el recorrido
+dashboard.first-steps.badge.label: ¿Eres nuevo?
+dashboard.first-steps.action.title: Bienvenido a HAX
+dashboard.first-steps.action.steps.0.title: Crea un sitio
+dashboard.first-steps.action.steps.0.text: "Empieza aquí: elige una plantilla o un sitio en blanco."
+dashboard.first-steps.action.steps.1.title: Tus sitios
+dashboard.first-steps.action.steps.1.text: Aquí aparecen todos los sitios que puedes editar.
+dashboard.first-steps.action.steps.2.title: Pregunta a Merlin
+dashboard.first-steps.action.steps.2.text: Pulsa Ctrl+Mayús+K y escribe lo que quieres hacer.
+dashboard.first-steps.action.steps.3.title: Añade funciones
+dashboard.first-steps.action.steps.3.text: Activa complementos para todo el sistema o para un sitio.

@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info: { title: OAuth, version: 0.1.0 }
+x-hax-scope: system
+paths:
+  /metadata:
+    get:
+      operationId: oauthMetadata
+      summary: Authorization server metadata (RFC 8414)
+      x-hax-public: true
+      x-hax-well-known: oauth-authorization-server   # core also serves this at /.well-known/oauth-authorization-server
+      responses: { "200": { description: OK } }
+  /authorize:
+    get:
+      operationId: oauthAuthorizeCheck
+      summary: Validate an authorization request and describe it for the consent screen
+      description: >-
+        The authorization_endpoint in the metadata is the dashboard page admin/oauth/authorize, which signs the person
+        in as usual and calls this operation, then oauthAuthorizeDecide with their answer.
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters:
+        - { name: response_type, in: query, required: true, schema: { const: code } }
+        - { name: client_id, in: query, required: true, schema: { type: string } }
+        - { name: redirect_uri, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge, in: query, required: true, schema: { type: string } }
+        - { name: code_challenge_method, in: query, required: true, schema: { const: S256 } }
+        - { name: resource, in: query, required: true, schema: { type: string } }
+        - { name: scope, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+      responses: { "200": { description: "{ client, resource, scopes }" }, "400": { description: "{ error, error_description }" } }
+    post:
+      operationId: oauthAuthorizeDecide
+      summary: Record the person's answer and return where to send the browser
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [approve], properties: { approve: { type: boolean }, site: { type: string } } } } } }
+      responses: { "200": { description: "{ redirect }" }, "400": { description: "{ error, error_description }" } }
+  /token:
+    post:
+      operationId: oauthToken
+      summary: Exchange a code (with its PKCE verifier) or a refresh token for tokens
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 30, per: minute }
+      requestBody: { content: { application/x-www-form-urlencoded: { schema: { type: object, required: [grant_type], properties: { grant_type: { enum: [authorization_code, refresh_token] }, code: { type: string }, code_verifier: { type: string }, redirect_uri: { type: string }, client_id: { type: string }, refresh_token: { type: string }, resource: { type: string } } } } } }
+      responses: { "200": { description: "{ access_token, token_type, expires_in, refresh_token, scope }" }, "400": { description: "{ error, error_description }" } }
+  /register:
+    post:
+      operationId: oauthRegister
+      summary: Dynamic client registration (RFC 7591), public clients only
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 10, per: minute }
+      requestBody: { content: { application/json: { schema: { type: object, required: [redirect_uris], properties: { client_name: { type: string }, redirect_uris: { type: array, items: { type: string } } } } } } }
+      responses: { "201": { description: "{ client_id, client_name, redirect_uris, token_endpoint_auth_method }" }, "400": { description: "{ error }" }, "403": { description: Registration is off } }
+  /revoke:
+    post:
+      operationId: oauthRevoke
+      summary: Revoke a token (RFC 7009); always 200, so it reveals nothing
+      x-hax-public: true
+      x-hax-rate-limit: { requests: 30, per: minute }
+      requestBody: { content: { application/x-www-form-urlencoded: { schema: { type: object, required: [token], properties: { token: { type: string } } } } } }
+      responses: { "200": { description: OK } }
+  /grants:
+    get:
+      operationId: oauthGrantList
+      summary: The apps you have let act for you, and what they may do
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      responses: { "200": { description: "{ items }" } }
+  /grants/{id}:
+    delete:
+      operationId: oauthGrantRevoke
+      summary: Take an app's access away (every token from that approval stops working)
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Revoked }, "404": { description: Not found } }
+  /personal-tokens:
+    post:
+      operationId: oauthPersonalTokenCreate
+      summary: A token for a headless client (stdio MCP, scripts); shown once
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      requestBody: { content: { application/json: { schema: { type: object, required: [resource], properties: { label: { type: string }, resource: { type: string }, scope: { type: string }, site: { type: string }, expiresInDays: { type: integer, minimum: 1, maximum: 365 } } } } } }
+      responses: { "200": { description: "{ id, token, scope, resource, expires }" }, "400": { description: "{ error, error_description }" } }
+  /resources:
+    get:
+      operationId: oauthResourceList
+      summary: What tokens can be issued for, and the scopes each accepts
+      security: [{ bearerAuth: [], userTokenHeader: [] }]
+      responses: { "200": { description: "{ items }" } }

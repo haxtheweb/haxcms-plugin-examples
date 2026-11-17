@@ -1,0 +1,36 @@
+# xAPI statements (fake community plugin). Exercises personal data in two places: a personalData store core exports
+# and erases by itself, and copies already sent to an external LRS, which only the plugin can account for (the
+# privacy.export / privacy.delete contracts). Also a batch schedule and egress to an admin-chosen LRS.
+specVersion: "0.1.0"
+id: xapi-statements
+uuid: 1f3b5d6e-8a0c-4e2f-9b5d-6e8a0c2f4b5d
+title: xAPI statements
+description: Records learners' progress as xAPI statements and sends them to your learning record store.
+version: 0.1.0
+category: assessment
+icon: icons:assessment
+tags: [xapi, lrs, learning-analytics]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+datastores: config/datastores.yaml
+openapi: config/openapi.yaml
+implements: [privacy.export, privacy.delete]
+staticCapable: false
+capabilities: ["userData:read", "userData:write", "network:egress", "settings:secret"]
+egress:
+  - setting: endpoint
+privacy:
+  tracking: true
+  categories: [functional]
+  requiresConsent: []
+  cookies: []
+  recipients: [{ setting: endpoint }]   # the LRS host comes from settings, as in egress
+schedules:
+  - id: flush
+    cron: "*/5 * * * *"
+    handler: flush

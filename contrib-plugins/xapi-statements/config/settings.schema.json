@@ -1,0 +1,4 @@
+{ "configure": [
+  { "property": "endpoint", "title": "LRS statements endpoint", "description": "https URL ending in /statements", "inputMethod": "textfield", "required": true },
+  { "property": "auth", "title": "LRS key and secret", "description": "key:secret, sent as HTTP Basic auth", "inputMethod": "textfield", "required": true, "x-secret": true }
+] }

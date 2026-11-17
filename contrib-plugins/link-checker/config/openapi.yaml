@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: { title: Link checker, version: 0.1.0 }
+paths:
+  /report:
+    get:
+      operationId: linkCheckerReport
+      summary: Broken outside links from the last check, by page
+      security: [{ bearerAuth: [] }]
+      x-hax-mcp: true
+      responses: { "200": { description: OK } }

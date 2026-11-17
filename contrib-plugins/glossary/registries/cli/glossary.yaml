@@ -1,0 +1,6 @@
+command: list
+summary: List the site's glossary
+operation: glossaryList
+output:
+  items: "."
+  line: "{{term}}: {{definition}}"

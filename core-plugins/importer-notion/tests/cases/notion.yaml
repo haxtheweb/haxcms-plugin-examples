@@ -1,0 +1,92 @@
+- id: importer-notion-001
+  title: "a Notion export in GitHub becomes lessons with their pages, and its images are listed"
+  given: "a repository holding a Notion database export: the CSV, two pages in lesson 1 (a reading and a discussion), and an image beside the first page"
+  when: "convert with the repository URL"
+  then: "a lesson page, then both pages under it with their Notion page types and order; the image link points at files/ and the image is listed for core to fetch; the script is gone"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://api.github.com/repos/psu-ist/notion-course": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/psu-ist/notion-course/git/trees/main?recursive=1":
+        status: 200
+        body:
+          tree:
+            - { path: "Course 8f1c", type: tree }
+            - { path: "Course 8f1c.csv", type: blob }
+            - { path: "Course 8f1c/Discuss 3c4d.md", type: blob }
+            - { path: "Course 8f1c/Welcome 1a2b", type: tree }
+            - { path: "Course 8f1c/Welcome 1a2b.md", type: blob }
+            - { path: "Course 8f1c/Welcome 1a2b/diagram.png", type: blob }
+      "https://raw.githubusercontent.com/psu-ist/notion-course/main/Course%208f1c/Discuss%203c4d.md":
+        status: 200
+        body: |
+          # Discuss
+
+          Lesson: 1. Getting Started
+          ID: 1.2
+          Type: 💬 Canvas Discussion
+
+          Share **one** idea with the class.
+      "https://raw.githubusercontent.com/psu-ist/notion-course/main/Course%208f1c/Welcome%201a2b.md":
+        status: 200
+        body: |
+          # Welcome
+
+          Lesson: 1. Getting Started
+          ID: 1.1
+          Type: 📙 Reading
+
+          Read this first.
+
+          ![Diagram](Welcome%201a2b/diagram.png)
+
+          <script>alert(1)</script>
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-notion, input: { url: "https://github.com/psu-ist/notion-course" } }
+        expect:
+          body:
+            - plugin: importer-notion
+              result:
+                title: notion-course
+                items:
+                  - { id: lesson-getting-started, title: Getting Started, slug: getting-started, parent: null, order: 1, indent: 0, metadata: { pageType: lesson } }
+                  - { id: page-discuss-3c4d, title: Discuss, slug: discuss-3c4d, parent: lesson-getting-started, order: 2, indent: 1, content: "<p>Share <strong>one</strong> idea with the class.</p>", metadata: { pageType: discuss } }
+                  - { id: page-welcome-1a2b, title: Welcome, parent: lesson-getting-started, order: 1, metadata: { pageType: reading } }
+                files:
+                  - { path: files/Welcome1a2b/diagram.png, url: "https://raw.githubusercontent.com/psu-ist/notion-course/main/Course%208f1c/Welcome%201a2b/diagram.png" }
+          contains: ['<img src=\"files/Welcome1a2b/diagram.png\" alt=\"Diagram\">']
+          notContains: ["alert(1)", "Lesson: 1.", "Course 8f1c.csv"]
+- id: importer-notion-002
+  title: "a branch in the URL is used as given, and a missing branch is an error"
+  given: "a repository URL naming a branch whose file tree GitHub does not find"
+  when: "convert"
+  then: "an error naming the failure; the default-branch lookup is skipped"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      "https://api.github.com/repos/psu-ist/notion-course/git/trees/drafts?recursive=1": { status: 404, body: { message: Not Found } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-notion, input: { url: "https://github.com/psu-ist/notion-course/tree/drafts" } }
+        expect:
+          body: [{ result: { error: "unable to read the repository file list: HTTP 404" } }]
+          fetch: { count: 1 }
+- id: importer-notion-003
+  title: "only GitHub is reachable"
+  given: "a URL on another host, and a repository with no markdown pages"
+  when: "convert each"
+  then: "the other host is refused without a request; the repository without pages is an error"
+  run:
+    with: [core-plugins/import-markdown]
+    fetch:
+      notion-mirror.example.net: { status: 200, body: "# Page" }
+      "https://api.github.com/repos/psu-ist/empty": { status: 200, body: { default_branch: trunk } }
+      "https://api.github.com/repos/psu-ist/empty/git/trees/trunk?recursive=1": { status: 200, body: { tree: [{ path: README.txt, type: blob }] } }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-notion, input: { url: "https://notion-mirror.example.net/psu-ist/notion-course" } }
+        expect:
+          body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }]
+          fetch: { count: 0 }
+      - contract: { name: import.platform, op: convert, plugin: importer-notion, input: { url: "https://github.com/psu-ist/empty.git" } }
+        expect:
+          body: [{ result: { error: "the repository has no markdown pages" } }]
+          fetch: { notContains: [notion-mirror.example.net] }

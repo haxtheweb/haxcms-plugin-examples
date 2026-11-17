@@ -1,0 +1,28 @@
+# Feeds: RSS and Atom, extracted from core. Today HAXCMS.updateAlternateFormats() writes rss.xml and atom.xml into the
+# site folder on every save (lib/RSS.js, 25 newest pages by created date), and llms.txt names them. As a plugin the
+# files are managed outputs written on rebuild, advertised through managedFiles titles, so core never names them.
+specVersion: "0.1.0"
+id: feeds
+uuid: 1c3e5a7b-9d1f-4b3c-8e5a-7c9e1b3d5f7a
+title: RSS and Atom feeds
+description: Publishes rss.xml and atom.xml with the newest pages, so readers can follow the site.
+version: 0.1.0
+category: publishing
+icon: communication:rss-feed
+tags: [rss, atom, syndication]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+settings: config/settings.schema.json
+settingsScope: site
+staticCapable: true
+capabilities: ["site:read", "items:read", "output:managedFiles"]
+managedFiles:
+  - { path: rss.xml, title: RSS feed, type: application/rss+xml }
+  - { path: atom.xml, title: Atom feed, type: application/atom+xml }
+hooks:
+  - name: rebuild.after

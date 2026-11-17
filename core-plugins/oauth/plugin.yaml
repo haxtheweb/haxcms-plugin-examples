@@ -1,0 +1,31 @@
+# OAuth: core, optional, opt-in. HAXcms as an OAuth 2.1 authorization server (ADR-0004 in haxcms-mcp,
+# https://github.com/haxtheweb/haxcms-mcp/blob/main/docs/adr/0004-haxcms-is-the-oauth-authorization-server.md):
+# authorization code + PKCE (S256 only), rotating refresh tokens, audience-bound tokens (RFC 8707), dynamic client
+# registration (RFC 7591, off by default), revocation (RFC 7009) and personal tokens for headless clients.
+# It knows nothing about any one resource: plugins that accept its tokens implement the oauth.resource contract it
+# defines (mcp is the first) and decide what a token may call. It depends on nothing.
+specVersion: "0.1.0"
+id: oauth
+uuid: 7e307b27-93c6-47af-811e-b5d82b860aef
+title: OAuth
+description: Lets other apps act for a person with tokens they approve, scoped and revocable, instead of their password.
+version: 0.1.0
+category: security
+icon: icons:verified-user
+tags: [oauth, tokens, agents]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+openapi: config/openapi.yaml
+contracts: config/contracts.yaml
+settings: config/settings.schema.json
+datastores: config/datastores.yaml
+staticCapable: false
+capabilities: [userData:read, userData:write]   # its own stores: grants are per person; tokens and codes are kept as hashes
+hooks:
+  - name: rest.before.request     # a request carrying one of its tokens: verify it, ask the resource, pass the grant on
+    priority: 100                 # before anything else reads the request, so the grant header is always its own

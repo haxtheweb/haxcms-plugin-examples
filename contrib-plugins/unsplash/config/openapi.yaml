@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info: { title: Unsplash, version: 0.1.0 }
+paths:
+  /search:
+    get:
+      operationId: unsplashSearch
+      summary: Search Unsplash (core adds the key; only the listed parameters pass through)
+      security: [{ bearerAuth: [] }]
+      x-hax-proxy:
+        url: https://api.unsplash.com/search/photos
+        query:
+          client_id: "{{settings.apiKey}}"
+        pass: [page, per_page, query]
+      responses: { "200": { description: OK }, "502": { description: Unsplash could not be reached } }

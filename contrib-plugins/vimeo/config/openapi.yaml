@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info: { title: Vimeo, version: 0.1.0 }
+paths:
+  /search:
+    get:
+      operationId: vimeoSearch
+      summary: Search Vimeo (core adds the key; only the listed parameters pass through)
+      security: [{ bearerAuth: [] }]
+      x-hax-proxy:
+        url: https://api.vimeo.com/videos
+        query:
+          access_token: "{{settings.apiKey}}"
+        pass: [direction, filter, page, per_page, query, sort]
+      responses: { "200": { description: OK }, "502": { description: Vimeo could not be reached } }

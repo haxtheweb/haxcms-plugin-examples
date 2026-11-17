@@ -1,0 +1,30 @@
+# The dashboard UI for announcements, declared as data. app-hax renders it with elements it already has:
+# simple-icon-button-lite + simple-tooltip for the button, a chip for "New", simple-modal for the dialog,
+# accent-card per entry, hax-element-demo for element visuals, simple-icon-lite for type icons. No plugin front-end code.
+id: whats-new
+placement: topbar                 # top bar, right group, before the user menu; always present so it can be reopened
+icon: icons:new-releases
+label: What's new and HAX tips
+badge:
+  label: New
+  operation: announcementsListLatest
+  field: latestVersion            # chip shows while this is newer than the dismissed version
+  dismissKey: whatsNew            # user scaffold memory: { seenVersion, dismissedVersion }; opening marks seen
+action:
+  kind: modal                     # opens only when clicked (or from Merlin); never by itself
+  title: What's new in HAX
+  filters: { field: type, from: types }
+  sections:
+    - title: "New in {{latestVersion}}"
+      operation: announcementsListLatest
+      items: items
+      card: &card { title: label, description: description, chip: "types[{{type}}]", visual: visual, links: links, anchor: uuid }
+    - title: Earlier
+      operation: announcementsListAll
+      query: { "filter[kind]": update, "filter[beforeVersion]": "{{latestVersion}}" }
+      items: items
+      card: *card
+    - title: Tip of the day
+      operation: announcementsGetDailyTip
+      card: *card
+  dismiss: { label: Dismiss }     # records latestVersion as dismissed and removes the chip

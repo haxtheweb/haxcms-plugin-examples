@@ -1,0 +1,92 @@
+- id: announcements-001
+  title: "no credentials gives 401 and reveals nothing"
+  operation: announcementsListLatest
+  given: "no Authorization header"
+  when: "GET /system/api/v1/plugins/announcements/latest"
+  then: "401; body has no version and no entries"
+  run:
+    call: { operation: announcementsListLatest, credentials: none }
+    expect: { status: 401, absent: [latestVersion, items], notContains: ["26.10"] }
+- id: announcements-002
+  title: "JWT without the user token is refused with the existing error"
+  operation: announcementsListLatest
+  given: "valid JWT, no X-HAXCMS-User-Token"
+  when: "GET /latest"
+  then: "the existing 'X-HAXCMS-User-Token header is required for this endpoint' error"
+  run:
+    call: { operation: announcementsListLatest, credentials: jwt }
+    expect: { status: 401, message: "X-HAXCMS-User-Token header is required", notContains: ["26.10"] }
+- id: announcements-003
+  title: "drafts and unreleased versions are never served"
+  operation: announcementsListAll
+  given: "sample data on HAXcms 26.10.1"
+  when: "GET /all"
+  then: "no draft-template, no unreleased-theme; no status or notes fields"
+  run:
+    call: { operation: announcementsListAll }
+    expect: { status: 200, body: { latestVersion: "26.10.1", total: 6 }, absent: [status, notes, file], notContains: [draft-template, unreleased-theme] }
+- id: announcements-004
+  title: "latestVersion only moves when a release has curated entries"
+  operation: announcementsListLatest
+  given: "running 26.10.3 with no entries for 26.10.2 or 26.10.3"
+  when: "GET /latest"
+  then: "latestVersion is 26.10.1"
+  run:
+    haxcmsVersion: "26.10.3"
+    call: { operation: announcementsListLatest }
+    expect: { status: 200, body: { latestVersion: "26.10.1" } }
+- id: announcements-005
+  title: "the daily tip is identical across Node and PHP for a date"
+  operation: announcementsGetDailyTip
+  given: "the same data and UTC date in both runtimes"
+  when: "GET /tips/daily"
+  then: "a tip; the harness compares the Node and PHP results"
+  run:
+    call: { operation: announcementsGetDailyTip }
+    expect: { status: 200, body: { kind: tip } }
+- id: announcements-006
+  title: "enable is vetoed when an entry points at an unknown type"
+  hook: plugin.before.enable
+  given: "an announcement whose type uuid is not in data/types.json"
+  when: "enable"
+  then: "enable fails with the entry's slug in the message"
+  run:
+    stores: { types: [] }
+    fire: { hook: plugin.before.enable, subject: { id: announcements, version: 0.1.0, scope: system } }
+    expect: { veto: true, message: "points at an unknown type" }
+- id: announcements-007
+  title: "lang falls back to English and ignores unsafe values"
+  operation: announcementsGet
+  given: "lang=es for a translated entry"
+  when: "GET /{uuid}?lang=es"
+  then: "Spanish label"
+  run:
+    call: { operation: announcementsGet, params: { uuid: cd32a5c1-fd1c-4121-b44c-820281410449 }, query: { lang: es } }
+    expect: { status: 200, body: { label: "Pregunta a Merlin en lugar de buscar en los menús" } }
+- id: announcements-008
+  title: "an unsafe lang value is ignored"
+  operation: announcementsGet
+  given: "lang=../../etc"
+  when: "GET /{uuid}"
+  then: "English text, no error"
+  run:
+    call: { operation: announcementsGet, params: { uuid: 2a9dcbc6-3a0f-4dd5-b473-c53e8ce189f6 }, query: { lang: "../../etc" } }
+    expect: { status: 200, body: { label: "Drag blocks to reorder them" } }
+- id: announcements-009
+  title: "unreleased entries 404 by id"
+  operation: announcementsGet
+  given: "an entry for 26.11.1 while 26.10.1 runs"
+  when: "GET /{uuid}"
+  then: "404"
+  run:
+    call: { operation: announcementsGet, params: { uuid: fc2c81aa-8ca1-47af-974a-eb9cf9fe2e28 } }
+    expect: { status: 404 }
+- id: announcements-010
+  title: "screenshot visuals are served by the visual route"
+  operation: announcementsGetVisual
+  given: "the plugin-dashboard entry with a screenshot"
+  when: "GET /{uuid}/visual"
+  then: "200 with the image"
+  run:
+    call: { operation: announcementsGetVisual, params: { uuid: b3235057-f7ed-4133-9623-88ffd1e3e03b } }
+    expect: { status: 200, contains: ["<svg"] }

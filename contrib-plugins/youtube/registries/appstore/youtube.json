@@ -1,0 +1,38 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Youtube",
+        "icon": "mdi-action:youtube-play",
+        "color": "red",
+        "author": "Google, Youtube LLC",
+        "description": "The most popular online video sharing and remix site.",
+        "status": "available",
+        "tags": ["video", "crowdsourced"],
+        "tos": [
+          { "title": "YouTube Terms of Service", "link": "https://www.youtube.com/t/terms" },
+          { "title": "Google Privacy Policy", "link": "https://policies.google.com/privacy" }
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/youtube",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": { "style": "page", "props": { "previous": "prevPageToken", "next": "nextPageToken", "total_items": "pageInfo.totalResults" } },
+            "search": { "q": { "title": "Search", "type": "string" } },
+            "data": {},
+            "resultMap": {
+              "defaultGizmoType": "video",
+              "items": "items",
+              "preview": { "title": "snippet.title", "details": "snippet.description", "image": "snippet.thumbnails.default.url", "id": "id.videoId" },
+              "gizmo": { "title": "snippet.title", "description": "snippet.description", "id": "id.videoId", "_url_source": "https://www.youtube.com/watch?v=<%= id %>", "caption": "snippet.description", "citation": "snippet.channelTitle" }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

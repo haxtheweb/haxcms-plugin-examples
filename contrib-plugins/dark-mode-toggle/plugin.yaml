@@ -1,0 +1,24 @@
+# Dark mode toggle (fake community plugin). Exercises an injected singleton element with settings baked in at render,
+# reading the merged theme registry (ctx.registries.theme) so the toggle appears only on themes that support both
+# color schemes, and a front-end-only behavior with no routes.
+specVersion: "0.1.0"
+id: dark-mode-toggle
+uuid: 3b5d7f8a-0c2e-4a4b-9d7f-8a0c2e4b6d7f
+title: Dark mode toggle
+description: Adds a light and dark switch to published pages on themes that support both.
+version: 0.1.0
+category: themes
+icon: icons:invert-colors
+tags: [dark-mode, accessibility]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+tagPrefix: dark-mode-
+settings: config/settings.schema.json
+settingsScope: site
+staticCapable: true
+capabilities: ["output:inject"]
+hooks:
+  - name: render.after.body

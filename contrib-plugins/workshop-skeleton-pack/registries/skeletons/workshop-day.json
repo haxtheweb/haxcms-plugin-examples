@@ -1,0 +1,90 @@
+{
+  "meta": {
+    "name": "workshop-day",
+    "machineName": "workshop-day",
+    "priority": 0,
+    "description": "Agenda, sessions and a feedback page for a single day.",
+    "version": "1.0.0",
+    "created": "2026-10-13T00:00:00.000Z",
+    "type": "skeleton",
+    "useCaseTitle": "One-day workshop",
+    "useCaseDescription": "Agenda, sessions and a feedback page for a single day.",
+    "useCaseImage": "@haxtheweb/haxcms-elements/lib/theme-screenshots/theme-clean-one-thumb.jpg",
+    "category": [
+      "Workshop"
+    ],
+    "tags": [
+      "workshop"
+    ],
+    "attributes": []
+  },
+  "site": {
+    "name": "workshop-day",
+    "description": "Agenda, sessions and a feedback page for a single day.",
+    "theme": "clean-one",
+    "settings": {
+      "lang": "en-US",
+      "publishPagesOn": true,
+      "pathauto": true
+    },
+    "plugins": [
+      "game-pack",
+      "comments"
+    ]
+  },
+  "build": {
+    "type": "skeleton",
+    "structure": "from-skeleton",
+    "items": [
+      {
+        "id": "agenda",
+        "title": "Agenda",
+        "slug": "agenda",
+        "order": 0,
+        "parent": null,
+        "indent": 0,
+        "content": "<h2>Agenda</h2><p>Times and rooms.</p>",
+        "metadata": {
+          "published": true,
+          "hideInMenu": false,
+          "tags": []
+        }
+      },
+      {
+        "id": "session-1",
+        "title": "Session 1",
+        "slug": "session-1",
+        "order": 1,
+        "parent": null,
+        "indent": 0,
+        "content": "<p>Session notes.</p><concept-quest-game></concept-quest-game>",
+        "metadata": {
+          "published": true,
+          "hideInMenu": false,
+          "tags": []
+        }
+      },
+      {
+        "id": "feedback",
+        "title": "Feedback",
+        "slug": "feedback",
+        "order": 2,
+        "parent": null,
+        "indent": 0,
+        "content": "<p>Tell us how it went.</p>",
+        "metadata": {
+          "published": true,
+          "hideInMenu": false,
+          "tags": []
+        }
+      }
+    ],
+    "files": []
+  },
+  "theme": {
+    "hexCode": "#006699",
+    "cssVariable": "--simple-colors-default-theme-light-blue-7",
+    "icon": "icons:book",
+    "image": "@haxtheweb/haxcms-elements/lib/theme-screenshots/theme-clean-one-thumb.jpg"
+  }
+}

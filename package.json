@@ -29,6 +29,8 @@
     "examples/",
     "skills/",
     "harness/",
+    "core-plugins/",
+    "contrib-plugins/",
     "scripts/"
   ],
   "exports": {
@@ -36,6 +38,8 @@
     "./harness/*": "./harness/*",
     "./conformance/*": "./conformance/*",
     "./scripts/*": "./scripts/*",
+    "./core-plugins/*": "./core-plugins/*",
+    "./contrib-plugins/*": "./contrib-plugins/*",
     "./examples/*": "./examples/*",
     "./package.json": "./package.json"
   },

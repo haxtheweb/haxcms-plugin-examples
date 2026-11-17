@@ -1,0 +1,49 @@
+- id: flickr-001
+  title: "inactive without a key, so the app is not in the editor"
+  given: "no key"
+  when: "rebuild"
+  then: "Flickr is not among the appstore apps; the search route is not served"
+  run:
+    steps:
+      - rebuild: {}
+        expect: { status_of: { flickr: inactive }, notContains: ['"Flickr"'] }
+      - call: { operation: flickrSearch, query: { text: x } }
+        expect: { status: 404 }
+- id: flickr-002
+  title: "the proxy adds the key server-side and passes only listed parameters"
+  given: "a key; api.flickr.com answers"
+  when: "the editor searches"
+  then: "the outgoing request carries the key and the search; an unlisted parameter is dropped; the key never reaches the response"
+  run:
+    settings: { apiKey: test-key-flickr }
+    fetch: { api.flickr.com: { status: 200, body: {"photos": {"page": 1, "pages": 1, "perpage": 20, "photo": [{"id": "f1", "title": "tree"}]}} } }
+    steps:
+      - rebuild: {}
+        expect: { body: { apps: ["Flickr"] } }
+      - call: { operation: flickrSearch, query: { text: cats, sneaky: "1" } }
+        expect:
+          status: 200
+          fetch: { count: 1, contains: ["https://api.flickr.com/services/rest", "api_key=test-key-flickr", "text=cats"], notContains: [sneaky] }
+          notContains: [test-key-flickr]
+- id: flickr-003
+  title: "first enable moves the key out of the core config"
+  given: "appStore.apiKeys.flickr in the core config"
+  when: "enable flickr"
+  then: "the plugin is active with the key; the core config no longer has it"
+  run:
+    records: { config: [{ id: core, appStore: { apiKeys: { flickr: old-test-key-flickr, other: keep } } }] }
+    steps:
+      - enable: flickr
+        expect: { status: 200, status_of: { flickr: active } }
+      - record: { type: config, id: core }
+        expect: { subject: { appStore: { apiKeys: { other: keep } } }, notContains: [old-test-key-flickr] }
+- id: flickr-004
+  title: "api.flickr.com down is a 502, not a crash"
+  given: "a key, no answer from api.flickr.com"
+  when: "search"
+  then: "502 with a log warning"
+  run:
+    settings: { apiKey: test-key-flickr }
+    steps:
+      - call: { operation: flickrSearch, query: { text: x } }
+        expect: { status: 502, notContains: [test-key-flickr], log: { contains: ["network is disabled in the harness"] } }

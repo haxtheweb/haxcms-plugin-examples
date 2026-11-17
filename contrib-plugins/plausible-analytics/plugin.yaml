@@ -1,0 +1,33 @@
+# Plausible Analytics (fake community plugin). A second tracker next to google-analytics, written to prove that
+# cookie-consent stays generic: it declares its own privacy block and cookie-consent asks for the categories it
+# needs without either plugin naming the other in code. Node only, to exercise the single-runtime path.
+specVersion: "0.1.0"
+id: plausible-analytics
+uuid: 7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f
+title: Plausible Analytics
+description: Adds privacy-friendly Plausible analytics to published pages, using the domain set for each site.
+version: 0.1.0
+category: analytics
+icon: icons:timeline
+tags: [analytics, privacy]
+docs: { readme: README.md, agents: AGENTS.md }
+license: Apache-2.0
+runtimes: [nodejs]
+entry:
+  nodejs: src/nodejs/index.js
+settings: config/settings.schema.json
+settingsScope: site
+suggests: [cookie-consent]          # Plausible sets no cookies; consent is only asked for when the site wants it
+conflicts: []
+staticCapable: true
+capabilities: ["output:inject"]
+privacy:
+  tracking: true
+  categories: [analytics]
+  requiresConsent: [analytics]       # only where waitForConsent is on (consentSetting)
+  consentSetting: waitForConsent
+  cookies: []
+  recipients: [plausible.io]
+hooks:
+  - name: config.before.save
+  - name: render.before.head

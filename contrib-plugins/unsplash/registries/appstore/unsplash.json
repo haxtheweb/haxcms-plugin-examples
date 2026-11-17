@@ -1,0 +1,63 @@
+{
+  "apps": [
+    {
+      "details": {
+        "title": "Unsplash",
+        "icon": "image:collections",
+        "color": "grey",
+        "author": "Unsplash",
+        "description": "Crowd sourced, open photos",
+        "status": "available",
+        "tags": [
+          "images",
+          "crowdsourced",
+          "cc"
+        ]
+      },
+      "connection": {
+        "protocol": "https",
+        "url": "/v1/plugins/unsplash",
+        "operations": {
+          "browse": {
+            "method": "GET",
+            "endPoint": "search",
+            "pagination": {
+              "style": "page",
+              "props": {
+                "page": "page",
+                "total_pages": "total_pages",
+                "total_items": "total"
+              }
+            },
+            "search": {
+              "query": {
+                "title": "Search",
+                "type": "string"
+              }
+            },
+            "data": {
+              "per_page": "20"
+            },
+            "resultMap": {
+              "defaultGizmoType": "image",
+              "items": "results",
+              "preview": {
+                "title": "tags.0.title",
+                "details": "description",
+                "image": "urls.thumb",
+                "id": "id"
+              },
+              "gizmo": {
+                "id": "id",
+                "source": "urls.regular",
+                "alt": "description",
+                "caption": "description",
+                "citation": "user.name"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
