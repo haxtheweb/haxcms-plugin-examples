@@ -5,12 +5,13 @@
 // runs the render pipeline and transactions, and builds the ctx object. Plugin code runs in Node directly, or in
 // PHP through harness/php/bridge.php, so the same cases can run against both runtimes.
 // It is a test double for plugins and for the spec, not a server: no HTTP, no disk writes, no network.
-import { readFileSync, existsSync, mkdtempSync, readdirSync, statSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, existsSync, mkdtempSync, readdirSync, statSync, mkdirSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname, normalize, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync, spawn } from "node:child_process";
 import { inflateRawSync } from "node:zlib";
+import { createHash } from "node:crypto";
 import { parse } from "yaml";
 import { validateManifest } from "../scripts/manifest-schema.mjs";
 import { backendNeeds, targetFit, targetSummary, TARGETS } from "../scripts/backend-needs.mjs";
@@ -105,6 +106,11 @@ const cmpVersion = (a, b) => { const x = String(a).split(".").map(Number), y = S
 // what both backends write into a new site's site.json besides its id and title (their boilerplate/site/site.json).
 // The reference site starts the same way, so a plugin that reads the license sees what it would on a real new site.
 const NEW_SITE = { author: "", description: "", license: "by-sa" };
+// what the assets route serves, by extension (spec/07): scripts, styles, images, fonts and data a page loads
+export const ASSET_TYPES = Object.freeze({ ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".avif": "image/avif", ".woff2": "font/woff2", ".woff": "font/woff", ".txt": "text/plain", ".map": "application/json" });
+// anonymous calls to one operation from one client (spec/05): the default, and what x-hax-rate-limit may ask for
+const RATE_DEFAULT = { requests: 60, per: "minute" };
+const RATE_WINDOWS = { second: 1000, minute: 60000, hour: 3600000 };
 const LIMITED_USER = ["id", "name", "displayName", "roles", "avatar"];
 async function withTimeout(promise, ms, label) {
   let timer;
@@ -123,6 +129,7 @@ export const REGISTRY_REFUSALS = Object.freeze({
   blocked: "blocked by deployment config",
   locked: "locked by deployment config",
   systemEnabled: "enabled for the whole system; a site cannot turn it off",
+  settingsScope: "these settings are not saved in this scope",
 });
 
 export class MemoryBackend {
@@ -150,6 +157,8 @@ export class MemoryBackend {
     // core records plugins reach through ctx.entities: the site's site.json, pages, files
     this.revs = new Map(); // "type:id" -> revision, bumped on every write (optimistic concurrency for ctx.entities.save)
     this.managed = new Map(); // managed files written by plugins: path -> { plugin, content }
+    this.storeLocks = new Map(); // store key -> the tail of its queue of updates (ctx.storage.update)
+    this.rate = new Map(); // "<operation>|<client>" -> { start, count } for anonymous calls (spec/05)
     this.execCalls = [];
     this.fetchCalls = [];
     this.fetchFakes = {};
@@ -211,7 +220,7 @@ export class MemoryBackend {
       if (api) {
         for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
           if (!op || !op.operationId) continue;
-          p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, atomic: (op["x-hax-transaction"] || api["x-hax-transaction"]) === "atomic", security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null };
+          p.ops[op.operationId] = { operationId: op.operationId, path, verb, scope: op["x-hax-scope"] || api["x-hax-scope"] || "site", public: op["x-hax-public"] === true, atomic: (op["x-hax-transaction"] || api["x-hax-transaction"]) === "atomic", security: op.security || api.security || [], proxy: op["x-hax-proxy"] || null, rateLimit: op["x-hax-rate-limit"] || null };
         }
       }
       if (m.datastores) for (const s of readAny(join(p.dir, m.datastores)).stores) p.stores[s.id] = s;
@@ -654,6 +663,53 @@ export class MemoryBackend {
     this.memory.set(this.storeKey(p, id), structuredClone(value));
   }
 
+  // ctx.storage.update (spec/04): read, change and write one store as a single step. Updates of the same store
+  // queue behind each other, so two requests that each add one vote end with two votes; a read followed by a write
+  // can lose one. A backend with several processes (haxcms-php) takes a file lock for the same span.
+  async updateStore(p, id, fn) {
+    if (p.stores[id] && p.stores[id].scope === "package") throw new Error(`${p.id}: store "${id}" is read-only (package scope)`);
+    const key = this.storeKey(p, id);
+    const before = this.storeLocks.get(key) || Promise.resolve();
+    let release;
+    const mine = before.then(() => new Promise((r) => { release = r; }));
+    this.storeLocks.set(key, mine);
+    await before;
+    try {
+      const next = await fn(this.readStore(p, id));
+      if (next !== undefined) this.writeStore(p, id, next);
+      return next === undefined ? this.readStore(p, id) : structuredClone(next);
+    } finally {
+      release();
+      if (this.storeLocks.get(key) === mine) this.storeLocks.delete(key);
+    }
+  }
+
+  // A front-end file of a plugin, for GET .../plugins/<id>/assets/<path> (spec/07, assets). Only files under
+  // frontend/dist of a plugin that is on, with an extension from the list, and (once `hax plugin build` has written
+  // the manifest's `assets`) only the files that list names. Returns { status, file, type } or { status: 404 }:
+  // every refusal is the same 404, so the route says nothing about what exists.
+  asset(pluginId, path) {
+    const none = { status: 404 };
+    const p = this.get(String(pluginId));
+    if (!p || !(p.status === "active" || p.status === "inactive")) return none;
+    const rel = String(path || "");
+    if (!rel || rel.includes("\\") || rel.includes("\0") || rel.split("/").some((seg) => seg === "" || seg === "." || seg === ".." || seg.startsWith("."))) return none;
+    const type = ASSET_TYPES[rel.slice(rel.lastIndexOf(".")).toLowerCase()];
+    if (!type) return none;
+    const base = join(p.dir, "frontend", "dist");
+    const file = join(base, ...rel.split("/"));
+    if (!file.startsWith(base + sep) || !existsSync(file) || !statSync(file).isFile()) return none;
+    // a link that leaves frontend/dist is not served
+    if (!realpathSync(file).startsWith(realpathSync(base) + sep)) return none;
+    if (Array.isArray(p.manifest.assets)) {
+      const entry = p.manifest.assets.find((a) => a && a.id === rel);
+      if (!entry) return none;
+      // a file changed since the build is not what was packaged, reviewed or signed
+      if (entry.hash !== `sha256-${createHash("sha256").update(readFileSync(file)).digest("base64")}`) return none;
+    }
+    return { status: 200, file, type };
+  }
+
   // ---- ctx (spec/13 section 4) ----
   userFor(p) {
     if (!this.user) return null;
@@ -678,7 +734,7 @@ export class MemoryBackend {
       warn: (message, severity = "warning") => { warnings.push({ message, severity }); },
       respond: (html) => ({ __respond: html }),
       settings: Object.freeze(backend.effectiveSettings(p)),
-      storage: { read: async (id) => backend.readStore(p, id), write: async (id, v) => backend.writeStore(p, id, v) },
+      storage: { read: async (id) => backend.readStore(p, id), write: async (id, v) => backend.writeStore(p, id, v), update: async (id, fn) => backend.updateStore(p, id, fn) },
       package: {
         read: async (path, { binary = false } = {}) => {
           const full = normalize(join(p.dir, path));
@@ -1184,7 +1240,8 @@ export class MemoryBackend {
   }
 
   // ---- operations (spec/13 section 5) ----
-  async call(operationId, request = {}, { credentials = "both" } = {}) {
+  // `client` is who is calling when nobody is signed in: the request's address, as the backend's own limiter sees it
+  async call(operationId, request = {}, { credentials = "both", client = null } = {}) {
     const p = this.plugins.find((x) => x.ops[operationId]);
     if (!p || p.status !== "active") return { status: 404, body: { error: "not found" } };
     const op = p.ops[operationId];
@@ -1196,6 +1253,16 @@ export class MemoryBackend {
       const needsUser = op.security.some((req) => "userTokenHeader" in req || "siteTokenHeader" in req);
       if (needsJwt && credentials === "none") return { status: 401, body: { error: "unauthorized" } };
       if (needsUser && credentials !== "both") return { status: 401, body: { error: op.security.some((req) => "siteTokenHeader" in req) ? "X-HAXCMS-Site-Token header is required for this endpoint" : USER_TOKEN_REQUIRED } };
+    }
+    // anonymous calls are limited per operation and client (spec/05): 60 a minute unless x-hax-rate-limit says otherwise
+    if (credentials === "none" && (op.public || optional)) {
+      const lim = op.rateLimit && Number(op.rateLimit.requests) > 0 ? op.rateLimit : RATE_DEFAULT;
+      const win = RATE_WINDOWS[lim.per] || RATE_WINDOWS.minute;
+      const key = `${operationId}|${client || "-"}`;
+      const slot = this.rate.get(key);
+      if (!slot || this.now - slot.start >= win) this.rate.set(key, { start: this.now, count: 1 });
+      else if (slot.count >= Number(lim.requests)) return { status: 429, headers: { "retry-after": String(Math.max(1, Math.ceil((slot.start + win - this.now) / 1000))) }, body: { error: "too many requests" } };
+      else slot.count++;
     }
     let req = { params: {}, query: {}, body: {}, headers: {}, files: [], ...request };
     const before = await this.fire("rest.before.request", { method: op.verb.toUpperCase(), path: op.path, operationId, plugin: p.id, ...req });
