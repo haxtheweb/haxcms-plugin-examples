@@ -216,6 +216,47 @@
         expect: { veto: false, log: { contains: ["fx-core-events:site.after.archive"] } }
       - fire: { hook: git.after.commit, subject: { message: forbidden } }
         expect: { veto: false, log: { contains: ["fx-core-events:git.after.commit"] } }
+- id: hooks-021
+  title: "plugins stack: each depends on the one below, defines its own hooks and reacts to the hooks below it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "fx-definer defines a hook; fx-stack-mid depends on it, listens to that hook and fires one of its own inside it; fx-stack-top depends on fx-stack-mid and listens to that"
+  when: "fx-definer's operation fires its hook"
+  then: "the middle plugin hears it and fires its own; the top plugin hears that with the subject passed along and has the middle plugin do work through the contract it offers, which runs as the middle plugin"
+  run:
+    plugins: [fx-definer, fx-stack-mid, fx-stack-top]
+    steps:
+      - call: { operation: fxDefinerPing }
+        expect: { status: 200, body: { fired: true }, log: { contains: ["fx-stack-mid:fx-definer.after.ping", "fx-stack-top:fx-stack-mid.after.relay from fx-definer at 1", "fx-stack-mid stored doc-1 as fx-stack-mid", "fx-stack-top was told: doc-1 by fx-stack-mid"] } }
+- id: hooks-022
+  title: "a stacked plugin cannot be on without the plugin below it, and the one below cannot be turned off under it"
+  spec: spec/06-hooks-and-contracts.md
+  given: "the same stack"
+  when: "the bottom plugin is disabled while the middle is on; then the stack is taken down from the top"
+  then: "the first disable is refused naming the dependent; top-down succeeds"
+  run:
+    plugins: [fx-definer, fx-stack-mid, fx-stack-top]
+    steps:
+      - disable: fx-definer
+        expect: { status: 409, body: { dependents: [fx-stack-mid] } }
+      - disable: fx-stack-mid
+        expect: { status: 409, body: { dependents: [fx-stack-top] } }
+      - disable: fx-stack-top
+        expect: { status: 200 }
+      - disable: fx-stack-mid
+        expect: { status: 200 }
+      - disable: fx-definer
+        expect: { status: 200 }
+- id: hooks-023
+  title: "what any plugin writes to the log reaches a plugin that implements log.sink, when one is on"
+  spec: spec/06-hooks-and-contracts.md
+  given: "fx-definer, fx-suggester (logs when it hears the hook) and fx-log-sink (implements log.sink)"
+  when: "fx-definer's operation runs and another plugin writes to the log"
+  then: "the sink receives what the other plugin wrote, and never its own entries"
+  run:
+    plugins: [fx-definer, fx-suggester, fx-log-sink]
+    steps:
+      - call: { operation: fxDefinerPing }
+        expect: { status: 200, log: { contains: ["fx-log-sink got [info] fx-suggester: fx-suggester:fx-definer.after.ping"], notContains: ["fx-log-sink got [info] fx-log-sink"] } }
 - id: render-001
   title: "render.before can short-circuit with a cached document; render.after stores it"
   spec: spec/06-hooks-and-contracts.md

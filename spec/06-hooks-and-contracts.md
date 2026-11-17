@@ -180,6 +180,32 @@ Hook definitions share one format (`schema/hook-contracts.schema.json`): the cor
 
 Whether a hook from another plugin is a hard or soft requirement is the subscriber's choice. List the definer in `dependencies` when the plugin cannot work without it, or in `suggests` when the subscription only adds something: the subscription is simply inactive while the definer is absent. Example: a plugin that adds a tracking beacon to its own links subscribes to a hook from `google-analytics` and lists it in `suggests`; without analytics there is nothing to beacon, and the plugin still works. The validator warns about a subscription to a non-core hook whose definer is in neither list.
 
+## Stacks of plugins
+
+Plugins build on each other, and every layer can have hooks of its own. Take syncing a site's pages to Google Docs:
+
+| Plugin | Depends on | Defines | Listens to |
+|---|---|---|---|
+| `gsuite-oauth` | | `gsuite-oauth.after.connect`, `gsuite-oauth.after.disconnect` | |
+| `gsuite-drive` | `gsuite-oauth` | `gsuite-drive.after.upload`, `gsuite-drive.before.delete` | `gsuite-oauth.after.disconnect` (drop its cached folder ids) |
+| `gdocs-sync` | `gsuite-drive` | | `page.after.save` (write the page to a doc), `gsuite-drive.after.upload` (record the doc's id on the page) |
+
+Each plugin names only the plugin directly below it. The loader enables them bottom-up and refuses to turn one off while something above it is on (hooks-022). A hook handler may fire its own plugin's hooks, so an event travels up the stack inside one transaction (hooks-021). Nothing here is special to Google: it is `dependencies`, `hookDefinitions` and subscriptions.
+
+Hooks carry events up the stack. To call down, the upper plugin calls a contract the lower one defines and implements (`ctx.contracts.call("gsuite-drive.files", "upload", input)`); the callee runs with its own `ctx`, capabilities and secrets, so the sync plugin never holds the Google token.
+
+## Reaching a plugin that may be off
+
+A plugin fires only the hooks it defines. That is deliberate: the definer owns what the hook means and when it happens, and a subscriber can trust that. So "tell the log plugin about this, if it is on" is not done by firing the log plugin's hook. There are three tools, and which one fits depends on the direction:
+
+| You want to | Use | When the other plugin is off |
+|---|---|---|
+| say that something happened in your plugin, for anyone who cares | a hook you define; they subscribe and list you in `suggests` or `dependencies` | their subscription is inactive |
+| have another plugin do something for you, if there is one | a contract: core's (`log.sink`, `import.file`) or one a plugin defines; you call it, implementers answer | no implementer, nothing is called |
+| write to the log | `ctx.log`; core writes with the backend's own log call | no plugin implements `log.sink`, nothing is kept |
+
+Logging is the plain case. Every plugin and core writes with `ctx.log` or the backend's log call, always, without asking whether a log plugin exists. The `log` plugin implements `log.sink` and receives every entry while it is on (hooks-023); a second sink, such as one that forwards errors to a chat channel, receives them too. With no sink on, writing costs nothing and keeps nothing.
+
 ## Filtering is the plugin's job
 
 Core fires hooks for every operation; it does not offer filters for criteria such as published state or role. A hook checks the subject and returns early when it does not care (a `llms-txt` plugin ignores unpublished pages in its own hook logic). Alias definitions may name entity types and changed fields only, because those define what the alias is, not what a subscriber cares about.
