@@ -1,4 +1,4 @@
-# Deployment targets: server, desktop, browser, static
+# Deployment targets: server, desktop, command line, browser, static
 
 Part of the HAXcms plugin specification (decision source: https://github.com/haxtheweb/issues/issues/3176).
 
@@ -12,6 +12,7 @@ A **target** is where a HAXcms backend runs. Every backend says which one it is 
 |---|---|---|---|---|---|
 | `server` | haxcms-nodejs or haxcms-php on a host people reach over the web | nodejs, php | everything | | |
 | `desktop` | haxcms-nodejs inside https://github.com/haxtheweb/haxcms-desktop, on one person's computer | nodejs | backend, commands, outbound requests, secrets | scheduled jobs run only while the app is open | a backend visitors can reach |
+| `cli` | haxcms-nodejs loaded in-process by the `hax` CLI for one command, with no server listening | nodejs | backend, commands, outbound requests, secrets | a scheduled job runs only when a command runs it | a backend visitors can reach |
 | `browser` | haxcms-nodejs bundled into a Worker by https://github.com/haxtheweb/haxcms-browser, in one person's browser tab | nodejs | backend | outbound requests reach only hosts that allow cross-origin requests; secrets are kept in the browser's storage, where the person using it can read them | commands, scheduled jobs, a backend visitors can reach |
 
 **Static** is not a target: a statically published site has no backend at all. `staticCapable` and `staticFallback` (spec/02) already say what a plugin does there, and the registry reports it next to the targets.
@@ -59,9 +60,26 @@ The plugin registry (spec/03) carries, for every installed plugin, its `needs`, 
 
 ## Conformance
 
-`conformance/cases/targets.yaml` (target-001 to target-004) runs every backend as each target. A case chooses one with `target: desktop|browser`; the default is `server`.
+`conformance/cases/targets.yaml` (target-001 to target-005) runs every backend as each target. A case chooses one with `target: desktop|cli|browser`; the default is `server`.
+
+### Where one plugin runs
+
+`hax-plugin-check` has a `targets` layer that answers the question for one plugin, as a row of verdicts:
+
+```
+runs on  nodejs:full(10/10)  php:full(9/9)  desktop:limited(10/10)  cli:limited(10/10)  browser:no  static:no
+```
+
+- `nodejs` and `php` are the two backends on a hosted server; `desktop`, `cli` and `browser` are the other targets; `static` is a static publish.
+- The verdict (`full`, `limited`, `no`) is derived from the manifest by the same code every backend's registry uses, so the check and the plugin screen cannot disagree.
+- The plugin's own cases are then run again as every target it fits (`hax-plugin-test --target <target>`). A case written for one target (`run.target`) runs only there.
+- The layer fails when a target the plugin fits fully does not pass its cases, or when `targets` in the manifest lists a target the plugin cannot run on. On a limited target the count is reported and does not fail the layer, because a case may be about the very thing that target lacks.
+- `--json` carries the whole matrix with the reasons (`layers.targets.matrix`), which is what a plugin listing shows before anyone installs.
+
+What this does not do: it runs the reference engine as each target. It does not start haxcms-desktop or haxcms-browser. A plugin that passes as `browser` here has been shown not to need what the browser lacks; that it loads in a real Worker is haxcms-browser's own test (see Open).
 
 ## Open
 
+- What it takes to make plugins run in haxcms-browser, and the decisions that are open, are in the draft chapter 15.
 - haxcms-browser has to load plugin entries from its in-memory volume. The engine imports an entry by file URL today; the browser build needs to import it from a blob of the same text. That is a change in haxcms-browser, tracked with its plugin support.
 - Whether the desktop app can be given a public address (a tunnel) and then report `visitors` as provided.

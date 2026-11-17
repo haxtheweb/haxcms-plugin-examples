@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // hax-plugin-test: run a plugin's executable test cases (tests/cases/*.yaml with a `run` block) through the
 // reference harness, in Node, in PHP, or both. With both, every case must also give the same result in each.
-// Usage: node harness/run-cases.mjs <plugin folder> [--runtime nodejs|php|both] [--json [--outputs]] [--backend <adapter module>]
+// Usage: node harness/run-cases.mjs <plugin folder> [--runtime nodejs|php|both] [--target <target>] [--json [--outputs]] [--backend <adapter module>]
+// --target runs the cases as that deployment target (spec/14); a case written for one target (run.target) runs only there.
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +14,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const backendArg = args.includes("--backend") ? args[args.indexOf("--backend") + 1] : null;
 const backendFactory = backendArg ? await import((await import("node:url")).pathToFileURL((await import("node:path")).resolve(backendArg)).href) : null;
-const dir = resolve(args.find((a, i) => !a.startsWith("--") && !["--backend", "--runtime"].includes(args[i - 1])) || ".");
+const dir = resolve(args.find((a, i) => !a.startsWith("--") && !["--backend", "--runtime", "--target"].includes(args[i - 1])) || ".");
+const targetArg = args.includes("--target") ? args[args.indexOf("--target") + 1] : null;
 const runtimeArg = (args.find((a) => a.startsWith("--runtime=")) || "").split("=")[1] || (args.includes("--runtime") ? args[args.indexOf("--runtime") + 1] : "both");
 const asJson = args.includes("--json");
 // --outputs (with --json): include every case's step outputs, so two backends can be compared case by case
@@ -29,7 +31,7 @@ import { step } from "./steps.mjs";
 
 async function runCase(c, runtime) {
   const r = c.run;
-  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}), ...(r.target ? { target: r.target } : {}) };
+  const opts = { haxcmsVersion: r.haxcmsVersion || "26.10.1", runtime, ...(r.user ? { user: r.user } : {}), ...(r.target || targetArg ? { target: r.target || targetArg } : {}) };
   // --backend <module>: a real backend's adapter (spec/13 section 9) exporting createBackend(opts); default is the reference
   const backend = backendFactory ? await backendFactory.createBackend(opts) : new MemoryBackend(opts);
   await backend.load([dir, ...(r.with || []).map((w) => join(root, w))], { settings: { [manifest.id]: r.settings || {} }, stores: { [manifest.id]: r.stores || {} }, records: r.records });
@@ -59,6 +61,7 @@ for (const f of files) {
   const cases = parse(readFileSync(join(casesDir, f), "utf8")) || [];
   for (const c of cases) {
     if (!c.run) continue;
+    if (targetArg && c.run.target && c.run.target !== targetArg) continue;
     const rts = runtimes.filter((rt) => !c.runtimes || c.runtimes.includes(rt));
     const per = {};
     for (const rt of rts) {

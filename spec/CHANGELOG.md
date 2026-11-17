@@ -14,6 +14,11 @@ Entry format:
 ## 0.1.0 (draft)
 - Initial draft. No upgrade recipes needed yet.
 
+### Core events, the cli target and the targets check (0.1.0 draft)
+- Change: both backends fire the file, site lifecycle, sign-in and git commit hooks (GAPS 1w lists exactly which and what is not applied). `cli` is a deployment target. `hax-plugin-check` gains a `targets` layer, and `hax-plugin-test` takes `--target`.
+- Upgrade recipe: nothing breaks. A plugin whose `targets` lists every target should add `cli` if it is meant for the command line. Run `hax-plugin-check --only targets <plugin>` and read the row: a `full` target whose cases fail is a real problem; a `limited` one is a sentence to put in the plugin's description.
+- Fixture: `conformance/fixtures/fx-core-events` (hooks-019, hooks-020); `conformance/cases/targets.yaml` (target-005).
+
 ### Outline saves as page events, and the served contract (0.1.0 draft)
 - Change: an outline save and a bulk page create fire the page hooks for every page they add, change or remove, inside one bulk transaction whose origin is `saveOutline` or `createNode`; a veto refuses the whole request before anything is written (spec/06, Transactions). The contract of what plugins add is served at `.../plugins/openapi.json|yaml` and per plugin at `.../plugins/<id>/openapi.json|yaml` (spec/13 section 5).
 - Upgrade recipe: nothing breaks. A plugin whose `page.before.save` or `page.before.delete` vetoes now also refuses outline saves that include the page; check that the veto message makes sense to someone reordering an outline. A plugin that does expensive work in `page.after.save` should mark and defer when `ctx.transaction.bulk` is true.
