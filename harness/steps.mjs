@@ -28,6 +28,17 @@ export async function step(backend, raw, vars = {}) {
   else if (s.record) Object.assign(out, { subject: structuredClone((backend.records[s.record.type] || {})[s.record.id || backend.site.id] || null) });
   // registry: the plugin registry a backend serves (spec/03): status, needs, how it fits each target
   else if (s.registry) Object.assign(out, { status: 200, body: Object.fromEntries((await backend.registry()).map((e) => [e.id, e])) });
+  // openapi: the contract a backend serves for its plugins (spec/13 section 5), for one plugin or all, as what a
+  // case can check: each operation's verb and mounted path, and whether anything server-side leaked into it
+  else if (s.openapi) {
+    const o = s.openapi === true ? {} : s.openapi;
+    const doc = await backend.unifiedContract({ ...(o.scope ? { scope: o.scope } : {}), ...(o.plugin ? { plugin: o.plugin } : {}) });
+    const operations = {};
+    let leaked = false;
+    for (const [path, verbs] of Object.entries(doc.paths || {})) for (const [verb, op] of Object.entries(verbs)) { operations[op.operationId] = `${verb} ${path}`; if (op["x-hax-proxy"] !== undefined) leaked = true; }
+    const none = Object.keys(operations).length === 0;
+    Object.assign(out, o.plugin && none ? { status: 404, body: { error: "not found" } } : { status: 200, body: { title: doc.info.title, count: Object.keys(operations).length, operations, leaked } });
+  }
   else if (s.advertised) Object.assign(out, { status: 200, body: await backend.advertisedContracts() });
   else if (s.siteFile) { const { existsSync } = await import("node:fs"); const { join } = await import("node:path"); Object.assign(out, { body: { exists: existsSync(join(backend.site.path, s.siteFile)) } }); }
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));

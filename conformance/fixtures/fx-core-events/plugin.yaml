@@ -1,0 +1,29 @@
+specVersion: "0.1.0"
+id: fx-core-events
+uuid: b2c86cd4-97a8-581a-a19c-b39b12275161
+title: fx-core-events (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+hooks:
+  - name: file.before.save
+  - name: file.after.save
+  - name: file.before.delete
+  - name: file.after.delete
+  - name: site.before.create
+  - name: site.after.create
+  - name: site.before.duplicate
+  - name: site.after.duplicate
+  - name: site.before.archive
+  - name: site.after.archive
+  - name: site.before.export
+  - name: site.after.export
+  - name: user.before.login
+  - name: user.after.login
+  - name: user.before.logout
+  - name: user.after.logout
+  - name: git.before.commit
+  - name: git.after.commit

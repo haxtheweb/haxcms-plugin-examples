@@ -172,6 +172,50 @@
   given: "git.after.commit declared detached with a 2 second job"
   when: "save a page"
   then: "response returned before the job finishes; the job completes within its 60 second limit"
+- id: hooks-019
+  title: "file, site lifecycle, sign-in and git events reach a plugin that listens, and a before hook can refuse them"
+  spec: spec/06-hooks-and-contracts.md
+  given: "fx-core-events listens to the file, site, user and git hooks and vetoes a subject named forbidden"
+  when: "each before hook fires with an ordinary subject, then with one named forbidden"
+  then: "every hook is logged; the forbidden ones are vetoed with the plugin's message"
+  run:
+    plugins: [fx-core-events]
+    steps:
+      - fire: { hook: file.before.save, entity: file, subject: { name: photo.jpg, mimeType: image/jpeg, size: 10 } }
+        expect: { veto: false, log: { contains: ["fx-core-events:file.before.save"] } }
+      - fire: { hook: file.before.save, entity: file, subject: { name: forbidden.jpg } }
+        expect: { veto: true }
+      - fire: { hook: file.before.delete, entity: file, subject: { name: forbidden.jpg } }
+        expect: { veto: true }
+      - fire: { hook: site.before.create, subject: { name: demo, title: Demo } }
+        expect: { veto: false, log: { contains: ["fx-core-events:site.before.create"] } }
+      - fire: { hook: site.before.archive, subject: { name: forbidden-site, title: Old } }
+        expect: { veto: true }
+      - fire: { hook: site.before.export, subject: { name: demo, title: Demo } }
+        expect: { veto: false, log: { contains: ["fx-core-events:site.before.export"] } }
+      - fire: { hook: user.before.login, subject: { id: u1, name: forbidden } }
+        expect: { veto: true }
+      - fire: { hook: user.after.logout, subject: { id: u1, name: admin } }
+        expect: { veto: false, log: { contains: ["fx-core-events:user.after.logout"] } }
+      - fire: { hook: git.before.commit, subject: { message: "Page added", files: [] } }
+        expect: { veto: false, log: { contains: ["fx-core-events:git.before.commit"] } }
+      - fire: { hook: git.before.commit, subject: { message: "forbidden", files: [] } }
+        expect: { veto: true }
+- id: hooks-020
+  title: "an after hook cannot refuse what already happened"
+  spec: spec/06-hooks-and-contracts.md
+  given: "fx-core-events"
+  when: "after hooks fire with a subject named forbidden"
+  then: "they are logged and nothing is vetoed"
+  run:
+    plugins: [fx-core-events]
+    steps:
+      - fire: { hook: file.after.delete, entity: file, subject: { name: forbidden.jpg } }
+        expect: { veto: false, log: { contains: ["fx-core-events:file.after.delete"] } }
+      - fire: { hook: site.after.archive, subject: { name: forbidden-site } }
+        expect: { veto: false, log: { contains: ["fx-core-events:site.after.archive"] } }
+      - fire: { hook: git.after.commit, subject: { message: forbidden } }
+        expect: { veto: false, log: { contains: ["fx-core-events:git.after.commit"] } }
 - id: render-001
   title: "render.before can short-circuit with a cached document; render.after stores it"
   spec: spec/06-hooks-and-contracts.md

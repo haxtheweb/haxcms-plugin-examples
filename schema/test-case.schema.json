@@ -261,6 +261,7 @@
             "enum": [
               "server",
               "desktop",
+              "cli",
               "browser"
             ],
             "description": "The deployment target the backend runs as for this case (spec/14); default server."

@@ -109,3 +109,38 @@
       - call: { operation: fxTallyVote }
       - call: { operation: fxTallyVote }
         expect: { status: 200, body: { n: 5 } }
+- id: routes-010
+  title: "each plugin's contract is served with its operations at their mounted paths and nothing server-side"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-proxy (a site operation that proxies with a key) and fx-routes (system operations)"
+  when: "the contract is read for each plugin, for all plugins, and for one scope"
+  then: "a plugin's document lists only its own operations under /plugins/<id>/, x-hax-proxy is never in it, and the scope filter keeps site and system apart"
+  run:
+    plugins: [fx-proxy, fx-routes]
+    load: { settings: { fx-proxy: { key: k1 } } }
+    steps:
+      - openapi: { plugin: fx-proxy }
+        expect: { status: 200, body: { title: "HAXcms plugin fx-proxy", count: 1, leaked: false, operations: { fxProxySearch: "get /x/api/v1/plugins/fx-proxy/search" } } }
+      - openapi: { plugin: fx-routes }
+        expect: { status: 200, body: { count: 4, operations: { fxRoutesPublic: "get /system/api/v1/plugins/fx-routes/public" } } }
+      - openapi: { scope: site }
+        expect: { status: 200, body: { title: "HAXcms plugins", count: 1, leaked: false } }
+      - openapi: { scope: system }
+        expect: { status: 200, body: { count: 4 } }
+      - openapi: true
+        expect: { status: 200, body: { count: 5 } }
+- id: routes-011
+  title: "there is no contract document for a plugin that is not on, or for a scope it has nothing in"
+  spec: spec/13-backend-platform-contract.md
+  given: "fx-routes (system operations only), and no plugin named fx-absent"
+  when: "the contract is read for fx-absent, and for fx-routes at site scope"
+  then: "both are 404"
+  run:
+    plugins: [fx-routes]
+    steps:
+      - openapi: { plugin: fx-absent }
+        expect: { status: 404 }
+      - openapi: { plugin: fx-routes, scope: site }
+        expect: { status: 404 }
+      - openapi: { plugin: fx-routes, scope: system }
+        expect: { status: 200, body: { count: 4 } }
