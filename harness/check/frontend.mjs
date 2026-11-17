@@ -186,7 +186,7 @@ else {
     for (const e of r.errors) console.log(`     ! ${e}`);
   }
 }
-process.exit(results.some((r) => r.errors.length) ? 1 : 0);
+process.exitCode = results.some((r) => r.errors.length) ? 1 : 0;
 
 async function checkPlugin(dir) {
   const plugin = relative(process.cwd(), dir) || dir;

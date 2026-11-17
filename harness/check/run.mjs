@@ -251,6 +251,8 @@ const checks = {
     const fit = targetSummary(manifest, needs);
     const pack = manifest.kind === "pack";
     const runtimes = Array.isArray(manifest.runtimes) ? manifest.runtimes : [];
+    // no backend code of its own (a pack, or operations core answers itself such as x-hax-proxy): any backend runs it
+    const codeless = pack || !manifest.entry;
     const hasCases = existsSync(join(dir, "tests", "cases"));
     const errors = [];
     const notes = [];
@@ -261,8 +263,9 @@ const checks = {
       if (runtime === "php" && !hasPhp) return { skipped: "PHP not installed here" };
       const r = node(join(root, "harness/run-cases.mjs"), [dir, "--runtime", runtime, "--target", target, "--json"]);
       try {
-        const results = JSON.parse(r.stdout).results.filter((x) => x.runtime === runtime);
-        return { pass: results.filter((x) => x.ok).length, total: results.length, failed: results.filter((x) => !x.ok).map((x) => x.id) };
+        const report = JSON.parse(r.stdout);
+        const results = report.results.filter((x) => x.runtime === runtime);
+        return { pass: results.filter((x) => x.ok).length, total: results.length, failed: results.filter((x) => !x.ok).map((x) => x.id), notRun: report.notRun || [] };
       } catch {
         return { pass: 0, total: 0, failed: ["the case runner gave no report"] };
       }
@@ -271,6 +274,10 @@ const checks = {
       const entry = { fit: verdict, ...(why && why.length ? { why } : {}) };
       if (verdict !== "no" && runtime) {
         const t = tried(runtime, target);
+        if (t && t.notRun && t.notRun.length) {
+          entry.notRun = t.notRun;
+          notes.push(`${name}: ${t.notRun.length} case(s) not run there (${t.notRun[0].reason})`);
+        }
         if (t && t.skipped) entry.cases = t.skipped;
         else if (t && t.total) {
           entry.cases = `${t.pass}/${t.total}`;
@@ -289,11 +296,11 @@ const checks = {
     };
     // the two backends on a hosted server
     for (const rt of ["nodejs", "php"]) {
-      const runs = pack || runtimes.includes(rt);
+      const runs = codeless || runtimes.includes(rt);
       row(rt, !runs ? "no" : fit.server, pack ? null : rt, "server", !runs ? [`no ${rt} code (runtimes: ${runtimes.join(", ") || "none"})`] : reasons("server"));
     }
     for (const t of TARGET_NAMES.filter((n) => n !== "server")) {
-      const canRun = pack || runtimes.some((r) => TARGETS.targets[t].runtimes.includes(r));
+      const canRun = codeless || runtimes.some((r) => TARGETS.targets[t].runtimes.includes(r));
       row(t, fit[t], pack ? null : "nodejs", t, canRun ? reasons(t) : [`needs ${TARGETS.targets[t].runtimes.join(" or ")} code (runtimes: ${runtimes.join(", ") || "none"})`]);
     }
     // a static publish has no backend at all (spec/14): what the manifest says, or no backend need
@@ -348,4 +355,5 @@ else {
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n${results.length - failed}/${results.length} plugins pass${failed ? `; ${failed} fail` : ""}`);
 }
-process.exit(results.every((r) => r.ok) ? 0 : 1);
+// exitCode, not exit(): a long --json report written to a pipe is cut off at the pipe's buffer when the process exits at once
+process.exitCode = results.every((r) => r.ok) ? 0 : 1;
