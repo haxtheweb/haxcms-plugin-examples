@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-log-sink
+uuid: c1cc707e-a82a-56e0-801a-ff08206c87a4
+title: fx-log-sink (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [log.sink]

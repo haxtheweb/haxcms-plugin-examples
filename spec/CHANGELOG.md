@@ -14,6 +14,11 @@ Entry format:
 ## 0.1.0 (draft)
 - Initial draft. No upgrade recipes needed yet.
 
+### Stacks of plugins and the log (0.1.0 draft)
+- Change: spec/06 says how plugins stack and how to reach a plugin that may be off (a hook you define, a contract, or the log). Backends deliver log entries to `log.sink` implementers and have a log call for core.
+- Upgrade recipe: nothing breaks. A plugin that wrote to the log to be seen should keep doing so; it now reaches the `log` plugin when that is on. A plugin that fired another plugin's hook never worked and still does not: define a contract in the plugin that should be called, or a hook in the plugin where the event happens.
+- Fixture: `conformance/fixtures/fx-stack-mid`, `fx-stack-top`, `fx-log-sink` (hooks-021, hooks-022, hooks-023).
+
 ### Core events, the cli target and the targets check (0.1.0 draft)
 - Change: both backends fire the file, site lifecycle, sign-in and git commit hooks (GAPS 1w lists exactly which and what is not applied). `cli` is a deployment target. `hax-plugin-check` gains a `targets` layer, and `hax-plugin-test` takes `--target`.
 - Upgrade recipe: nothing breaks. A plugin whose `targets` lists every target should add `cli` if it is meant for the command line. Run `hax-plugin-check --only targets <plugin>` and read the row: a `full` target whose cases fail is a real problem; a `limited` one is a sentence to put in the plugin's description.
