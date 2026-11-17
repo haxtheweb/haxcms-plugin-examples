@@ -261,8 +261,9 @@ const checks = {
       if (runtime === "php" && !hasPhp) return { skipped: "PHP not installed here" };
       const r = node(join(root, "harness/run-cases.mjs"), [dir, "--runtime", runtime, "--target", target, "--json"]);
       try {
-        const results = JSON.parse(r.stdout).results.filter((x) => x.runtime === runtime);
-        return { pass: results.filter((x) => x.ok).length, total: results.length, failed: results.filter((x) => !x.ok).map((x) => x.id) };
+        const report = JSON.parse(r.stdout);
+        const results = report.results.filter((x) => x.runtime === runtime);
+        return { pass: results.filter((x) => x.ok).length, total: results.length, failed: results.filter((x) => !x.ok).map((x) => x.id), notRun: report.notRun || [] };
       } catch {
         return { pass: 0, total: 0, failed: ["the case runner gave no report"] };
       }
@@ -271,6 +272,10 @@ const checks = {
       const entry = { fit: verdict, ...(why && why.length ? { why } : {}) };
       if (verdict !== "no" && runtime) {
         const t = tried(runtime, target);
+        if (t && t.notRun && t.notRun.length) {
+          entry.notRun = t.notRun;
+          notes.push(`${name}: ${t.notRun.length} case(s) not run there (${t.notRun[0].reason})`);
+        }
         if (t && t.skipped) entry.cases = t.skipped;
         else if (t && t.total) {
           entry.cases = `${t.pass}/${t.total}`;
@@ -348,4 +353,5 @@ else {
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n${results.length - failed}/${results.length} plugins pass${failed ? `; ${failed} fail` : ""}`);
 }
-process.exit(results.every((r) => r.ok) ? 0 : 1);
+// exitCode, not exit(): a long --json report written to a pipe is cut off at the pipe's buffer when the process exits at once
+process.exitCode = results.every((r) => r.ok) ? 0 : 1;
