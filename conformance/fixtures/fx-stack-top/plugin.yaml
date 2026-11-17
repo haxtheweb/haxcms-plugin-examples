@@ -1,0 +1,13 @@
+specVersion: "0.1.0"
+id: fx-stack-top
+uuid: d68ead02-6af7-5f0f-aa84-38afdf026be3
+title: fx-stack-top (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+dependencies: [fx-stack-mid]
+hooks:
+  - name: fx-stack-mid.after.relay

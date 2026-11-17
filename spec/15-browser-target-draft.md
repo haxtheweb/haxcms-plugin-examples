@@ -44,21 +44,42 @@ The engine imports a plugin's entry by file URL. A Worker has no file URLs; the 
 | B. Author builds | `hax plugin build` emits one bundled file for the browser; the manifest names it | every author has a build step, and chapter 14's "nothing is bundled at load time" goes away |
 | C. Small loader | walk the entry's relative imports, turn each file into a blob URL, rewrite the specifiers, import the entry | about a hundred lines, no bundler; bare imports (`from "lodash"`) are refused, which the spec already asks |
 
-**Proposed: C.** It keeps the rule that a plugin is plain ES modules with relative imports, and the same folder runs on a server, the desktop app and the browser. The loader refuses a plugin over a size limit and reports it as `failed` with the reason.
+**Decided: C.** It keeps the rule that a plugin is plain ES modules with relative imports, and the same folder runs on a server, the desktop app and the browser. The loader refuses a plugin over a size limit and reports it as `failed` with the reason.
 
 ### 3. Where plugins come from
 
-On a server an administrator puts a plugin folder in `_plugins`. In the browser there is no administrator, and whoever runs the deployment (browser.hax.cloud) is not the person at the keyboard.
-
-- **First version, proposed:** only plugins that ship inside the build, as a read-only system tier. The person turns them on per site. No way to add code.
-- **Later:** a person adds a plugin to their own site (`<site>/_plugins/<id>`). It travels with the site folder, which is what chapter 3 already describes; a server that later opens the site applies its own deployment rules before running any of it.
+**Decided: only plugins that ship inside the build.** They are a read-only system tier; the person turns them on per site, and there will be many core plugins to choose from. Whoever wants a custom plugin installs HAXcms (the desktop app or a server) and adds it there. The browser has no way to add code.
 
 ### 4. Trust
 
-A plugin runs in the same Worker as HAXcms. On a server that is accepted, because an administrator chose the plugin. In the browser it means a plugin can call `fetch` itself instead of `ctx.fetch`, and nothing stops it: the egress list and `x-secret-egress` bind only code that goes through `ctx`.
+A plugin runs in the same Worker as HAXcms and could call `fetch` itself instead of `ctx.fetch`; the egress list and `x-secret-egress` bind only code that goes through `ctx`. With shipped plugins only, that is the same trust as the rest of the build, reviewed the same way. Isolating a plugin in its own Worker is not needed for this and is not planned.
 
-- For plugins that ship in the build this is the same trust as the rest of the build.
-- For plugins a person adds, real isolation would be one Worker per plugin with `ctx` passed over messages and a content security policy limiting where that Worker can connect. That is a larger piece of work and the reason user-added plugins are proposed for later.
+### 4a. Where settings and plugin data are kept
+
+Today haxcms-browser keeps one folder: the sites. Everything else HAXcms writes, the whole system layer under `_config`, lives in memory and is gone on the next load. For plugins that would mean choosing which ones are on, and filling in their settings, every time.
+
+What has to last, and where it already lives on a server:
+
+| | Path | Layer |
+|---|---|---|
+| which plugins are on for the system | `_config/plugins/plugins.yaml` | system |
+| a plugin's settings | `_config/plugins/config/<id>.json` | system |
+| secret settings | `_config/plugins/secrets/<id>.json` | system |
+| a plugin's system stores | `_config/data/<id>/` | system |
+| personal data per site | `_config/siteData/<site uuid>/<id>/` | system |
+| which plugins are on for one site, and its site settings | `<site>/_config/plugins/` | site, already saved with the site |
+
+**Proposed: keep `_config` the same way the sites are kept.** The code that mirrors the sites folder to a directory handle takes any folder, so a second mirror for `_config` is the same mechanism:
+
+- **In this browser (the default):** the browser's own private file system. This is the same API in Chrome, Edge, Firefox and Safari, so it is not Chrome-only.
+- **In a folder the person picked (Chrome, Edge):** a `_config` folder next to the sites, so the folder is a whole HAXcms that `hax serve` or the desktop app can open with the same plugins on and the same settings.
+- **In cloud storage:** next to the sites there too, with the secrets file left out. A secret would otherwise sit in someone's Drive in the clear.
+
+What follows from this:
+
+- The system layer is where a learner's own records belong (personal data, and the CMI data a tracking plugin keeps), because they are about the person and not about one site. In a single-site install the two layers are the same folder tree, so nothing changes there.
+- A secret setting saved in the browser is readable by the person using it. The settings form says so (chapter 14), and it is their own key.
+- Clearing the browser's site data clears all of it. The bar that says where sites are saved has to say the same about settings.
 
 ### 5. What a person is told
 
@@ -83,12 +104,22 @@ When such a site is published statically from the browser, the publish step list
 | Keeping a secret from the person using it | storage is theirs to read | limited: said on the settings form |
 | PHP-only plugins | the browser runs haxcms-nodejs | not offered |
 
-## Decisions that are open
+## Decisions
 
-1. **Shipped-only first, or user-added from the start?** Proposed: shipped-only. It avoids the isolation work and gets real plugins in front of people.
-2. **Loader C, or an author build step (B)?** Proposed: C.
-3. **Does the desktop app use the same loader?** It runs real Node, so it does not have to. Using the file import there keeps one less moving part.
-4. **Which plugins ship in the browser build?** A list in haxcms-browser, reviewed like the stub list, or every core plugin whose `browser` fit is not `no`?
+Taken:
+
+1. **Shipped plugins only.** A custom plugin means installing HAXcms.
+2. **The small loader (C)**, no author build step.
+3. **The desktop app keeps the file import.** It runs real Node, so its capabilities stay as close to a server's as they can.
+
+Open:
+
+4. **Which plugins ship in the browser build?** A list in haxcms-browser, reviewed like its stub list, or every core plugin whose `browser` fit is not `no`.
+5. **`_config` in cloud storage:** next to the sites as proposed above, or kept only in the browser.
+
+## Release order
+
+The plugin platform is not in the upcoming HAXcms release; the specification is still being assessed. The release after it is planned to carry it with two plugins: `announcements`, on by default, and `log`, off by default. The browser work in this chapter follows that.
 
 ## Not verified
 
