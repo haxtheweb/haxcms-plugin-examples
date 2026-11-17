@@ -23,6 +23,13 @@
       "provides": ["backend", "process", "network", "secrets"],
       "partial": { "schedule": "jobs run only while the app is open" }
     },
+    "cli": {
+      "title": "command line",
+      "about": "haxcms-nodejs loaded in-process by the hax CLI for one command, with no server listening",
+      "runtimes": ["nodejs"],
+      "provides": ["backend", "process", "network", "secrets"],
+      "partial": { "schedule": "a job runs only when a command runs it" }
+    },
     "browser": {
       "title": "browser",
       "about": "haxcms-nodejs bundled into a Worker by haxcms-browser, in one person's browser tab",

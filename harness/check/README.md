@@ -19,6 +19,7 @@ Installed as the package's `hax-plugin-check` bin, next to `hax-plugin-validate`
 | `node` | `src/nodejs`, `tests/nodejs` | ESLint with haxcms-nodejs's rules (no optional chaining), `node --test`, parity runners | haxcms-nodejs |
 | `php` | `src/php`, `tests/php` | `php -l` and PHPStan level 5. Errors that existed when the check was added are in `phpstan-baseline.neon`; new ones fail, and the baseline only shrinks. Then the plugin's own PHPUnit tests (`tests/php/*Test.php`), see below. CI runs this layer and `cases` on PHP 8.3, 8.4, 8.5 and 8.6 | haxcms-php |
 | `frontend` | `frontend/dist`, `registries/elements`, `registries/themes` | ESLint with webcomponents' rules, then in Chrome for each element (rendered from its haxProperties `demoSchema`): loads with no error, axe WCAG 2.0/2.1 A and AA (incl. color contrast) in light and in dark, every id reference (`aria-describedby`, `aria-labelledby`, `aria-controls`, `label for`...) resolves inside its own root (an id cannot point across a shadow boundary, and axe does not check inside shadow roots), changes its own colors in dark mode, and runs no animation with reduced motion on. Other modules must import cleanly | webcomponents (axe tests, contrast, dark-motion gates) |
+| `targets` | always | Where it can run: `nodejs` and `php` on a server, `desktop`, `cli`, `browser`, and a `static` publish, each `full`, `limited` or `no` with the reasons. Its cases run again as every target it fits; a `full` target that fails them fails the layer | spec/14 |
 | `live` | `--haxcms <haxcms-nodejs checkout>` | Boots a real haxcms-nodejs server (its e2e boot: temp root, real JWT login), installs the plugin and its dependencies, creates a real site, then over HTTP: the plugin is listed and not failed, contributions answer, every GET route without path parameters answers without crashing, and a page created and saved through the real API saves (or is vetoed with a 409). Required settings come from the plugin's own test cases | a real deployment |
 
 A layer the plugin has nothing for is `skip`. A layer whose tool is missing on this machine (PHP, Chrome) is `skip` with the reason; CI installs both.
@@ -75,7 +76,7 @@ A package or file found nowhere is answered with an empty module and listed as a
 
 ## Files
 
-- `run.mjs`: the command and the `manifest`, `cases`, `node` and `php` layers
+- `run.mjs`: the command and the `manifest`, `cases`, `node`, `php` and `targets` layers (`targets`: where the plugin can run, spec/14)
 - `frontend.mjs`: the browser checks (puppeteer-core with the system Chrome, axe-core; every request outside the local server is aborted)
 - `live-nodejs.cjs`: the live layer
 - `eslint-config.mjs`: the ESLint rules, shared with the repo's `eslint.config.mjs`

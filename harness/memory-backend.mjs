@@ -337,9 +337,10 @@ export class MemoryBackend {
   }
   // the unified contract (spec/05) as callers see it: every active plugin's operations mounted under its prefix;
   // x-hax-proxy is a server-side detail (upstream URL, key templates) and never leaves the server
-  unifiedContract({ scope } = {}) {
+  // plugin: only that plugin's operations, the document served at .../plugins/<id>/openapi.json (spec/13 section 5)
+  unifiedContract({ scope, plugin } = {}) {
     const paths = {};
-    for (const p of this.plugins.filter((x) => x.status === "active" && x.manifest.openapi)) {
+    for (const p of this.plugins.filter((x) => x.status === "active" && x.manifest.openapi && (!plugin || x.id === plugin))) {
       const api = readAny(join(p.dir, p.manifest.openapi));
       for (const [path, verbs] of Object.entries(api.paths || {})) for (const [verb, op] of Object.entries(verbs)) {
         if (!op || !op.operationId) continue;
@@ -350,7 +351,7 @@ export class MemoryBackend {
         paths[full] = { ...(paths[full] || {}), [verb]: { ...pub, security: op.security || api.security || [], tags: [p.id] } };
       }
     }
-    return { openapi: "3.1.0", info: { title: "HAXcms plugins", version: this.haxcms.version }, paths: Object.fromEntries(Object.entries(paths).sort(([a], [b]) => a.localeCompare(b))) };
+    return { openapi: "3.1.0", info: { title: plugin ? `HAXcms plugin ${plugin}` : "HAXcms plugins", version: this.haxcms.version }, paths: Object.fromEntries(Object.entries(paths).sort(([a], [b]) => a.localeCompare(b))) };
   }
   // the merged theme registry: core's themes (a stand-in list here) and active plugins' registries/themes entries
   themeEntry(element) {
