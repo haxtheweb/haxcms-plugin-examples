@@ -29,8 +29,9 @@ if (runtimes.includes("php") && !hasPhp) { runtimes = runtimes.filter((r) => r !
 import { canon } from "./expect.mjs";
 import { backendNeeds, targetSummary } from "../scripts/backend-needs.mjs";
 
-// With --target: a case that brings other plugins along (run.with) cannot say anything about this plugin on a
-// target one of them cannot run on. Returns the first such companion, or null.
+// With --target: a case that brings other plugins along (run.with) and fails on a target one of them cannot run
+// on says nothing about this plugin there, so it is listed as not run instead of failed. A case that passes
+// anyway counts. Returns the first companion that cannot run on the target, or null.
 const notRun = [];
 function companionThatCannotRun(c) {
   if (!targetArg) return null;
@@ -81,11 +82,11 @@ for (const f of files) {
     if (!c.run) continue;
     if (targetArg && c.run.target && c.run.target !== targetArg) continue;
     const blocked = companionThatCannotRun(c);
-    if (blocked) { notRun.push({ id: c.id, reason: `needs ${blocked}, which cannot run on the ${targetArg} target` }); continue; }
     const rts = runtimes.filter((rt) => !c.runtimes || c.runtimes.includes(rt));
     const per = {};
     for (const rt of rts) {
       try { per[rt] = await runCase(c, rt); } catch (err) { per[rt] = { out: null, errors: [String(err && err.stack || err)] }; }
+      if (blocked && per[rt].errors.length) { notRun.push({ id: c.id, runtime: rt, reason: `needs ${blocked}, which cannot run on the ${targetArg} target` }); continue; }
       // outputs leave out the case's parityIgnore keys (values that legitimately differ per run: tokens, commit hashes)
       results.push({ id: c.id, runtime: rt, ok: !per[rt].errors.length, errors: per[rt].errors, ...(withOutputs ? { out: JSON.parse(JSON.stringify(per[rt].out, (k, x) => ((c.parityIgnore || []).includes(k) ? undefined : x))) } : {}) });
     }
