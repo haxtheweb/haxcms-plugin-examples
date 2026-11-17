@@ -1,0 +1,74 @@
+- id: importer-cartridge-001
+  title: "a Canvas course without modules: syllabus first, then assignments, discussions and announcements grouped by kind"
+  given: "tests/fixtures/canvas-no-modules.imscc: a syllabus, two assignments (one unpublished), a discussion, two announcements, an image"
+  when: "core calls import.platform convert on importer-cartridge"
+  then: "the site is named after the file; ten items in the course's order; the unpublished assignment stays unpublished; the image is in files and linked; scripts and handlers are gone"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-cartridge, input: { files: [{ file: tests/fixtures/canvas-no-modules.imscc }] } }
+        expect:
+          status: 200
+          body:
+            - plugin: importer-cartridge
+              result:
+                title: canvas-no-modules
+                site: { description: "Biology 101 & Lab" }
+                items:
+                  - { id: item-1, title: Syllabus, slug: syllabus, parent: null, order: 0, content: "<h2>Class</h2>\n<p>We meet in <strong>Room 12</strong>.</p>" }
+                  - { id: item-2, title: Assignments, parent: null, content: "" }
+                  - { id: item-3, title: Lab report, parent: item-2, content: "<p>Report on lab 1.</p>", metadata: { published: false } }
+                  - { id: item-4, title: Essay, parent: item-2, content: "<p>Write 500 words on the cell. See <img src=\"files/Uploaded-Media/cell-diagram.png\" alt=\"A cell\"></p>" }
+                  - { id: item-5, title: Discussions, parent: null }
+                  - { id: item-6, title: Introduce yourself, parent: item-5, content: "<p>Say hello &amp; share one goal.</p>" }
+                  - { id: item-7, title: Announcements, parent: null }
+                  - { id: item-8, title: Welcome, parent: item-7 }
+                  - { id: item-9, title: Week 2 reminder, parent: item-7, order: 8 }
+                files: [{ path: files/Uploaded-Media/cell-diagram.png }]
+                stats: { flavor: canvas, version: "1.1.0", kinds: { syllabus: 1, page: 0, assignment: 2, discussion: 1, announcement: 2, quiz: 0, link: 0 }, files: 1, skipped: { lti: 0 } }
+          notContains: ["track()", onclick, canvas_export, "IMS-CC-FILEBASE"]
+- id: importer-cartridge-002
+  title: "a generic cartridge with modules: modules become parent pages, loose pages follow, LTI links are counted and dropped"
+  given: "tests/fixtures/ims-modules.imscc: two modules holding pages, a quiz, a web link and an LTI link, plus one page in no module"
+  when: "convert"
+  then: "seven items; the quiz page says its questions were not converted; the LTI link is in stats.skipped"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-cartridge, input: { files: [{ file: tests/fixtures/ims-modules.imscc }] } }
+        expect:
+          body:
+            - result:
+                title: ims-modules
+                items:
+                  - { id: item-1, title: "Unit 1: Cells", slug: unit-1-cells, parent: null, content: "" }
+                  - { id: item-2, title: "What is a cell?", parent: item-1, content: "<p>The cell is the unit of life.</p>" }
+                  - { id: item-3, title: Cell quiz, parent: item-1, content: "<p>This quiz has 2 questions that were not converted. Rebuild it with question elements.</p>" }
+                  - { id: item-4, title: "Unit 2: Genes", parent: null }
+                  - { id: item-5, title: DNA basics, parent: item-4 }
+                  - { id: item-6, title: Genome browser, parent: item-4, content: "<p><a href=\"https://genome.example.org/?a=1&amp;b=2\">Genome browser</a></p>" }
+                  - { id: item-7, title: Credits, parent: null }
+                stats: { flavor: ims, kinds: { page: 3, quiz: 1, link: 1 }, files: 0, skipped: { lti: 1 } }
+          notContains: [Lab simulator, item-8]
+- id: importer-cartridge-003
+  title: "include limits what comes over"
+  given: "the Canvas fixture"
+  when: "convert with include: [syllabus, assignment]"
+  then: "the syllabus and the assignments only; no discussion or announcement pages"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-cartridge, input: { include: [syllabus, assignment], files: [{ file: tests/fixtures/canvas-no-modules.imscc }] } }
+        expect:
+          body: [{ result: { items: [{ title: Syllabus }, { title: Assignments }, { title: Lab report }, { id: item-4, title: Essay }], stats: { kinds: { assignment: 2, discussion: 0, announcement: 0 } } } }]
+          notContains: [Announcements, Introduce yourself, item-5]
+- id: importer-cartridge-004
+  title: "files that are not a cartridge are errors, never exceptions"
+  given: "no file, a file that is not a zip, and a zip without a manifest"
+  when: "convert"
+  then: "three error results"
+  run:
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-cartridge, input: {} }
+        expect: { body: [{ result: { error: "a Common Cartridge (.imscc) file is required" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-cartridge, input: { files: [{ name: course.imscc, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "the file is not a zip archive" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-cartridge, input: { files: [{ file: ../import-docx/tests/fixtures/sample.docx }] } }
+        expect: { body: [{ result: { error: "the file is not a Common Cartridge (no imsmanifest.xml)" } }] }

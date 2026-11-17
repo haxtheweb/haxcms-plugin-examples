@@ -1,0 +1,21 @@
+# Common Cartridge importer: turns the course export every LMS writes (.imscc: Canvas, Moodle, D2L Brightspace,
+# Blackboard, Sakai) into a new site (https://github.com/haxtheweb/issues/issues/3317). Implements import.platform;
+# the cartridge is unpacked by ctx.archive.read, so the plugin ships no zip code and reaches no network.
+specVersion: "0.1.0"
+id: importer-cartridge
+uuid: 3e1b7c52-9a4d-4f0e-8b26-5d7c1a9e4f30
+title: Import from an LMS (Common Cartridge)
+description: Turns a Common Cartridge course export (.imscc) from Canvas or another LMS into a new site.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, lms, canvas]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+staticCapable: false

@@ -42,7 +42,15 @@ export async function step(backend, raw, vars = {}) {
   else if (s.advertised) Object.assign(out, { status: 200, body: await backend.advertisedContracts() });
   else if (s.siteFile) { const { existsSync } = await import("node:fs"); const { join } = await import("node:path"); Object.assign(out, { body: { exists: existsSync(join(backend.site.path, s.siteFile)) } }); }
   else if (s.rebuild) Object.assign(out, await backend.rebuild(s.rebuild.reason));
-  else if (s.contract) { try { Object.assign(out, { status: 200, body: await backend.callContract(s.contract.name, s.contract.op, s.contract.input ?? {}, { only: s.contract.plugin }) }); } catch (e) { Object.assign(out, { status: 400, body: { error: e.message } }); } }
+  else if (s.contract) {
+    // input.files[].file: a path next to the case (tests/fixtures/...), read and sent as base64 like an upload
+    let input = s.contract.input ?? {};
+    if (Array.isArray(input.files) && input.files.some((f) => f && f.file)) {
+      const { readFileSync } = await import("node:fs"); const { join, basename } = await import("node:path");
+      input = { ...input, files: input.files.map((f) => { if (!f || !f.file) return f; const full = join(backend.caseDir || ".", f.file); const { file, ...rest } = f; void file; return { name: basename(full), ...rest, data: readFileSync(full).toString("base64") }; }) };
+    }
+    try { Object.assign(out, { status: 200, body: await backend.callContract(s.contract.name, s.contract.op, input, { only: s.contract.plugin }) }); } catch (e) { Object.assign(out, { status: 400, body: { error: e.message } }); }
+  }
   else if (s.schedule) Object.assign(out, await backend.runSchedule(s.schedule.plugin, s.schedule.id));
   else if (s.importFile) {
     const f = { ...s.importFile };
