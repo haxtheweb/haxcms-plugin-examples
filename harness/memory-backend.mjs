@@ -74,9 +74,27 @@ export function readZip(b64, { match = ".*", maxEntries = 5000, maxBytes = 100 *
   let p = buf.readUInt32LE(eocd + 16);
   for (let n = 0; n < count; n++) {
     if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error("corrupt zip central directory");
-    const method = buf.readUInt16LE(p + 10), csize = buf.readUInt32LE(p + 20), usize = buf.readUInt32LE(p + 24);
-    const nlen = buf.readUInt16LE(p + 28), elen = buf.readUInt16LE(p + 30), clen = buf.readUInt16LE(p + 32), off = buf.readUInt32LE(p + 42);
+    const method = buf.readUInt16LE(p + 10), csize32 = buf.readUInt32LE(p + 20), usize32 = buf.readUInt32LE(p + 24);
+    const nlen = buf.readUInt16LE(p + 28), elen = buf.readUInt16LE(p + 30), clen = buf.readUInt16LE(p + 32), off32 = buf.readUInt32LE(p + 42);
     const name = buf.toString("utf8", p + 46, p + 46 + nlen);
+    // Zip64 (Canvas course exports use it even for small files): a 32-bit field of 0xffffffff means the real value is
+    // in the extra field 0x0001, in the order uncompressed size, compressed size, local header offset
+    let usize = usize32, csize = csize32, off = off32;
+    if (usize32 === 0xffffffff || csize32 === 0xffffffff || off32 === 0xffffffff) {
+      let x = p + 46 + nlen;
+      const xEnd = x + elen;
+      while (x + 4 <= xEnd) {
+        const id = buf.readUInt16LE(x), len = buf.readUInt16LE(x + 2);
+        if (id === 0x0001) {
+          let q = x + 4;
+          if (usize32 === 0xffffffff) { usize = Number(buf.readBigUInt64LE(q)); q += 8; }
+          if (csize32 === 0xffffffff) { csize = Number(buf.readBigUInt64LE(q)); q += 8; }
+          if (off32 === 0xffffffff) off = Number(buf.readBigUInt64LE(q));
+          break;
+        }
+        x += 4 + len;
+      }
+    }
     p += 46 + nlen + elen + clen;
     if (name.endsWith("/") || !re.test(name)) continue;
     total += usize;
