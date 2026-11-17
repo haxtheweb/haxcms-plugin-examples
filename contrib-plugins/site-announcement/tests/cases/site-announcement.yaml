@@ -1,0 +1,46 @@
+- id: site-announcement-001
+  title: "an announcement goes right after <body>, with its text baked in"
+  hook: render.before.body
+  given: "a title, text, link and warning style"
+  when: "a page renders"
+  then: "the element and its script are at the start of the body, with every field as an attribute"
+  run:
+    settings: { title: "Heads up:", text: "The library closes early on Friday.", link: "/hours", linkText: "See hours", variant: warning }
+    steps:
+      - render: { page: { id: p1, content: "x" }, theme: clean-one }
+        expect: { contains: ['variant="warning" heading="Heads up:" text="The library closes early on Friday." link="/hours" link-text="See hours"></site-announcement-bar>', "plugins/site-announcement/assets/site-announcement-bar.js"] }
+- id: site-announcement-002
+  title: "nothing is added while the announcement is empty"
+  given: "the default settings"
+  when: "a page renders"
+  then: "no element and no script"
+  run:
+    steps:
+      - render: { page: { id: p1, content: "x" }, theme: clean-one }
+        expect: { notContains: [site-announcement-bar] }
+- id: site-announcement-003
+  title: "the announcement stops on the day after its end date"
+  given: "an announcement that ends 2026-03-31"
+  when: "a page renders on the last day, then the day after"
+  then: "shown on 2026-03-31 (with its end date), gone on 2026-04-01"
+  run:
+    settings: { text: "Spring registration is open.", ends: "2026-03-31" }
+    now: "2026-03-31T12:00:00Z"
+    steps:
+      - render: { page: { id: p1, content: "x" }, theme: clean-one }
+        expect: { contains: ['text="Spring registration is open." ends="2026-03-31"'] }
+      - clock: "2026-04-01T00:00:00Z"
+      - render: { page: { id: p1, content: "x" }, theme: clean-one }
+        expect: { notContains: [site-announcement-bar] }
+- id: site-announcement-004
+  title: "settings are cleaned to plain text, a safe link and a known style"
+  given: "markup in the text, a javascript: link, an unknown style and a date that is not a day"
+  when: "a page renders"
+  then: "markup characters dropped, link and its text dropped, brand style, no end date"
+  run:
+    settings: { title: "<b>Hi</b>", text: "  click   <script>here</script> ", link: "javascript:alert(1)", linkText: "Go", variant: loud, ends: "2026-02-30" }
+    steps:
+      - render: { page: { id: p1, content: "x" }, theme: clean-one }
+        expect:
+          contains: ['variant="brand" heading="b Hi /b" text="click script here /script"></site-announcement-bar>']
+          notContains: ["javascript:", "link-text", "ends="]

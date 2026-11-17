@@ -1,0 +1,8 @@
+{ "configure": [
+  { "property": "title", "title": "Title", "description": "Bold lead-in, plain text (up to 120 characters).", "inputMethod": "textfield" },
+  { "property": "text", "title": "Text", "description": "The announcement, plain text (up to 500 characters).", "inputMethod": "textarea" },
+  { "property": "link", "title": "Link", "description": "Optional. http(s), mailto, or a path on this site.", "inputMethod": "textfield" },
+  { "property": "linkText", "title": "Link text", "description": "Defaults to \"Learn more\".", "inputMethod": "textfield" },
+  { "property": "variant", "title": "Style", "inputMethod": "select", "options": { "brand": "Brand", "neutral": "Neutral", "success": "Success", "warning": "Warning", "danger": "Danger" } },
+  { "property": "ends", "title": "Show until", "description": "Last day to show it (YYYY-MM-DD). Empty: until removed.", "inputMethod": "datepicker" }
+] }
