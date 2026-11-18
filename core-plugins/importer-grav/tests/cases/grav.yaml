@@ -1,0 +1,165 @@
+# Executable cases for importer-grav (run by harness/run-cases.mjs in Node and PHP, with a parity check).
+# Fixtures are synthetic and written inline as base64 zips (built with Python's zipfile, entries sorted by name):
+#   trail-guide.zip  a whole Grav install as GitHub's "Download ZIP" gives it (everything under trail-guide-main/):
+#                    user/config/site.yaml (title, metadata.description), user/config/system.yaml (home.alias /welcome,
+#                    languages en + fr), user/images/logo.png, index.php, and under user/pages/:
+#                    welcome/default.md + lake.jpg; 01.trails/default.en.md + default.fr.md (a listing ordered by date,
+#                    newest first, with a notice line and a [section] shortcode); 01.trails/ridge-loop/item.md (dated,
+#                    tagged, CRLF, a summary delimiter) + trail-map.pdf; 01.trails/shore-walk/item.md (newer,
+#                    unpublished, a {.lead} attribute); 02.about/modular.md (slug about-us, custom module order) with
+#                    _history/text.md and _team/text.md; 03.gear/default.md (no title, Twig on, visible: false, a
+#                    fenced block); 04.links/external.md (external_url).
+#   handbook.zip     only a pages folder, no wrapper: 01.intro/default.md + pic.gif, 02.more/default.md.
+#   other.zip        README.md and docs/guide.md: not a Grav site.
+- id: importer-grav-001
+  title: "a zip of a whole Grav install becomes the site: one page per folder, in Grav's order, with its media"
+  given: "trail-guide.zip"
+  when: "convert with files: [trail-guide.zip]"
+  then: "the site title and description from site.yaml; the home alias page first; pages by numeric prefix; the listing's children newest first and left in the menu; hidden and unpublished pages marked; modules folded into their page in its custom order; links pointed at the new slugs; images as media-image; the three files pages use handed over as data; Twig and the shortcode counted; nothing fetched"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-source]
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { files: [{ name: trail-guide.zip, data: "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L2NvbmZpZy9zeXN0ZW0ueWFtbFBLAQIUAxQAAAAIAAAAIVxhaxquDgAAAAwAAAAlAAAAAAAAAAAAAACAAYEBAAB0cmFpbC1ndWlkZS1tYWluL3VzZXIvaW1hZ2VzL2xvZ28ucG5nUEsBAhQDFAAAAAgAAAAhXDXSOCSUAAAAzAAAADMAAAAAAAAAAAAAAIAB0gEAAHRyYWlsLWd1aWRlLW1haW4vdXNlci9wYWdlcy8wMS50cmFpbHMvZGVmYXVsdC5lbi5tZFBLAQIUAxQAAAAIAAAAIVw/cA1uKAAAACsAAAAzAAAAAAAAAAAAAACAAbcCAAB0cmFpbC1ndWlkZS1tYWluL3VzZXIvcGFnZXMvMDEudHJhaWxzL2RlZmF1bHQuZnIubWRQSwECFAMUAAAACAAAACFcpgnhdKwAAADWAAAAOAAAAAAAAAAAAAAAgAEwAwAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAxLnRyYWlscy9yaWRnZS1sb29wL2l0ZW0ubWRQSwECFAMUAAAACAAAACFcmfVHuBYAAAAUAAAAPgAAAAAAAAAAAAAAgAEyBAAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAxLnRyYWlscy9yaWRnZS1sb29wL3RyYWlsLW1hcC5wZGZQSwECFAMUAAAACAAAACFcjrqWklIAAABTAAAAOAAAAAAAAAAAAAAAgAGkBAAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAxLnRyYWlscy9zaG9yZS13YWxrL2l0ZW0ubWRQSwECFAMUAAAACAAAACFcJWshfEUAAABDAAAANQAAAAAAAAAAAAAAgAFMBQAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAyLmFib3V0L19oaXN0b3J5L3RleHQubWRQSwECFAMUAAAACAAAACFcvz7o2E8AAABSAAAAMgAAAAAAAAAAAAAAgAHkBQAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAyLmFib3V0L190ZWFtL3RleHQubWRQSwECFAMUAAAACAAAACFcNrpETmQAAACOAAAALwAAAAAAAAAAAAAAgAGDBgAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAyLmFib3V0L21vZHVsYXIubWRQSwECFAMUAAAACAAAACFcsXaJ2H8AAACfAAAALgAAAAAAAAAAAAAAgAE0BwAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzLzAzLmdlYXIvZGVmYXVsdC5tZFBLAQIUAxQAAAAIAAAAIVwTsqkbRQAAAEQAAAAwAAAAAAAAAAAAAACAAf8HAAB0cmFpbC1ndWlkZS1tYWluL3VzZXIvcGFnZXMvMDQubGlua3MvZXh0ZXJuYWwubWRQSwECFAMUAAAACAAAACFc07+nsHYAAACCAAAALgAAAAAAAAAAAAAAgAGSCAAAdHJhaWwtZ3VpZGUtbWFpbi91c2VyL3BhZ2VzL3dlbGNvbWUvZGVmYXVsdC5tZFBLAQIUAxQAAAAIAAAAIVx9/MKyDwAAAA0AAAAsAAAAAAAAAAAAAACAAVQJAAB0cmFpbC1ndWlkZS1tYWluL3VzZXIvcGFnZXMvd2VsY29tZS9sYWtlLmpwZ1BLBQYAAAAAEAAQAM8FAACtCQAAAAA=" }] } }
+        expect:
+          body:
+            - plugin: importer-grav
+              result:
+                title: Trail Guide
+                site: { description: Day hikes around the lake }
+                items:
+                  - id: item-1
+                    title: Welcome
+                    slug: welcome
+                    parent: null
+                    order: 0
+                    indent: 0
+                    content: '<p>Start with the <a href="trails">trails</a> or read <a href="about-us">about us</a>.</p><p><media-image source="files/lake.jpg" alt="Lake at dawn"></media-image></p>'
+                    metadata: { sourceType: grav, grav: { path: user/pages/welcome/default.md, template: default }, hideInMenu: true }
+                  - id: item-2
+                    title: Trails
+                    slug: trails
+                    parent: null
+                    order: 1
+                    content: "<blockquote><p>Check the weather first.</p></blockquote><p>All trails start at the <strong>north lot</strong>.</p>"
+                    metadata: { grav: { path: user/pages/01.trails/default.en.md, template: default } }
+                  - id: item-3
+                    title: Shore Walk
+                    slug: trails/shore-walk
+                    parent: item-2
+                    order: 0
+                    indent: 1
+                    content: "<p>Flat and easy.</p>"
+                    metadata: { grav: { template: item }, published: false, created: 1775952000 }
+                  - id: item-4
+                    title: Ridge Loop
+                    slug: trails/ridge-loop
+                    parent: item-2
+                    order: 1
+                    content: '<p>Six miles. See the <a href="files/trail-map.pdf">map</a> and the <a href="trails/shore-walk#parking">shore walk</a>.</p><p>More detail.</p>'
+                    metadata: { created: 1772375400, tags: [steep, views] }
+                  - id: item-5
+                    title: About
+                    slug: about-us
+                    parent: null
+                    order: 2
+                    content: '<h2>The crew</h2><p>Volunteers, see the <a href="trails/ridge-loop">ridge</a>.</p><h2>History</h2><p>Founded in 1998.</p><p><media-image source="files/logo.png" alt="Logo"></media-image></p>'
+                    metadata: { grav: { path: user/pages/02.about/modular.md, template: modular } }
+                  - id: item-6
+                    title: Gear List
+                    slug: gear
+                    order: 3
+                    content: "<p>is here.</p><pre><code>{{ kept.in.code }}\n[section]kept[/section]</code></pre>"
+                    metadata: { hideInMenu: true }
+                  - id: item-7
+                    title: Park Service
+                    slug: links
+                    order: 4
+                    content: '<p><a href="https://park.example.org/">Park Service</a></p>'
+                    metadata: { grav: { template: external } }
+                files:
+                  - { path: files/lake.jpg, data: "/9j/4AAQSkZJRgkIBw==" }
+                  - { path: files/trail-map.pdf, data: "JVBERi0xLjQKJXN5bnRoZXRpYwo=" }
+                  - { path: files/logo.png, data: "iVBORw0KGgoBAgP/" }
+                stats: { pages: 7, modules: 2, media: 3, languageFiles: 1, unmapped: { "shortcode:section": 1, twig: 3 } }
+          # the listing's children stay in the menu; the French page, index.php and the summary delimiter are not imported
+          notContains: ['"template":"item"},"hideInMenu"', Sentiers, "item-8", "===", "page.title"]
+          fetch: { count: 0 }
+- id: importer-grav-002
+  title: "a GitHub repository kept by Git Sync (pages/ and config/ at the top) is read through import-source"
+  given: "lake-club/course-hub: config/site.yaml, config/system.yaml (languages fr, en), pages/01.home in two languages with an image, pages/02.modules with no page file of its own holding 01.week-one (a [notice] shortcode, an unused PDF), pages/drafts (visible but not routable), a README"
+  when: "convert with the repository URL"
+  then: "the site's language picks default.fr.md; the folder without a page file is an empty page that keeps its children; links written with or without numeric prefixes reach the new slugs; the image is listed by its raw URL for core to fetch and the unused PDF is not; seven requests, all by import-source to GitHub's two hosts"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-source]
+    fetch:
+      "https://api.github.com/repos/lake-club/course-hub": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/lake-club/course-hub/git/trees/main?recursive=1":
+        status: 200
+        body: { tree: [{ path: README.md, type: blob }, { path: config, type: tree }, { path: config/site.yaml, type: blob }, { path: config/system.yaml, type: blob }, { path: pages/01.home/default.en.md, type: blob }, { path: pages/01.home/default.fr.md, type: blob }, { path: pages/01.home/plan.png, type: blob }, { path: pages/02.modules/01.week-one/docs.md, type: blob }, { path: pages/02.modules/01.week-one/notes.pdf, type: blob }, { path: pages/drafts/default.md, type: blob }] }
+      "https://raw.githubusercontent.com/lake-club/course-hub/main/config/site.yaml": { status: 200, body: "title: Course Hub\n" }
+      "https://raw.githubusercontent.com/lake-club/course-hub/main/config/system.yaml": { status: 200, body: "languages:\n  supported:\n    - fr\n    - en\n" }
+      "https://raw.githubusercontent.com/lake-club/course-hub/main/pages/01.home/default.fr.md": { status: 200, body: "---\ntitle: Accueil\n---\nVoir [le module](../02.modules/01.week-one) et ![Plan](plan.png).\n" }
+      "https://raw.githubusercontent.com/lake-club/course-hub/main/pages/02.modules/01.week-one/docs.md": { status: 200, body: "# Week One\n\nRead [the syllabus](/home) first.\n\n[notice]Bring a laptop.[/notice]\n" }
+      "https://raw.githubusercontent.com/lake-club/course-hub/main/pages/drafts/default.md": { status: 200, body: "---\ntitle: Drafts\nvisible: true\nroutable: false\n---\nNot ready.\n" }
+      other.example.net: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { url: "https://github.com/lake-club/course-hub" } }
+        expect:
+          body:
+            - result:
+                title: Course Hub
+                items:
+                  - { id: item-1, title: Accueil, slug: home, parent: null, order: 0, indent: 0, content: '<p>Voir <a href="modules/week-one">le module</a> et <media-image source="files/plan.png" alt="Plan"></media-image>.</p>', metadata: { sourceType: grav, grav: { path: pages/01.home/default.fr.md, template: default } } }
+                  - { id: item-2, title: Modules, slug: modules, parent: null, order: 1, content: "<p></p>", metadata: { grav: { path: pages/02.modules, template: "" } } }
+                  - { id: item-3, title: Week One, slug: modules/week-one, parent: item-2, order: 0, indent: 1, content: '<p>Read <a href="home">the syllabus</a> first.</p><p>Bring a laptop.</p>', metadata: { grav: { template: docs } } }
+                  - { id: item-4, title: Drafts, slug: drafts, parent: null, order: 2, content: "<p>Not ready.</p>", metadata: { hideInMenu: true } }
+                files:
+                  - { path: files/plan.png, url: "https://raw.githubusercontent.com/lake-club/course-hub/main/pages/01.home/plan.png" }
+                stats: { pages: 4, modules: 0, media: 1, languageFiles: 1, unmapped: { "shortcode:notice": 1 } }
+          notContains: [notes.pdf, item-5, default.en.md]
+          fetch: { count: 7, notContains: [other.example.net] }
+- id: importer-grav-003
+  title: "a zip of just the pages folder imports, titled by the upload"
+  given: "handbook.zip: 01.intro (no header, titled by its heading) with pic.gif, and 02.more, which shows that picture by the other page's route and links to its page file"
+  when: "convert with files: [handbook.zip]"
+  then: "two pages in prefix order; the heading becomes the title and leaves the body; the picture is found beside the other page and handed over as data; the link to default.md reaches the page"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-source]
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { files: [{ name: handbook.zip, data: "UEsDBBQAAAAIAAAAIVwm58VOEgAAABAAAAATAAAAMDEuaW50cm8vZGVmYXVsdC5tZFNW8MwrKcrn4vJIzcnJ1+MCAFBLAwQUAAAACAAAACFc2zMI4g0AAAALAAAAEAAAADAxLmludHJvL3BpYy5naWZz93SzsExkZGBk+A8AUEsDBBQAAAAIAAAAIVxfVHukVwAAAGEAAAASAAAAMDIubW9yZS9kZWZhdWx0Lm1kJcorDoAwDABQ31MUx0QLWBx4TrAgyOig4bNlKfcnAf0eEYGpndLjlIoAEUHlB8wa7Cky18yN3lZSkzXwptEBjEs40BJ62wU//Frb8T9XictzGl+rY3gBUEsBAhQDFAAAAAgAAAAhXCbnxU4SAAAAEAAAABMAAAAAAAAAAAAAAIABAAAAADAxLmludHJvL2RlZmF1bHQubWRQSwECFAMUAAAACAAAACFc2zMI4g0AAAALAAAAEAAAAAAAAAAAAAAAgAFDAAAAMDEuaW50cm8vcGljLmdpZlBLAQIUAxQAAAAIAAAAIVxfVHukVwAAAGEAAAASAAAAAAAAAAAAAACAAX4AAAAwMi5tb3JlL2RlZmF1bHQubWRQSwUGAAAAAAMAAwC/AAAABQEAAAAA" }] } }
+        expect:
+          body:
+            - result:
+                title: handbook
+                items:
+                  - { id: item-1, title: Intro, slug: intro, order: 0, content: "<p>Hello.</p>", metadata: { grav: { path: 01.intro/default.md } } }
+                  - { id: item-2, title: More, slug: more, order: 1, content: '<p><media-image source="files/pic.gif" alt="A picture"></media-image></p><p>Back to <a href="intro">the intro</a>.</p>' }
+                files: [{ path: files/pic.gif, data: "R0lGODlhAQABAP8=" }]
+                stats: { pages: 2, modules: 0, media: 1, languageFiles: 0 }
+          absent: [site, truncated]
+          notContains: [unmapped, hideInMenu]
+          fetch: { count: 0 }
+- id: importer-grav-004
+  title: "what is not a Grav site, a zip or a GitHub repository is an error"
+  given: "other.zip (no pages folder); an upload that is not named .zip; a repository whose tree has only a README; a URL on another host; no input"
+  when: "convert"
+  then: "error results naming the problem; nothing is fetched for the uploads or the other host"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-source]
+    fetch:
+      "https://api.github.com/repos/acme/notes": { status: 200, body: { default_branch: trunk } }
+      "https://api.github.com/repos/acme/notes/git/trees/trunk?recursive=1": { status: 200, body: { tree: [{ path: README.md, type: blob }] } }
+      grav.example.org: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { files: [{ name: other.zip, data: "UEsDBBQAAAAIAAAAIVy/5Xn2FAAAABIAAAAJAAAAUkVBRE1FLm1kU1bwyy9RSFRwL0osUyjOLEnlAgBQSwMEFAAAAAgAAAAhXJo8ItUFAAAAAwAAAA0AAABkb2NzL2d1aWRlLm1k88jkAgBQSwECFAMUAAAACAAAACFcv+V59hQAAAASAAAACQAAAAAAAAAAAAAAgAEAAAAAUkVBRE1FLm1kUEsBAhQDFAAAAAgAAAAhXJo8ItUFAAAAAwAAAA0AAAAAAAAAAAAAAIABOwAAAGRvY3MvZ3VpZGUubWRQSwUGAAAAAAIAAgByAAAAawAAAAAA" }] } }
+        expect: { body: [{ result: { error: "no Grav pages found in other (expected user/pages/ or pages/ with a folder per page)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { files: [{ name: site.tar.gz, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "expected a .zip of the Grav site" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { files: [{ name: site.zip, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "the file is not a zip archive" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { url: "https://grav.example.org/blog" } }
+        expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-grav, input: { url: "https://github.com/acme/notes" } }
+        expect: { body: [{ result: { error: "no Grav pages found in acme/notes (expected user/pages/ or pages/ with a folder per page)" } }], fetch: { count: 2 } }

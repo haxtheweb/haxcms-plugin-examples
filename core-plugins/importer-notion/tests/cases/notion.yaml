@@ -4,7 +4,7 @@
   when: "convert with the repository URL"
   then: "a lesson page, then both pages under it with their Notion page types and order; the image link points at files/ and the image is listed for core to fetch; the script is gone"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     fetch:
       "https://api.github.com/repos/psu-ist/notion-course": { status: 200, body: { default_branch: main } }
       "https://api.github.com/repos/psu-ist/notion-course/git/trees/main?recursive=1":
@@ -62,13 +62,13 @@
   when: "convert"
   then: "an error naming the failure; the default-branch lookup is skipped"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     fetch:
       "https://api.github.com/repos/psu-ist/notion-course/git/trees/drafts?recursive=1": { status: 404, body: { message: Not Found } }
     steps:
       - contract: { name: import.platform, op: convert, plugin: importer-notion, input: { url: "https://github.com/psu-ist/notion-course/tree/drafts" } }
         expect:
-          body: [{ result: { error: "unable to read the repository file list: HTTP 404" } }]
+          body: [{ result: { error: "unable to read the file tree of psu-ist/notion-course (HTTP 404)" } }]
           fetch: { count: 1 }
 - id: importer-notion-003
   title: "only GitHub is reachable"
@@ -76,7 +76,7 @@
   when: "convert each"
   then: "the other host is refused without a request; the repository without pages is an error"
   run:
-    with: [core-plugins/import-markdown]
+    with: [core-plugins/import-markdown, core-plugins/import-source]
     fetch:
       notion-mirror.example.net: { status: 200, body: "# Page" }
       "https://api.github.com/repos/psu-ist/empty": { status: 200, body: { default_branch: trunk } }

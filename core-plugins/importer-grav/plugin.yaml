@@ -1,0 +1,26 @@
+# Grav importer: reads a Grav site's pages folder as data, from a GitHub repository or an uploaded zip. Every folder
+# under user/pages (or pages/, as the Git Sync plugin keeps it) is a page: its numeric prefix gives order and menu
+# visibility, its markdown file names the template, its YAML header gives title, slug, date and tags. Modules fold
+# into their page. Nothing of Grav runs (no Twig, no plugins, no theme). Implements import.platform; markdown goes to
+# import.file (import-markdown) and the repository or zip is read by import-source, both through the platform, so
+# this plugin reaches no network itself.
+specVersion: "0.1.0"
+id: importer-grav
+uuid: 9d2f6a1c-7b34-4e58-a0c9-4f1e8b6d2a75
+title: Import from Grav
+description: Turns a Grav site (a GitHub repository or a zip of one) into a new site, one page per page folder.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, grav, github]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+# each page's markdown is converted by import.file; the repository or zip is listed and read by import-source.tree
+dependencies: [import-markdown, import-source]
+staticCapable: false

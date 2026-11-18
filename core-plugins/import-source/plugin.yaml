@@ -1,0 +1,29 @@
+# Import source: the one place site importers read "a site's files" from, whether the person gave a GitHub
+# repository URL or uploaded a zip of the same folder. It defines and implements import-source.tree (list the files,
+# read some of them), so an importer for a static site generator carries no GitHub or zip code and needs no network
+# capability of its own. Only this plugin may reach GitHub's API and raw-file hosts.
+specVersion: "0.1.0"
+id: import-source
+uuid: 6b0c2f4e-3d58-4a7e-9c1b-2e7a5d9f0b13
+title: Import source (repository or zip)
+description: Reads a site's files from a GitHub repository or an uploaded zip of one, for the site importers.
+version: 0.1.0
+category: integration
+icon: icons:folder-open
+tags: [import, github, zip]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+hidden: true   # a helper other importers depend on; nothing for a person to choose
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+contracts: config/contracts.yaml
+implements: [import-source.tree]
+capabilities: ["network:egress"]
+# A repository's file tree comes from GitHub's API and its files from the raw host. A zip upload fetches nothing.
+egress:
+  - api.github.com
+  - raw.githubusercontent.com
+staticCapable: false

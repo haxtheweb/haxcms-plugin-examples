@@ -1,0 +1,13 @@
+# What this plugin does for the site importers above it. It implements the contract itself; an importer calls it
+# (ctx.contracts.call("import-source.tree", "list" | "read", input)) and lists import-source in `dependencies`.
+contracts:
+  import-source.tree:
+    description: The files of a site, from a GitHub repository URL or an uploaded zip of the same folder
+    # list  input { url } | { files: [{ name, data (base64 zip) }], match? } ->
+    #         { kind: github | archive, name, repo, branch, prefix, rawBase, paths: [..] } or { error }
+    #       `match` (a regular expression on the archive's own paths) limits which zip entries are opened.
+    #       `prefix` is the single top folder a GitHub download wraps everything in ("" when there is none); it is
+    #       already removed from `paths`. `rawBase` is where a repository file can be fetched from (null for a zip).
+    # read  input { repo, branch, paths } | { files, prefix, match?, paths, binary? } ->
+    #         { files: [{ path, data }] } or { error }   data is the text (base64 with binary: true), null when absent
+    operations: [list, read]

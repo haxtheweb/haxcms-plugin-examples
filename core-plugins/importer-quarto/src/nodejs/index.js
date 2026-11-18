@@ -1,8 +1,6 @@
 // Quarto importer (Node). Mirrored in src/php/Plugin.php; both return identical results.
 // Port of core's convertQuartoToSite.js, kept to the main path: _quarto.yml navigation, pages, front matter titles,
 // code chunks, callouts and fenced divs. Markdown goes to import.file (import-markdown) through the platform.
-const API = "https://api.github.com";
-const RAW = "https://raw.githubusercontent.com";
 const MAX_PAGES = 500;
 const CONFIG = /(^|\/)_quarto\.ya?ml$/;
 const PAGE = /\.(qmd|rmd|md)$/i;
@@ -136,12 +134,6 @@ function normalizePath(path) {
   return parts.join("/");
 }
 
-/** owner, repo and optional branch from a github.com URL, or null. */
-export function parseRepo(url) {
-  const m = /^https?:\/\/(?:www\.)?github\.com\/([^/?#]+)\/([^/?#]+)(?:\/tree\/([^/?#]+))?/i.exec(String(url).trim());
-  return m ? { owner: m[1], name: m[2].replace(/\.git$/i, ""), branch: m[3] || null } : null;
-}
-
 // ---- a YAML subset: block maps, block lists, scalars, [a, b] lists, | and > text. Enough for _quarto.yml. ----
 
 const KEY = /^("[^"]*"|'[^']*'|[^\s"'#][^:#]*?)\s*:(?:\s+(.*))?$/;
@@ -217,40 +209,28 @@ function frontMatter(md) {
   return { data, body: md.slice(m[0].length) };
 }
 
-// ---- reading the project: GitHub (core's path) or an uploaded zip of the repository ----
+// ---- reading the project: a GitHub repository or an uploaded zip of one, both through import-source ----
 
-async function fromGithub(ctx, url) {
-  const gh = parseRepo(url);
-  if (!gh) return { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" };
-  const getJson = async (u, what) => {
-    let r;
-    try { r = await ctx.fetch(u); } catch (e) { throw new Error(`unable to reach ${what}`); }
-    if (!r.ok) throw new Error(`unable to read ${what} (HTTP ${r.status})`);
-    return r.json();
+// what the importer needs out of a repository or a zip of one: pages and the YAML config
+const SOURCE_MATCH = "\\.(qmd|Qmd|md|rmd|Rmd|yml|yaml)$";
+
+/** The project's files through import-source (list, then read what is needed): { name, repo, branch, paths, read, readMany, rawUrl }. */
+async function openSource(ctx, input) {
+  const upload = Array.isArray(input.files) && input.files.length ? { files: input.files, match: SOURCE_MATCH } : null;
+  const listed = await ctx.contracts.call("import-source.tree", "list", upload || { url: input.url });
+  if (!listed || listed.error || !Array.isArray(listed.paths)) return { error: (listed && listed.error) || "the project's files could not be listed" };
+  const paths = {};
+  for (const p of listed.paths) paths[p] = true;
+  const from = upload ? { ...upload, prefix: listed.prefix } : { repo: listed.repo, branch: listed.branch };
+  const readMany = async (wanted) => {
+    const out = {};
+    if (!wanted.length) return out;
+    const got = await ctx.contracts.call("import-source.tree", "read", { ...from, paths: wanted });
+    for (const f of (got && Array.isArray(got.files) ? got.files : [])) out[f.path] = f.data;
+    return out;
   };
-  const repo = `${gh.owner}/${gh.name}`;
-  const info = await getJson(`${API}/repos/${repo}`, `the repository ${repo}`);
-  const branch = gh.branch || (info && info.default_branch) || "main";
-  const tree = await getJson(`${API}/repos/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, `the file tree of ${repo}`);
-  const paths = {};
-  for (const t of (tree && Array.isArray(tree.tree) ? tree.tree : [])) if (t && t.type === "blob" && typeof t.path === "string") paths[t.path] = true;
-  const rawUrl = (p) => `${RAW}/${repo}/${encPath(branch)}/${encPath(p)}`;
-  const read = async (p) => { try { const r = await ctx.fetch(rawUrl(p)); return r.ok ? await r.text() : null; } catch { return null; } };
-  return { name: gh.name, repo, branch, paths, read, rawUrl };
-}
-
-async function fromArchive(ctx, file) {
-  let texts;
-  try { texts = await ctx.archive.read(String(file.data || ""), { match: "\\.(qmd|Qmd|md|rmd|Rmd|yml|yaml)$" }); } catch (e) { return { error: "the file is not a zip archive" }; }
-  const keys = Object.keys(texts || {}).sort(byText);
-  // a GitHub download keeps everything under <repo>-<branch>/
-  const first = keys.length ? keys[0].split("/")[0] + "/" : "";
-  const cut = first !== "/" && keys.length && keys.every((k) => k.startsWith(first)) && keys.every((k) => k.length > first.length) ? first.length : 0;
-  const files = {};
-  for (const k of keys) files[k.slice(cut)] = texts[k];
-  const paths = {};
-  for (const k of Object.keys(files)) paths[k] = true;
-  return { name: String(file.name || "project").replace(/\.zip$/i, ""), repo: null, branch: null, paths, read: async (p) => (p in files ? String(files[p]).replace(/\r\n?/g, "\n") : null), rawUrl: null };
+  const read = async (p) => { const got = await readMany([p]); return typeof got[p] === "string" ? got[p] : null; };
+  return { name: listed.name, repo: listed.repo, branch: listed.branch, paths, read, readMany, rawUrl: listed.rawBase ? (p) => `${listed.rawBase}/${encPath(p)}` : null };
 }
 
 // ---- the outline (port of core's book / sidebar / navbar / file tree readers) ----
@@ -708,12 +688,13 @@ async function importProject(ctx, src) {
     node.item = item;
     if (node.path) st.slugByPath[node.path] = slug;
   }
-  let read = 0;
+  // the first MAX_PAGES pages are read in one call, in outline order; the rest link to the source site
+  const wanted = [];
+  for (const node of outline) if (node.path && wanted.length < MAX_PAGES) { node.wanted = true; wanted.push(node.path); }
+  const texts = await src.readMany(wanted);
   for (const node of outline) {
     if (!node.path) continue;
-    if (read >= MAX_PAGES) { node.item.content = fallback(node.item.metadata.source); continue; }
-    const text = await src.read(node.path);
-    read++;
+    const text = node.wanted && typeof texts[node.path] === "string" ? texts[node.path] : null;
     node.item.content = text === null ? fallback(node.item.metadata.source) : await renderPage(ctx, text, node, st);
   }
   return { title: src.config.title || src.name, items, files: st.files };
@@ -730,20 +711,18 @@ export default {
        * matter title, code chunks, callouts (as stop-note) and fenced divs. Markdown is converted by import.file, and
        * repository images and files the pages use are listed for core to fetch.
        *
-       * @param {object} ctx    Platform context (spec/13); ctx.fetch reaches only api.github.com and raw.githubusercontent.com.
+       * @param {object} ctx    Platform context (spec/13); the repository or zip is read through import-source.tree, so nothing is fetched here.
        * @param {object} input  { url } of the repository (https://github.com/<owner>/<repo>, optionally /tree/<branch>), or { files: [{ name, data (base64) }] } with one .zip.
        * @returns {Promise<object>}  { title, items, files } or { error }.
        */
       async convert(ctx, input) {
         input = input || {};
         try {
-          let src;
           if (Array.isArray(input.files) && input.files.length) {
             const f = input.files[0] || {};
             if (!/\.zip$/i.test(String(f.name || ""))) return { error: "expected a .zip of the Quarto project" };
-            src = await fromArchive(ctx, f);
-          } else if (input.url) src = await fromGithub(ctx, input.url);
-          else return { error: "url or files is required" };
+          } else if (!input.url) return { error: "url or files is required" };
+          const src = await openSource(ctx, input);
           if (src.error) return src;
           return await importProject(ctx, src);
         } catch (e) {

@@ -6,7 +6,8 @@ core's convertQuartoToSite.js, main path only (see README, "Not ported yet").
 
 ## Rules
 - Return { title, items, files } or { error }; never throw out of convert (internal errors are caught and returned).
-- Fetch only api.github.com and raw.githubusercontent.com, through ctx.fetch. Never execute repository code.
+- Never fetch or open a zip here: the project's files come from `ctx.contracts.call("import-source.tree", "list" | "read", ...)`;
+  import-source is a dependency and the only plugin that reaches GitHub. Never execute repository code.
 - Markdown goes through `ctx.contracts.call("import.file", "convert", { name: "page.md", data })`; import-markdown is a
   dependency. Wrappers (callouts, divs) are built around separately converted markdown runs, because the converter
   passes raw HTML through only inline.

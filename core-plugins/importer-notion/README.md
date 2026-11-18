@@ -10,7 +10,7 @@ Turns a Notion export that was committed to a GitHub repository into a new site.
 - Each markdown page becomes an item under its lesson. `ID: 1.2` gives order 2; `Type` maps to `metadata.pageType` (reading, discuss, activity, connection). Lessons have `metadata.pageType: lesson`.
 - Markdown is converted by `import.file` through the platform (`ctx.contracts.call`), so it depends on `import-markdown`. Scripts and inline handlers are removed (core sanitizes again).
 - Images and other files are listed in `files` (`files/<path>`) for core to fetch; links to them in the pages are rewritten to that path. The importer downloads nothing itself.
-- Egress is fixed to `api.github.com` and `raw.githubusercontent.com`. `github.com` itself, the host the person types, is never fetched, so `{ input: url }` would not help.
+- The repository is listed and read through `import-source.tree` (the `import-source` plugin, a dependency), so this plugin has no network access of its own; `import-source` reaches only `api.github.com` and `raw.githubusercontent.com`. Every page is read in one call. An unreadable file tree is reported in that plugin's words (`unable to read the file tree of <owner>/<repo> (HTTP 404)`).
 
 **Not ported, or changed.**
 
