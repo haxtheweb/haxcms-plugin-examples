@@ -1,0 +1,27 @@
+# Hugo importer: reads a Hugo site as data, from a GitHub repository or an uploaded zip. Its content tree becomes the
+# outline (sections, page bundles and single pages, in Hugo's own order), each page's front matter (YAML, TOML or JSON)
+# gives title, date, tags and draft state, and the built-in shortcodes that have a plain equivalent are converted.
+# Nothing of Hugo runs (no templates, no theme, no custom shortcodes). Implements import.platform; markdown goes to
+# import.file (import-markdown), front matter and configuration to import-frontmatter, and the repository or zip is
+# read by import-source, all through the platform, so this plugin reaches no network itself.
+specVersion: "0.1.0"
+id: importer-hugo
+uuid: c4a81e6f-2d97-4b3a-8f50-7e1c9a3d6b24
+title: Import from Hugo
+description: Turns a Hugo site (a GitHub repository or a zip of one) into a new site, one page per content page.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, hugo, github]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+# markdown is converted by import.file, front matter and configuration are read by import-frontmatter.data, and the
+# repository or zip is listed and read by import-source.tree
+dependencies: [import-markdown, import-frontmatter, import-source]
+staticCapable: false
