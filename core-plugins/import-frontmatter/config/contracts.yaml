@@ -1,0 +1,11 @@
+# What this plugin does for the site importers above it. It implements the contract itself; an importer calls it
+# (ctx.contracts.call("import-frontmatter.data", "split" | "parse", input)) and lists import-frontmatter in `dependencies`.
+contracts:
+  import-frontmatter.data:
+    description: A page's front matter and a site's configuration (YAML, TOML or JSON) as data
+    # split  input { text } -> { format: yaml | toml | json | none, data, body }
+    #        input { texts: [..] } -> { results: [{ format, data, body }, ..] }   (many pages in one call)
+    # parse  input { format: yaml | toml | json, text } -> { data } or { error }
+    # In `data` every map is a map, every list a list, and every other value a string: true, 10 and 2026-03-09 come
+    # back as "true", "10" and "2026-03-09" whichever format they were written in. An empty value is null.
+    operations: [split, parse]
