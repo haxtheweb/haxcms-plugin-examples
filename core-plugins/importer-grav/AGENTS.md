@@ -5,7 +5,8 @@ A Grav site (a GitHub repository or a zip of one) to JSON Outline Schema items v
 pages folder as data: one page per folder.
 
 ## Rules
-- Run nothing from the site: no PHP, no Twig, no plugin code. Read YAML with the subset reader here, never eval.
+- Run nothing from the site: no PHP, no Twig, no plugin code. Page headers and site.yaml/system.yaml are read by
+  import-frontmatter (`ctx.contracts.call("import-frontmatter.data", "split" | "parse", ...)`); never parse YAML here.
 - Never fetch or open a zip here: the site's files come from `ctx.contracts.call("import-source.tree", "list" | "read", ...)`;
   import-source is a dependency and the only plugin that reaches GitHub. Markdown goes to import.file.
 - Never drop content silently: what is removed and not converted (Twig, shortcode tags) is counted in stats.unmapped.
@@ -28,5 +29,5 @@ The zips in tests/cases/grav.yaml are written inline as base64; the header of th
 - An image stayed as written: the file is not in the repository or zip, is behind a `theme://` stream, or has an
   extension outside the importable list.
 - Twig shows in a page: the page does not set `process: twig: true` (and the site does not), so it was treated as text.
-- "no active implementer of import-source.tree" or "markdown could not be converted": import-source or
-  import-markdown is not enabled.
+- "no active implementer of import-source.tree", "front matter could not be read" or "markdown could not be
+  converted": import-source, import-frontmatter or import-markdown is not enabled.

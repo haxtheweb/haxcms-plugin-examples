@@ -2,7 +2,7 @@
 
 The one place site importers turn a page's front matter and a site's configuration file into data. Static site generators write both in YAML, TOML or JSON, and often let a site mix them; an importer should not care which. This plugin defines and implements the contract `import-frontmatter.data`; an importer lists `import-frontmatter` in `dependencies` and calls it through the platform. Part of https://github.com/haxtheweb/issues/issues/3364.
 
-**Why a plugin and not code inside each importer:** `importer-quarto` and `importer-grav` each carry a copy of the same YAML reader, and Hugo adds TOML and JSON. With the readers here, an importer holds only what is particular to its generator, and every importer sees the same shape. It reads text it is handed and nothing else: no network, no files, no storage.
+**Why a plugin and not code inside each importer:** `importer-quarto` and `importer-grav` each carried a copy of the same YAML reader, and Hugo adds TOML and JSON. All four (`importer-quarto`, `importer-grav`, `importer-hugo`, `importer-jekyll`) now read through this plugin. With the readers here, an importer holds only what is particular to its generator, and every importer sees the same shape. It reads text it is handed and nothing else: no network, no files, no storage.
 
 ## The contract
 

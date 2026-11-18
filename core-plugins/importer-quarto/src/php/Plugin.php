@@ -19,7 +19,6 @@ class ImporterQuartoPlugin {
     'caution' => ['status' => 'warning', 'title' => 'Caution'],
   ];
   const SHORTCODE = '/\{\{<\s*([A-Za-z0-9_-]+)\s*([\s\S]*?)\s*>\}\}/';
-  const KEY = '/^("[^"]*"|\'[^\']*\'|[^\s"\'#][^:#]*?)\s*:(?:\s+(.*))?$/';
 
   // ---- small helpers (each has a twin in index.js) ----
 
@@ -134,81 +133,6 @@ class ImporterQuartoPlugin {
       if ($piece === '..') { array_pop($parts); } else { $parts[] = $piece; }
     }
     return implode('/', $parts);
-  }
-
-  // ---- a YAML subset: block maps, block lists, scalars, [a, b] lists, | and > text. Enough for _quarto.yml. ----
-
-  private static function isItem($t) { return $t === '-' || strpos($t, '- ') === 0; }
-  private static function stripComment($v) { return preg_match('/^["\']/', $v) ? $v : trim(preg_replace('/\s+#.*$/', '', $v)); }
-  private static function scalar($v) {
-    $v = trim($v);
-    if (self::first($v) === '"') { return preg_match('/^"((?:\\\\.|[^"\\\\])*)"/', $v, $m) ? preg_replace('/\\\\(.)/', '$1', $m[1]) : substr($v, 1); }
-    if (self::first($v) === "'") { return preg_match("/^'((?:''|[^'])*)'/", $v, $m) ? str_replace("''", "'", $m[1]) : substr($v, 1); }
-    $v = self::stripComment($v);
-    if (self::first($v) === '[' && substr($v, -1) === ']') {
-      $inner = trim(substr($v, 1, -1));
-      return $inner === '' ? [] : array_map([self::class, 'scalar'], explode(',', $inner));
-    }
-    return $v;
-  }
-  private static function yamlBlock(&$st, $indent) {
-    $l = $st['lines'][$st['i']] ?? null;
-    if (!$l || $l['indent'] < $indent) { return null; }
-    return self::isItem($l['text']) ? self::yamlList($st, $l['indent']) : self::yamlMap($st, $l['indent']);
-  }
-  private static function yamlList(&$st, $indent) {
-    $out = [];
-    while ($st['i'] < count($st['lines'])) {
-      $l = $st['lines'][$st['i']];
-      if ($l['indent'] !== $indent || !self::isItem($l['text'])) { break; }
-      $rest = ltrim(substr($l['text'], 1), ' ');
-      $offset = strlen($l['text']) - strlen($rest);
-      if ($rest === '') { $st['i']++; $n = $st['lines'][$st['i']] ?? null; $out[] = ($n && $n['indent'] > $indent) ? self::yamlBlock($st, $n['indent']) : null; continue; }
-      if (self::isItem($rest) || preg_match(self::KEY, $rest)) { $st['lines'][$st['i']] = ['indent' => $indent + $offset, 'text' => $rest]; $out[] = self::yamlBlock($st, $indent + $offset); continue; }
-      $st['i']++;
-      $out[] = self::scalar($rest);
-    }
-    return $out;
-  }
-  private static function yamlMap(&$st, $indent) {
-    $out = [];
-    while ($st['i'] < count($st['lines'])) {
-      $l = $st['lines'][$st['i']];
-      if ($l['indent'] < $indent || ($l['indent'] === $indent && self::isItem($l['text']))) { break; }
-      $st['i']++;
-      if ($l['indent'] > $indent) { continue; }
-      if (!preg_match(self::KEY, $l['text'], $m)) { continue; }
-      $key = self::scalar($m[1]);
-      $v = isset($m[2]) ? self::stripComment($m[2]) : '';
-      if ($v === '') {
-        $n = $st['lines'][$st['i']] ?? null;
-        $out[$key] = ($n && ($n['indent'] > $indent || ($n['indent'] === $indent && self::isItem($n['text'])))) ? self::yamlBlock($st, $n['indent']) : null;
-      } elseif (preg_match('/^[|>][-+0-9]*$/', $v)) {
-        $parts = [];
-        while ($st['i'] < count($st['lines']) && $st['lines'][$st['i']]['indent'] > $indent) { $parts[] = $st['lines'][$st['i']++]['text']; }
-        $out[$key] = implode($v[0] === '|' ? "\n" : ' ', $parts);
-      } else { $out[$key] = self::scalar($v); }
-    }
-    return $out;
-  }
-  public static function parseYaml($text) {
-    $lines = [];
-    foreach (explode("\n", preg_replace('/\r\n?/', "\n", (string) $text)) as $raw) {
-      if (preg_match('/^\s*(#.*)?$/', $raw) || preg_match('/^(---|\.\.\.)\s*$/', $raw)) { continue; }
-      $indent = strlen($raw) - strlen(ltrim($raw, ' '));
-      $lines[] = ['indent' => $indent, 'text' => rtrim(substr($raw, $indent))];
-    }
-    if (!$lines) { return []; }
-    $st = ['lines' => $lines, 'i' => 0];
-    $v = self::yamlBlock($st, $lines[0]['indent']);
-    return self::isObject($v) ? $v : [];
-  }
-
-  private static function frontMatter($md) {
-    if (!preg_match('/^---\n([\s\S]*?)\n---[ \t]*(\n|$)/', $md, $m)) { return ['data' => [], 'body' => $md]; }
-    $data = [];
-    foreach (explode("\n", $m[1]) as $line) { if (preg_match('/^([A-Za-z0-9_-]+):\s+(.*)$/', $line, $k)) { $data[$k[1]] = self::scalar($k[2]); } }
-    return ['data' => $data, 'body' => substr($md, strlen($m[0]))];
   }
 
   // ---- reading the project: a GitHub repository or an uploaded zip of one, both through import-source ----
@@ -663,10 +587,17 @@ class ImporterQuartoPlugin {
     }, $html);
   }
 
-  private static function renderPage($ctx, $text, &$node, &$item, &$st) {
-    $fm = self::frontMatter(preg_replace('/\r\n?/', "\n", $text));
+  /** Front matter and configuration are read by import-frontmatter.data; this is its result, or an error. */
+  private static function frontMatterCall($ctx, $op, $input) {
+    $r = $ctx->contracts->call('import-frontmatter.data', $op, $input);
+    $ok = is_array($r) && ($op === 'split' ? (isset($r['results']) && is_array($r['results'])) : (array_key_exists('data', $r) || array_key_exists('error', $r)));
+    if (!$ok) { throw new Exception('front matter could not be read: ' . ((is_array($r) && !empty($r['error'])) ? $r['error'] : 'no result')); }
+    return $r;
+  }
+
+  private static function renderPage($ctx, $fm, &$node, &$item, &$st) {
     $body = $fm['body'];
-    $title = self::stringOf($fm['data']['title'] ?? null);
+    $title = self::stringOf(is_array($fm['data']) ? ($fm['data']['title'] ?? null) : null);
     if ($title === '') {
       $lines = explode("\n", $body);
       $i = 0;
@@ -690,7 +621,8 @@ class ImporterQuartoPlugin {
     $configText = ($src['read'])($configPath);
     if ($configText === null) { return ['error' => "unable to read $configPath"]; }
     $src['root'] = strpos($configPath, '/') !== false ? substr($configPath, 0, strrpos($configPath, '/')) : '';
-    $src['config'] = self::readConfig(self::parseYaml($configText));
+    $config = self::frontMatterCall($ctx, 'parse', ['format' => 'yaml', 'text' => $configText]);
+    $src['config'] = self::readConfig(self::isObject($config['data'] ?? null) ? $config['data'] : []);
     $outline = self::buildOutline($src);
     if (!$outline) { return ['error' => 'the Quarto project has no pages to import']; }
     $st = ['src' => $src, 'files' => [], 'fileNames' => [], 'filesByPath' => [], 'slugByPath' => []];
@@ -709,11 +641,16 @@ class ImporterQuartoPlugin {
     $wanted = []; $isWanted = [];
     foreach ($outline as $k => $node) { if ($node['path'] && count($wanted) < self::MAX_PAGES) { $isWanted[$k] = true; $wanted[] = $node['path']; } }
     $texts = ($src['readMany'])($wanted);
+    // and their front matter is split in one call
+    $readable = []; $readableTexts = [];
+    foreach ($outline as $k => $node) { if (isset($isWanted[$k]) && is_string($texts[$node['path']] ?? null)) { $readable[] = $k; $readableTexts[] = $texts[$node['path']]; } }
+    $split = $readable ? self::frontMatterCall($ctx, 'split', ['texts' => $readableTexts])['results'] : [];
+    $fms = [];
+    foreach ($readable as $i => $k) { $fms[$k] = (is_array($split[$i] ?? null) && is_string($split[$i]['body'] ?? null)) ? $split[$i] : ['data' => [], 'body' => '']; }
     foreach ($outline as $k => $node) {
       if (!$node['path']) { continue; }
       $source = $items[$k]['metadata']['source'] ?? null;
-      $text = (isset($isWanted[$k]) && isset($texts[$node['path']]) && is_string($texts[$node['path']])) ? $texts[$node['path']] : null;
-      $items[$k]['content'] = $text === null ? self::fallback($source) : self::renderPage($ctx, $text, $node, $items[$k], $st);
+      $items[$k]['content'] = isset($fms[$k]) ? self::renderPage($ctx, $fms[$k], $node, $items[$k], $st) : self::fallback($source);
     }
     return ['title' => $src['config']['title'] !== '' ? $src['config']['title'] : $src['name'], 'items' => $items, 'files' => $st['files']];
   }

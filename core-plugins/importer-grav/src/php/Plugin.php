@@ -14,7 +14,6 @@ class ImporterGravPlugin {
   // what is read as text out of a zip: pages and configuration
   const SOURCE_TEXT = '\.(md|yaml)$';
   const SHORTCODE = '/\[(\/?)([A-Za-z][A-Za-z0-9_-]*)((?:[ =][^\]\n]*)?)\]/';
-  const KEY = '/^("[^"]*"|\'[^\']*\'|[^\s"\'#][^:#]*?)\s*:(?:\s+(.*))?$/';
 
   // ---- small helpers (each has a twin in index.js) ----
 
@@ -37,7 +36,6 @@ class ImporterGravPlugin {
   private static function byText($a, $b) { $c = strcmp((string) $a, (string) $b); return $c < 0 ? -1 : ($c > 0 ? 1 : 0); }
   private static function encComponent($s) { return strtr(rawurlencode($s), ['%21' => '!', '%2A' => '*', '%27' => "'", '%28' => '(', '%29' => ')']); }
   private static function encPath($p) { return implode('/', array_map([self::class, 'encComponent'], explode('/', $p))); }
-  private static function first($s) { return substr((string) $s, 0, 1); }
 
   // ---- HTML clean-up by scanning, not by regex replacement (twin of the helpers in src/nodejs/index.js) ----
   // the ">" closing the tag that opens at $lt (quoted attribute values may hold ">"); -1 when it never closes, -2
@@ -132,74 +130,6 @@ class ImporterGravPlugin {
     return implode('/', $parts);
   }
 
-  // ---- a YAML subset: block maps, block lists, scalars, [a, b] lists, | and > text. Enough for Grav page headers and site.yaml. ----
-
-  private static function isItem($t) { return $t === '-' || strpos($t, '- ') === 0; }
-  private static function stripComment($v) { return preg_match('/^["\']/', $v) ? $v : trim(preg_replace('/\s+#.*$/', '', $v)); }
-  private static function scalar($v) {
-    $v = trim($v);
-    if (self::first($v) === '"') { return preg_match('/^"((?:\\\\.|[^"\\\\])*)"/', $v, $m) ? preg_replace('/\\\\(.)/', '$1', $m[1]) : substr($v, 1); }
-    if (self::first($v) === "'") { return preg_match("/^'((?:''|[^'])*)'/", $v, $m) ? str_replace("''", "'", $m[1]) : substr($v, 1); }
-    $v = self::stripComment($v);
-    if (self::first($v) === '[' && substr($v, -1) === ']') {
-      $inner = trim(substr($v, 1, -1));
-      return $inner === '' ? [] : array_map([self::class, 'scalar'], explode(',', $inner));
-    }
-    return $v;
-  }
-  private static function yamlBlock(&$st, $indent) {
-    $l = $st['lines'][$st['i']] ?? null;
-    if (!$l || $l['indent'] < $indent) { return null; }
-    return self::isItem($l['text']) ? self::yamlList($st, $l['indent']) : self::yamlMap($st, $l['indent']);
-  }
-  private static function yamlList(&$st, $indent) {
-    $out = [];
-    while ($st['i'] < count($st['lines'])) {
-      $l = $st['lines'][$st['i']];
-      if ($l['indent'] !== $indent || !self::isItem($l['text'])) { break; }
-      $rest = ltrim(substr($l['text'], 1), ' ');
-      $offset = strlen($l['text']) - strlen($rest);
-      if ($rest === '') { $st['i']++; $n = $st['lines'][$st['i']] ?? null; $out[] = ($n && $n['indent'] > $indent) ? self::yamlBlock($st, $n['indent']) : null; continue; }
-      if (self::isItem($rest) || preg_match(self::KEY, $rest)) { $st['lines'][$st['i']] = ['indent' => $indent + $offset, 'text' => $rest]; $out[] = self::yamlBlock($st, $indent + $offset); continue; }
-      $st['i']++;
-      $out[] = self::scalar($rest);
-    }
-    return $out;
-  }
-  private static function yamlMap(&$st, $indent) {
-    $out = [];
-    while ($st['i'] < count($st['lines'])) {
-      $l = $st['lines'][$st['i']];
-      if ($l['indent'] < $indent || ($l['indent'] === $indent && self::isItem($l['text']))) { break; }
-      $st['i']++;
-      if ($l['indent'] > $indent) { continue; }
-      if (!preg_match(self::KEY, $l['text'], $m)) { continue; }
-      $key = self::scalar($m[1]);
-      $v = isset($m[2]) ? self::stripComment($m[2]) : '';
-      if ($v === '') {
-        $n = $st['lines'][$st['i']] ?? null;
-        $out[$key] = ($n && ($n['indent'] > $indent || ($n['indent'] === $indent && self::isItem($n['text'])))) ? self::yamlBlock($st, $n['indent']) : null;
-      } elseif (preg_match('/^[|>][-+0-9]*$/', $v)) {
-        $parts = [];
-        while ($st['i'] < count($st['lines']) && $st['lines'][$st['i']]['indent'] > $indent) { $parts[] = $st['lines'][$st['i']++]['text']; }
-        $out[$key] = implode($v[0] === '|' ? "\n" : ' ', $parts);
-      } else { $out[$key] = self::scalar($v); }
-    }
-    return $out;
-  }
-  public static function parseYaml($text) {
-    $lines = [];
-    foreach (explode("\n", preg_replace('/\r\n?/', "\n", (string) $text)) as $raw) {
-      if (preg_match('/^\s*(#.*)?$/', $raw) || preg_match('/^(---|\.\.\.)\s*$/', $raw)) { continue; }
-      $indent = strlen($raw) - strlen(ltrim($raw, ' '));
-      $lines[] = ['indent' => $indent, 'text' => rtrim(substr($raw, $indent))];
-    }
-    if (!$lines) { return []; }
-    $st = ['lines' => $lines, 'i' => 0];
-    $v = self::yamlBlock($st, $lines[0]['indent']);
-    return self::isObject($v) ? $v : [];
-  }
-
   // ---- Grav helpers ----
 
   private static function isFalse($v) { return in_array(strtolower(trim(is_scalar($v) ? (string) $v : '')), ['false', '0', 'no', 'off'], true); }
@@ -256,12 +186,6 @@ class ImporterGravPlugin {
     $sec = ($has && isset($t[3])) ? (int) $t[3] : 0;
     if ($h > 23 || $mi > 59 || $sec > 59) { return null; }
     return gmmktime($h, $mi, $sec, $mo, $d, $y);
-  }
-
-  /** The page header (YAML between --- lines) and the markdown after it. */
-  private static function frontMatter($md) {
-    if (!preg_match('/^---[ \t]*\n([\s\S]*?)\n---[ \t]*(\n|$)/D', $md, $m)) { return ['data' => [], 'body' => $md]; }
-    return ['data' => self::parseYaml($m[1]), 'body' => substr($md, strlen($m[0]))];
   }
 
   // ---- reading the site: a GitHub repository or an uploaded zip of one, both through import-source ----
@@ -360,10 +284,17 @@ class ImporterGravPlugin {
     return $nodes;
   }
 
-  /** Header, body, title and date of a node from its page file. */
-  private static function readNode(&$node, $text) {
-    $fm = self::frontMatter(preg_replace('/\r\n?/', "\n", $text));
-    $node['header'] = $fm['data'];
+  /** Front matter and configuration are read by import-frontmatter.data; this is its result, or an error. */
+  private static function frontMatterCall($ctx, $op, $input) {
+    $r = $ctx->contracts->call('import-frontmatter.data', $op, $input);
+    $ok = is_array($r) && ($op === 'split' ? (isset($r['results']) && is_array($r['results'])) : (array_key_exists('data', $r) || array_key_exists('error', $r)));
+    if (!$ok) { throw new Exception('front matter could not be read: ' . ((is_array($r) && !empty($r['error'])) ? $r['error'] : 'no result')); }
+    return $r;
+  }
+
+  /** Header, body, title and date of a node from its page file, split by import-frontmatter. */
+  private static function readNode(&$node, $fm) {
+    $node['header'] = self::mapOf($fm['data'] ?? null);
     $body = $fm['body'];
     $title = self::stringOf($node['header']['title'] ?? null);
     if ($title === '') {
@@ -570,7 +501,7 @@ class ImporterGravPlugin {
     $configPaths = [];
     if ($root['user'] !== null) { foreach ([$root['user'] . 'config/site.yaml', $root['user'] . 'config/system.yaml'] as $p) { if (isset($src['paths'][$p])) { $configPaths[] = $p; } } }
     $configs = ($src['readMany'])($configPaths, false);
-    $yamlOf = function ($p) use ($configs) { return (isset($configs[$p]) && is_string($configs[$p])) ? self::parseYaml($configs[$p]) : []; };
+    $yamlOf = function ($p) use ($ctx, $configs) { return is_string($configs[$p] ?? null) ? self::mapOf(self::frontMatterCall($ctx, 'parse', ['format' => 'yaml', 'text' => $configs[$p]])['data'] ?? null) : []; };
     $site = $root['user'] === null ? [] : $yamlOf($root['user'] . 'config/site.yaml');
     $system = $root['user'] === null ? [] : $yamlOf($root['user'] . 'config/system.yaml');
     $langs = self::stringList(self::mapOf($system['languages'] ?? null)['supported'] ?? null);
@@ -589,10 +520,14 @@ class ImporterGravPlugin {
       $wanted[] = $root['pages'] . $n['file'];
     }
     $texts = ($src['readMany'])($wanted, false);
+    // and their headers are split in one call
+    $readable = []; $readableTexts = [];
     foreach ($nodes as $k => $n) {
       $text = ($n['file'] && !$n['capped']) ? ($texts[$root['pages'] . $n['file']] ?? null) : null;
-      if (is_string($text)) { self::readNode($nodes[$k], $text); }
+      if (is_string($text)) { $readable[] = $k; $readableTexts[] = $text; }
     }
+    $split = $readable ? self::frontMatterCall($ctx, 'split', ['texts' => $readableTexts])['results'] : [];
+    foreach ($readable as $i => $k) { self::readNode($nodes[$k], (is_array($split[$i] ?? null) && is_string($split[$i]['body'] ?? null)) ? $split[$i] : ['data' => [], 'body' => '']); }
 
     $st = ['src' => $src, 'root' => $root, 'twig' => self::isTrue(self::mapOf(self::mapOf($system['pages'] ?? null)['process'] ?? null)['twig'] ?? null), 'unmapped' => [], 'media' => [], 'fileNames' => [], 'filesByPath' => [], 'slugByKey' => [], 'dirByKey' => []];
     $items = []; $outline = []; $used = [];

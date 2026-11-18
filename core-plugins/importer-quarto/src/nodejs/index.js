@@ -134,81 +134,6 @@ function normalizePath(path) {
   return parts.join("/");
 }
 
-// ---- a YAML subset: block maps, block lists, scalars, [a, b] lists, | and > text. Enough for _quarto.yml. ----
-
-const KEY = /^("[^"]*"|'[^']*'|[^\s"'#][^:#]*?)\s*:(?:\s+(.*))?$/;
-const isItem = (t) => t === "-" || t.startsWith("- ");
-const stripComment = (v) => (/^["']/.test(v) ? v : v.replace(/\s+#.*$/, "").trim());
-function scalar(v) {
-  v = v.trim();
-  if (v.startsWith('"')) { const m = /^"((?:\\.|[^"\\])*)"/.exec(v); return m ? m[1].replace(/\\(.)/g, "$1") : v.slice(1); }
-  if (v.startsWith("'")) { const m = /^'((?:''|[^'])*)'/.exec(v); return m ? m[1].replace(/''/g, "'") : v.slice(1); }
-  v = stripComment(v);
-  if (v.startsWith("[") && v.endsWith("]")) { const inner = v.slice(1, -1).trim(); return inner === "" ? [] : inner.split(",").map((x) => scalar(x)); }
-  return v;
-}
-function yamlBlock(st, indent) {
-  const l = st.lines[st.i];
-  if (!l || l.indent < indent) return null;
-  return isItem(l.text) ? yamlList(st, l.indent) : yamlMap(st, l.indent);
-}
-function yamlList(st, indent) {
-  const out = [];
-  while (st.i < st.lines.length) {
-    const l = st.lines[st.i];
-    if (l.indent !== indent || !isItem(l.text)) break;
-    const rest = l.text.slice(1).replace(/^ +/, "");
-    const offset = l.text.length - rest.length;
-    if (rest === "") { st.i++; const n = st.lines[st.i]; out.push(n && n.indent > indent ? yamlBlock(st, n.indent) : null); continue; }
-    if (isItem(rest) || KEY.test(rest)) { st.lines[st.i] = { indent: indent + offset, text: rest }; out.push(yamlBlock(st, indent + offset)); continue; }
-    st.i++;
-    out.push(scalar(rest));
-  }
-  return out;
-}
-function yamlMap(st, indent) {
-  const out = {};
-  while (st.i < st.lines.length) {
-    const l = st.lines[st.i];
-    if (l.indent < indent || (l.indent === indent && isItem(l.text))) break;
-    st.i++;
-    if (l.indent > indent) continue;
-    const m = KEY.exec(l.text);
-    if (!m) continue;
-    const key = scalar(m[1]);
-    const v = m[2] === undefined ? "" : stripComment(m[2]);
-    if (v === "") {
-      const n = st.lines[st.i];
-      out[key] = n && (n.indent > indent || (n.indent === indent && isItem(n.text))) ? yamlBlock(st, n.indent) : null;
-    } else if (/^[|>][-+0-9]*$/.test(v)) {
-      const parts = [];
-      while (st.i < st.lines.length && st.lines[st.i].indent > indent) parts.push(st.lines[st.i++].text);
-      out[key] = parts.join(v[0] === "|" ? "\n" : " ");
-    } else out[key] = scalar(v);
-  }
-  return out;
-}
-export function parseYaml(text) {
-  const lines = [];
-  for (const raw of String(text).replace(/\r\n?/g, "\n").split("\n")) {
-    if (/^\s*(#.*)?$/.test(raw) || /^(---|\.\.\.)\s*$/.test(raw)) continue;
-    const indent = /^ */.exec(raw)[0].length;
-    lines.push({ indent, text: raw.slice(indent).replace(/\s+$/, "") });
-  }
-  if (!lines.length) return {};
-  const v = yamlBlock({ lines, i: 0 }, lines[0].indent);
-  return isObject(v) ? v : {};
-}
-
-/** Front matter: only the top-level `key: value` lines (the title is all this importer needs). */
-function frontMatter(md) {
-  const m = /^---\n([\s\S]*?)\n---[ \t]*(\n|$)/.exec(md);
-  if (!m) return { data: {}, body: md };
-  const data = {};
-  for (const line of m[1].split("\n")) { const k = /^([A-Za-z0-9_-]+):\s+(.*)$/.exec(line); if (k) data[k[1]] = scalar(k[2]); }
-  return { data, body: md.slice(m[0].length) };
-}
-
 // ---- reading the project: a GitHub repository or an uploaded zip of one, both through import-source ----
 
 // what the importer needs out of a repository or a zip of one: pages and the YAML config
@@ -644,10 +569,16 @@ function rewrite(html, node, st) {
   });
 }
 
-async function renderPage(ctx, text, node, st) {
-  const fm = frontMatter(text.replace(/\r\n?/g, "\n"));
+/** Front matter and configuration are read by import-frontmatter.data; this is its result, or an error. */
+async function frontMatterCall(ctx, op, input) {
+  const r = await ctx.contracts.call("import-frontmatter.data", op, input);
+  if (!r || (op === "split" ? !Array.isArray(r.results) : r.data === undefined && r.error === undefined)) throw new Error(`front matter could not be read: ${(r && r.error) || "no result"}`);
+  return r;
+}
+
+async function renderPage(ctx, fm, node, st) {
   let body = fm.body;
-  let title = stringOf(fm.data.title);
+  let title = stringOf(isObject(fm.data) ? fm.data.title : "");
   if (title === "") {
     // a chapter with no title in its front matter is titled by its first level-one heading
     const lines = body.split("\n");
@@ -670,7 +601,8 @@ async function importProject(ctx, src) {
   const configText = await src.read(configPath);
   if (configText === null) return { error: `unable to read ${configPath}` };
   src.root = configPath.includes("/") ? configPath.slice(0, configPath.lastIndexOf("/")) : "";
-  src.config = readConfig(parseYaml(configText));
+  const config = await frontMatterCall(ctx, "parse", { format: "yaml", text: configText });
+  src.config = readConfig(isObject(config.data) ? config.data : {});
   const outline = buildOutline(src);
   if (!outline.length) return { error: "the Quarto project has no pages to import" };
   const st = { src, files: [], fileNames: {}, filesByPath: {}, slugByPath: {} };
@@ -692,10 +624,13 @@ async function importProject(ctx, src) {
   const wanted = [];
   for (const node of outline) if (node.path && wanted.length < MAX_PAGES) { node.wanted = true; wanted.push(node.path); }
   const texts = await src.readMany(wanted);
+  // and their front matter is split in one call
+  const readable = outline.filter((node) => node.wanted && typeof texts[node.path] === "string");
+  const split = readable.length ? (await frontMatterCall(ctx, "split", { texts: readable.map((node) => texts[node.path]) })).results : [];
+  readable.forEach((node, i) => { node.fm = split[i] && typeof split[i].body === "string" ? split[i] : { data: {}, body: "" }; });
   for (const node of outline) {
     if (!node.path) continue;
-    const text = node.wanted && typeof texts[node.path] === "string" ? texts[node.path] : null;
-    node.item.content = text === null ? fallback(node.item.metadata.source) : await renderPage(ctx, text, node, st);
+    node.item.content = node.fm ? await renderPage(ctx, node.fm, node, st) : fallback(node.item.metadata.source);
   }
   return { title: src.config.title || src.name, items, files: st.files };
 }
