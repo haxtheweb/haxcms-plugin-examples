@@ -1,0 +1,28 @@
+# Jekyll importer: reads a Jekyll site as data, from a GitHub repository or an uploaded zip. Its pages become the
+# outline (nested by the parent and nav_order front matter Just the Docs and its kin use, else by folder), its
+# collections a page each, and its posts one Posts page, newest first. Front matter gives title, date, tags and
+# published state, and the Liquid tags that have a plain equivalent are converted. Nothing of Jekyll runs (no layouts,
+# no includes, no plugins). Implements import.platform; markdown goes to import.file (import-markdown), front matter and
+# _config.yml to import-frontmatter, and the repository or zip is read by import-source, all through the platform, so
+# this plugin reaches no network itself.
+specVersion: "0.1.0"
+id: importer-jekyll
+uuid: 5f8d2b71-9e46-4c3a-b1d7-0a6e3c9f4b82
+title: Import from Jekyll
+description: Turns a Jekyll site (a GitHub repository or a zip of one) into a new site, with its posts and collections.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, jekyll, github]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+# markdown is converted by import.file, front matter and _config.yml are read by import-frontmatter.data, and the
+# repository or zip is listed and read by import-source.tree
+dependencies: [import-markdown, import-frontmatter, import-source]
+staticCapable: false
