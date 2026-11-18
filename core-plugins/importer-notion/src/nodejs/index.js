@@ -1,7 +1,5 @@
 // Notion importer (Node). Mirrored in src/php/Plugin.php; both return identical results.
-// Port of core's convertNotionToSite.js: a Notion export committed to GitHub, read through the GitHub API.
-const API = "https://api.github.com";
-const RAW = "https://raw.githubusercontent.com";
+// Port of core's convertNotionToSite.js: a Notion export committed to GitHub, listed and read through import-source.
 
 // Notion page properties ("# Title\n\nLesson: 1. Intro\nType: Reading\n\n") at the top of each exported page
 const HEAD_MATTER = /#\s(.*?)\n\n?(.*?):\s(.*)\n(.*?):\s((.|\n)*?)\n\n/im;
@@ -109,12 +107,6 @@ function strip(html) {
   return cleanHtml(html, ["script"], [], false);
 }
 
-/** owner, repo and optional branch from a github.com URL, or null. */
-export function parseRepo(url) {
-  const m = /^https?:\/\/(?:www\.)?github\.com\/([^/?#]+)\/([^/?#]+)(?:\/tree\/([^/?#]+))?/i.exec(String(url).trim());
-  return m ? { owner: m[1], repo: m[2].replace(/\.git$/, ""), branch: m[3] || null } : null;
-}
-
 /** The site path core gives a non-markdown file (its odd percent clean-up kept so existing links still match). */
 function fileKey(rel) {
   return encodeURI(`files/${rel}`).replaceAll("%20", "").replaceAll("%C", "").replaceAll("%", "");
@@ -144,35 +136,23 @@ export default {
        * page made from its Lesson property, and every other file is listed for core to fetch into files/.
        * Markdown is converted by import.file (import-markdown); a page that cannot be read comes back empty.
        *
-       * @param {object} ctx    Platform context (spec/13); ctx.fetch reaches only api.github.com and raw.githubusercontent.com.
+       * @param {object} ctx    Platform context (spec/13); the repository is read through import-source.tree, so nothing is fetched here.
        * @param {object} input  { url } of the repository (https://github.com/<owner>/<repo>, optionally /tree/<branch>).
        * @returns {Promise<object>}  { title, items, files } or { error }.
        */
       async convert(ctx, input) {
         if (!input || !input.url) return { error: "url is required" };
-        const gh = parseRepo(input.url);
-        if (!gh) return { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" };
-        const repoApi = `${API}/repos/${gh.owner}/${gh.repo}`;
-        let branch = gh.branch;
-        if (!branch) {
-          try { const r = await ctx.fetch(repoApi); const d = r.ok ? await r.json() : {}; branch = (d && d.default_branch) || "main"; }
-          catch { branch = "main"; }
-        }
-        let tree;
-        try {
-          const r = await ctx.fetch(`${repoApi}/git/trees/${encodeURIComponent(branch)}?recursive=1`);
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          const d = await r.json();
-          tree = d && Array.isArray(d.tree) ? d.tree : [];
-        } catch (e) { return { error: `unable to read the repository file list: ${e.message}` }; }
-        const paths = tree.filter((f) => f && f.type !== "tree" && typeof f.path === "string").map((f) => f.path);
+        // the repository's file list comes from import-source; a branch in the URL is used as given
+        const listed = await ctx.contracts.call("import-source.tree", "list", { url: input.url });
+        if (!listed || listed.error || !Array.isArray(listed.paths)) return { error: (listed && listed.error) || "the repository's files could not be listed" };
+        const paths = listed.paths;
         if (!paths.some((p) => p.endsWith(".md"))) return { error: "the repository has no markdown pages" };
 
         // the database CSV names the folder the pages and their files sit in
         const csv = paths.find((p) => p.includes(".csv"));
         const base = csv ? csv.replace(".csv", "") : "";
         const rel = (p) => (base && p.startsWith(`${base}/`) ? p.slice(base.length + 1) : p);
-        const raw = (p) => `${RAW}/${gh.owner}/${gh.repo}/${branch}/${encodeURI(p)}`;
+        const raw = (p) => `${listed.rawBase}/${encodeURI(p)}`;
 
         // every other file is listed for core to fetch; page links to it are rewritten to its files/ path
         const downloads = {};
@@ -186,10 +166,13 @@ export default {
 
         const items = [];
         const lessons = {};
-        for (const p of paths) {
-          if (p.includes(".csv") || !p.includes(".md")) continue;
-          let md = "";
-          try { const r = await ctx.fetch(raw(p)); md = r.ok ? await r.text() : ""; } catch { md = ""; }
+        // every page is read in one call; one that cannot be read comes back empty
+        const pages = paths.filter((p) => !p.includes(".csv") && p.includes(".md"));
+        const got = await ctx.contracts.call("import-source.tree", "read", { repo: listed.repo, branch: listed.branch, paths: pages });
+        const texts = {};
+        for (const f of (got && Array.isArray(got.files) ? got.files : [])) texts[f.path] = f.data;
+        for (const p of pages) {
+          let md = typeof texts[p] === "string" ? texts[p] : "";
           md = md.replace(/\r\n?/g, "\n");
           const head = readHeadMatter(md);
           const v = head.values;
@@ -222,7 +205,7 @@ export default {
             metadata,
           });
         }
-        return { title: gh.repo, items, files: Object.entries(downloads).map(([path, url]) => ({ path, url })) };
+        return { title: listed.name, items, files: Object.entries(downloads).map(([path, url]) => ({ path, url })) };
       },
     },
   },

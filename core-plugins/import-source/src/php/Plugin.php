@@ -35,8 +35,12 @@ class ImportSourcePlugin {
       return $r['json'];
     };
     $repo = $gh['owner'] . '/' . $gh['name'];
-    $info = $getJson(self::API . "/repos/$repo", "the repository $repo");
-    $branch = $gh['branch'] ?: ((is_array($info) && !empty($info['default_branch'])) ? $info['default_branch'] : 'main');
+    // the default branch is looked up only when the URL does not name one
+    $branch = $gh['branch'];
+    if (!$branch) {
+      $info = $getJson(self::API . "/repos/$repo", "the repository $repo");
+      $branch = (is_array($info) && !empty($info['default_branch'])) ? $info['default_branch'] : 'main';
+    }
     $tree = $getJson(self::API . "/repos/$repo/git/trees/" . self::encComponent($branch) . '?recursive=1', "the file tree of $repo");
     $paths = []; $seen = [];
     foreach ((is_array($tree) && isset($tree['tree']) && is_array($tree['tree'])) ? $tree['tree'] : [] as $t) {

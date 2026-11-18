@@ -142,6 +142,6 @@
       "https://api.github.com/repos/acme/docs/git/trees/v2?recursive=1": { status: 200, body: { tree: [{ path: README.md, type: blob }, { path: guide.md, type: blob }] } }
     steps:
       - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { url: "https://github.com/acme/docs/tree/v2" } }
-        expect: { body: [{ result: { error: "no .vitepress/config file found in acme/docs" } }], fetch: { count: 2, contains: [trees/v2] } }
+        expect: { body: [{ result: { error: "no .vitepress/config file found in acme/docs" } }], fetch: { count: 1, contains: [trees/v2] } }
       - contract: { name: import.platform, op: convert, plugin: importer-vitepress, input: { files: [{ name: site.zip, data: "bm90IGEgemlw" }] } }
         expect: { body: [{ result: { error: "the file is not a zip archive" } }] }

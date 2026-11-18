@@ -1,7 +1,7 @@
 # Quarto importer: extracted from core (systemRoutes/v1/routes/imports/convertQuartoToSite.js). Reads a Quarto book or
 # website from a GitHub repository (or an uploaded zip of one): the _quarto.yml outline, every page, and the repository
-# images and files those pages use. Implements import.platform; markdown goes to import.file (import-markdown) through
-# the platform. It may reach only GitHub's API and raw-file hosts.
+# images and files those pages use. Implements import.platform; markdown goes to import.file (import-markdown) and the
+# repository or zip is read by import-source, both through the platform, so this plugin reaches no network itself.
 specVersion: "0.1.0"
 id: importer-quarto
 uuid: 54bbcdad-bd3c-4300-a63c-26708fe1be34
@@ -19,10 +19,6 @@ entry:
   nodejs: src/nodejs/index.js
   php: src/php/Plugin.php
 implements: [import.platform]
-dependencies: [import-markdown]   # each page's markdown is converted by import.file
-capabilities: ["network:egress"]
-# The person gives a github.com repository URL; the file tree comes from GitHub's API and the files from its raw host.
-egress:
-  - api.github.com
-  - raw.githubusercontent.com
+# each page's markdown is converted by import.file; the repository or zip is listed and read by import-source.tree
+dependencies: [import-markdown, import-source]
 staticCapable: false

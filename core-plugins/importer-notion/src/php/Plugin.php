@@ -1,8 +1,6 @@
 <?php
 // Notion importer (PHP). Mirrors src/nodejs/index.js; both return identical results.
 class ImporterNotionPlugin {
-  const API = 'https://api.github.com';
-  const RAW = 'https://raw.githubusercontent.com';
   const HEAD_MATTER = '/#\s(.*?)\n\n?(.*?):\s(.*)\n(.*?):\s((.|\n)*?)\n\n/im';
   const HEAD_TITLE = '/(#\s)(.*?)\n/';
   const HEAD_LINE = '/(.*?)(:\s)(.*)/im';
@@ -114,11 +112,6 @@ class ImporterNotionPlugin {
     return strtr(rawurlencode($s), ['%3B' => ';', '%2C' => ',', '%2F' => '/', '%3F' => '?', '%3A' => ':', '%40' => '@', '%26' => '&', '%3D' => '=', '%2B' => '+', '%24' => '$', '%21' => '!', '%2A' => '*', '%27' => "'", '%28' => '(', '%29' => ')', '%23' => '#']);
   }
 
-  public function parseRepo($url) {
-    if (!preg_match('/^https?:\/\/(?:www\.)?github\.com\/([^\/?#]+)\/([^\/?#]+)(?:\/tree\/([^\/?#]+))?/i', trim((string) $url), $m)) { return null; }
-    return ['owner' => $m[1], 'repo' => preg_replace('/\.git$/', '', $m[2]), 'branch' => !empty($m[3]) ? $m[3] : null];
-  }
-
   private function fileKey($rel) {
     return str_replace(['%20', '%C', '%'], '', $this->encodeUri("files/$rel"));
   }
@@ -143,27 +136,18 @@ class ImporterNotionPlugin {
    * made from its Lesson property, and every other file is listed for core to fetch into files/.
    * Markdown is converted by import.file (import-markdown); a page that cannot be read comes back empty.
    *
-   * @param object $ctx    Platform context (spec/13); $ctx->fetch() reaches only api.github.com and raw.githubusercontent.com.
+   * @param object $ctx    Platform context (spec/13); the repository is read through import-source.tree, so nothing is fetched here.
    * @param array  $input  [url] of the repository (https://github.com/<owner>/<repo>, optionally /tree/<branch>).
    * @return array  [title, items, files] or [error].
    */
   public function importPlatformConvert($ctx, $input) {
     if (empty($input['url'])) { return ['error' => 'url is required']; }
-    $gh = $this->parseRepo($input['url']);
-    if (!$gh) { return ['error' => 'url must be a GitHub repository (https://github.com/<owner>/<repo>)']; }
-    $repoApi = self::API . '/repos/' . $gh['owner'] . '/' . $gh['repo'];
-    $branch = $gh['branch'];
-    if (!$branch) {
-      try { $r = $ctx->fetch($repoApi); $d = $r['status'] < 400 ? $r['json'] : []; $branch = !empty($d['default_branch']) ? $d['default_branch'] : 'main'; }
-      catch (Exception $e) { $branch = 'main'; }
+    // the repository's file list comes from import-source; a branch in the URL is used as given
+    $listed = $ctx->contracts->call('import-source.tree', 'list', ['url' => $input['url']]);
+    if (!is_array($listed) || isset($listed['error']) || !isset($listed['paths']) || !is_array($listed['paths'])) {
+      return ['error' => (is_array($listed) && isset($listed['error'])) ? $listed['error'] : "the repository's files could not be listed"];
     }
-    try {
-      $r = $ctx->fetch("$repoApi/git/trees/" . rawurlencode($branch) . '?recursive=1');
-      if ($r['status'] >= 400) { throw new Exception('HTTP ' . $r['status']); }
-      $tree = is_array($r['json']) && isset($r['json']['tree']) && is_array($r['json']['tree']) ? $r['json']['tree'] : [];
-    } catch (Exception $e) { return ['error' => 'unable to read the repository file list: ' . $e->getMessage()]; }
-    $paths = [];
-    foreach ($tree as $f) { if (is_array($f) && ($f['type'] ?? '') !== 'tree' && is_string($f['path'] ?? null)) { $paths[] = $f['path']; } }
+    $paths = array_map('strval', $listed['paths']);
     $hasMd = false;
     foreach ($paths as $p) { if (substr($p, -3) === '.md') { $hasMd = true; break; } }
     if (!$hasMd) { return ['error' => 'the repository has no markdown pages']; }
@@ -171,7 +155,8 @@ class ImporterNotionPlugin {
     $base = '';
     foreach ($paths as $p) { if (strpos($p, '.csv') !== false) { $base = $this->replaceFirst($p, '.csv', ''); break; } }
     $rel = function ($p) use ($base) { return ($base !== '' && strpos($p, "$base/") === 0) ? substr($p, strlen($base) + 1) : $p; };
-    $raw = function ($p) use ($gh, &$branch) { return self::RAW . '/' . $gh['owner'] . '/' . $gh['repo'] . '/' . $branch . '/' . $this->encodeUri($p); };
+    $rawBase = (string) ($listed['rawBase'] ?? '');
+    $raw = function ($p) use ($rawBase) { return $rawBase . '/' . $this->encodeUri($p); };
 
     $downloads = []; $fileMap = [];
     foreach ($paths as $p) {
@@ -182,9 +167,14 @@ class ImporterNotionPlugin {
     }
 
     $items = []; $lessons = [];
-    foreach ($paths as $p) {
-      if (strpos($p, '.csv') !== false || strpos($p, '.md') === false) { continue; }
-      try { $r = $ctx->fetch($raw($p)); $md = $r['status'] < 400 ? (string) $r['body'] : ''; } catch (Exception $e) { $md = ''; }
+    // every page is read in one call; one that cannot be read comes back empty
+    $pages = [];
+    foreach ($paths as $p) { if (strpos($p, '.csv') === false && strpos($p, '.md') !== false) { $pages[] = $p; } }
+    $got = $pages ? $ctx->contracts->call('import-source.tree', 'read', ['repo' => $listed['repo'] ?? null, 'branch' => $listed['branch'] ?? null, 'paths' => $pages]) : [];
+    $texts = [];
+    foreach ((is_array($got) && isset($got['files']) && is_array($got['files'])) ? $got['files'] : [] as $f) { $texts[(string) $f['path']] = $f['data'] ?? null; }
+    foreach ($pages as $p) {
+      $md = (isset($texts[$p]) && is_string($texts[$p])) ? $texts[$p] : '';
       $md = preg_replace('/\r\n?/', "\n", $md);
       $head = $this->readHeadMatter($md);
       $v = $head['values'];
@@ -220,6 +210,6 @@ class ImporterNotionPlugin {
     }
     $files = [];
     foreach ($downloads as $path => $url) { $files[] = ['path' => (string) $path, 'url' => $url]; }
-    return ['title' => $gh['repo'], 'items' => $items, 'files' => $files];
+    return ['title' => (string) ($listed['name'] ?? ''), 'items' => $items, 'files' => $files];
   }
 }

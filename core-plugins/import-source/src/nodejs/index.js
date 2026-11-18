@@ -31,8 +31,12 @@ async function listGithub(ctx, url) {
     return r.json();
   };
   const repo = `${gh.owner}/${gh.name}`;
-  const info = await getJson(`${API}/repos/${repo}`, `the repository ${repo}`);
-  const branch = gh.branch || (info && info.default_branch) || "main";
+  // the default branch is looked up only when the URL does not name one
+  let branch = gh.branch;
+  if (!branch) {
+    const info = await getJson(`${API}/repos/${repo}`, `the repository ${repo}`);
+    branch = (info && info.default_branch) || "main";
+  }
   const tree = await getJson(`${API}/repos/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`, `the file tree of ${repo}`);
   const paths = [];
   const seen = new Set();

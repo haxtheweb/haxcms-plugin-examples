@@ -32,7 +32,7 @@
   title: "a branch named in the URL is the one listed"
   given: "https://github.com/acme/docs/tree/v2"
   when: "list"
-  then: "the v2 tree is read and rawBase points at v2"
+  then: "the v2 tree is read and rawBase points at v2; the default branch is not looked up (one request)"
   run:
     fetch:
       "https://api.github.com/repos/acme/docs": { status: 200, body: { default_branch: main } }
@@ -41,7 +41,7 @@
       - contract: { name: import-source.tree, op: list, plugin: import-source, input: { url: "https://github.com/acme/docs/tree/v2" } }
         expect:
           body: [{ result: { kind: github, branch: v2, rawBase: "https://raw.githubusercontent.com/acme/docs/v2", paths: [_config.yml] } }]
-          fetch: { count: 2, contains: [trees/v2] }
+          fetch: { count: 1, contains: [trees/v2] }
 - id: import-source-003
   title: "repository files are read from the raw host; one that is missing comes back null"
   given: "acme/docs on v2 with _config.yml; about.md is not there"
