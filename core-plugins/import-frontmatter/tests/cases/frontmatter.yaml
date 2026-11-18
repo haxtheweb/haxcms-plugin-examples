@@ -1,0 +1,82 @@
+# Executable cases for import-frontmatter (run by harness/run-cases.mjs in Node and PHP, with a parity check).
+# All texts are synthetic and written inline.
+- id: import-frontmatter-001
+  title: "a page splits into its front matter and its body, whichever of the three formats it is written in"
+  given: "the same page written with YAML (---), TOML (+++) and a JSON object; and a page with no front matter"
+  when: "split each"
+  then: "the same data from all three, every scalar a string (true, 10 and the date included), lists as lists, maps as maps; the body is what follows; the page without front matter is all body"
+  run:
+    steps:
+      - contract: { name: import-frontmatter.data, op: split, plugin: import-frontmatter, input: { text: "---\ntitle: \"Ridge Loop\"\ndate: 2026-03-09T14:30:00+02:00\ndraft: true\nweight: 10\ntags: [steep, views]\nmenu:\n  main:\n    weight: 2\n---\nSix miles.\n" } }
+        expect:
+          body:
+            - plugin: import-frontmatter
+              result: { format: yaml, data: { title: Ridge Loop, date: "2026-03-09T14:30:00+02:00", draft: "true", weight: "10", tags: [steep, views], menu: { main: { weight: "2" } } }, body: "Six miles.\n" }
+      - contract: { name: import-frontmatter.data, op: split, plugin: import-frontmatter, input: { text: "+++\ntitle = \"Ridge Loop\"\ndate = 2026-03-09T14:30:00+02:00\ndraft = true\nweight = 10\ntags = [\"steep\", \"views\"]\n[menu.main]\nweight = 2\n+++\nSix miles.\n" } }
+        expect:
+          body: [{ result: { format: toml, data: { title: Ridge Loop, date: "2026-03-09T14:30:00+02:00", draft: "true", weight: "10", tags: [steep, views], menu: { main: { weight: "2" } } }, body: "Six miles.\n" } }]
+      - contract: { name: import-frontmatter.data, op: split, plugin: import-frontmatter, input: { text: "{\n  \"title\": \"Ridge Loop\",\n  \"date\": \"2026-03-09T14:30:00+02:00\",\n  \"draft\": true,\n  \"weight\": 10,\n  \"tags\": [\"steep\", \"views\"],\n  \"menu\": { \"main\": { \"weight\": 2 } }\n}\nSix miles.\n" } }
+        expect:
+          body: [{ result: { format: json, data: { title: Ridge Loop, date: "2026-03-09T14:30:00+02:00", draft: "true", weight: "10", tags: [steep, views], menu: { main: { weight: "2" } } }, body: "Six miles.\n" } }]
+      - contract: { name: import-frontmatter.data, op: split, plugin: import-frontmatter, input: { text: "# Plain page\n\n---\n\nA rule, not front matter.\n" } }
+        expect:
+          body: [{ result: { format: none, data: {}, body: "# Plain page\n\n---\n\nA rule, not front matter.\n" } }]
+- id: import-frontmatter-002
+  title: "a TOML site configuration is read: tables, arrays of tables, inline tables, the string kinds"
+  given: "a hugo.toml with comments, a multi-line array, [params] and a nested table, two [[menus.main]] entries (the second with its own table), an inline table, a literal string, a multi-line string, an escaped quote and \\u00e9, a dotted key, and a line that is not TOML"
+  when: "parse with format toml"
+  then: "the nesting holds; the menu is a list of two maps; numbers and booleans are strings; the bad line is skipped and the rest still reads"
+  run:
+    steps:
+      - contract:
+          name: import-frontmatter.data
+          op: parse
+          plugin: import-frontmatter
+          input:
+            format: toml
+            text: "baseURL = \"https://example.org/\"   # where it is served\ntitle = 'Field Notes'\npaginate = 10\nenableEmoji = true\nthis line is not toml\ntaxonomies = [\n  \"tag\",   # one per line\n  'category',\n]\n\n[params]\ndescription = \"Day \\\"hikes\\\" caf\\u00e9\"\nsocial.handle = \"lake\"\n  [params.author]\n  name = \"Lake Club\"\n  links = { site = \"https://example.org\", count = 2 }\n\n[[menus.main]]\nname = \"Home\"\npageRef = \"/\"\nweight = 1\n\n[[menus.main]]\nname = \"Trails\"\n[menus.main.params]\nicon = \"map\"\n\n[markup.goldmark.renderer]\nunsafe = true\nnote = \"\"\"\nline one\nline two\"\"\"\n"
+        expect:
+          body:
+            - result:
+                data:
+                  baseURL: "https://example.org/"
+                  title: Field Notes
+                  paginate: "10"
+                  enableEmoji: "true"
+                  taxonomies: [tag, category]
+                  params: { description: "Day \"hikes\" café", social: { handle: lake }, author: { name: Lake Club, links: { site: "https://example.org", count: "2" } } }
+                  menus: { main: [{ name: Home, pageRef: "/", weight: "1" }, { name: Trails, params: { icon: map } }] }
+                  markup: { goldmark: { renderer: { unsafe: "true", note: "line one\nline two" } } }
+          absent: [this]
+- id: import-frontmatter-003
+  title: "many pages split in one call; awkward starts are handled"
+  given: "five texts: empty front matter, a byte order mark with CRLF line ends, a +++ block that never closes, a JSON object with a brace inside a string, and one that is not a string"
+  when: "split with texts"
+  then: "five results in order: empty data with the body kept; the mark and CRLF gone; the unclosed block left as body; the JSON read to its real closing brace; the non-string as an empty page"
+  run:
+    steps:
+      - contract: { name: import-frontmatter.data, op: split, plugin: import-frontmatter, input: { texts: ["---\n---\nBody only.\n", "﻿---\r\ntitle: Marked\r\n---\r\nLine one.\r\nLine two.\r\n", "+++\ntitle = \"Never closed\"\nBody?\n", "{ \"title\": \"Braces } in { strings\", \"n\": 1.5 }\n\nAfter.\n", 7] } }
+        expect:
+          body:
+            - result:
+                results:
+                  - { format: yaml, data: {}, body: "Body only.\n" }
+                  - { format: yaml, data: { title: Marked }, body: "Line one.\nLine two.\n" }
+                  - { format: none, data: {}, body: "+++\ntitle = \"Never closed\"\nBody?\n" }
+                  - { format: json, data: { title: "Braces } in { strings", n: "1.5" }, body: "\nAfter.\n" }
+                  - { format: none, data: {}, body: "" }
+- id: import-frontmatter-004
+  title: "configuration in YAML and JSON reads the same way; what cannot be read is an error"
+  given: "a _config.yml text, a config.json text, JSON that is a list, and a format that is not one of the three"
+  when: "parse"
+  then: "data for the first two; error results for the others"
+  run:
+    steps:
+      - contract: { name: import-frontmatter.data, op: parse, plugin: import-frontmatter, input: { format: yaml, text: "title: Field Notes\nbaseurl: /notes\ncollections:\n  guides:\n    output: true\nexclude:\n  - Gemfile\n  - vendor\n" } }
+        expect: { body: [{ result: { data: { title: Field Notes, baseurl: /notes, collections: { guides: { output: "true" } }, exclude: [Gemfile, vendor] } } }] }
+      - contract: { name: import-frontmatter.data, op: parse, plugin: import-frontmatter, input: { format: json, text: "{ \"title\": \"Field Notes\", \"paginate\": 10, \"params\": { \"dark\": false, \"none\": null } }" } }
+        expect: { body: [{ result: { data: { title: Field Notes, paginate: "10", params: { dark: "false", none: null } } } }] }
+      - contract: { name: import-frontmatter.data, op: parse, plugin: import-frontmatter, input: { format: json, text: "[1, 2]" } }
+        expect: { body: [{ result: { error: "the text is not a JSON object" } }] }
+      - contract: { name: import-frontmatter.data, op: parse, plugin: import-frontmatter, input: { format: ini, text: "a=1" } }
+        expect: { body: [{ result: { error: "format must be yaml, toml or json" } }] }

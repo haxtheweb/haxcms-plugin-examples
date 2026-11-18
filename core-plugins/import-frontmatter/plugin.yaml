@@ -1,0 +1,24 @@
+# Import front matter: the one place site importers turn a page's front matter (YAML between ---, TOML between +++,
+# or a JSON object) and a site's configuration file into data. It defines and implements import-frontmatter.data
+# (split a page into its data and body; parse a configuration text), so an importer for a static site generator
+# carries no YAML, TOML or JSON front matter reader of its own. It reads text only: no network, no storage.
+specVersion: "0.1.0"
+id: import-frontmatter
+uuid: 3e7a9b52-6c1d-4f08-b2a4-8d5e0c7f1a96
+title: Import front matter (YAML, TOML, JSON)
+description: Reads page front matter and site configuration (YAML, TOML or JSON) as data, for the site importers.
+version: 0.1.0
+category: integration
+icon: icons:code
+tags: [import, yaml, toml]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+hidden: true   # a helper other importers depend on; nothing for a person to choose
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+contracts: config/contracts.yaml
+implements: [import-frontmatter.data]
+staticCapable: false

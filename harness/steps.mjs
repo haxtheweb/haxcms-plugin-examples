@@ -58,7 +58,10 @@ export async function step(backend, raw, vars = {}) {
     if (f.file) { const { readFileSync } = await import("node:fs"); const { join, basename } = await import("node:path"); const full = join(backend.caseDir || ".", f.file); f.data = readFileSync(full).toString("base64"); f.name = f.name || basename(full); delete f.file; }
     Object.assign(out, await backend.importFile(f));
   }
-  else if (s.implementers) Object.assign(out, { status: 200, body: await backend.contractImplementers(s.implementers) });
+  // implementers: a contract name, or { name, surface } for what one surface (admin, cli, mcp) offers
+  else if (s.implementers) Object.assign(out, { status: 200, body: await (typeof s.implementers === "string" ? backend.contractImplementers(s.implementers) : backend.contractImplementers(s.implementers.name, { surface: s.implementers.surface })) });
+  // choices: what the contributions responses, the CLI and MCP offer on one surface for contracts the caller chooses
+  else if (s.choices) Object.assign(out, { status: 200, body: await backend.contractChoices(s.choices) });
   else if (s.managed) Object.assign(out, { body: (backend.managed.get(s.managed) || {}).content ?? null, status: backend.managed.has(s.managed) ? 200 : 404 });
   else if (s.exportUser) Object.assign(out, await backend.exportUser(s.exportUser));
   else if (s.eraseUser) Object.assign(out, await backend.eraseUser(s.eraseUser));

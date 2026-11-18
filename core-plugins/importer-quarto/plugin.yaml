@@ -18,7 +18,8 @@ runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
   php: src/php/Plugin.php
-implements: [import.platform]
+implements:
+  - { name: import.platform, input: [url, upload], uploads: [.zip] }
 # each page's markdown is converted by import.file; the repository or zip is listed and read by import-source.tree
-dependencies: [import-markdown, import-source]
+dependencies: [import-markdown, import-frontmatter, import-source]
 staticCapable: false

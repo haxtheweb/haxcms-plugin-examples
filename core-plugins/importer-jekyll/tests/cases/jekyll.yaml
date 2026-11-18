@@ -1,0 +1,117 @@
+# Executable cases for importer-jekyll (run by harness/run-cases.mjs in Node and PHP, with a parity check).
+# Fixtures are synthetic and written inline as base64 zips (built with Python's zipfile, entries sorted by name):
+#   lake-notes.zip  a Jekyll blog as GitHub's "Download ZIP" gives it (everything under lake-notes-main/):
+#                   _config.yml (title, description, url, baseurl /notes, permalink pretty, a guides collection,
+#                   exclude scripts); index.md (no title; site.description); about.md (post_url, a baseurl link,
+#                   relative_url on an image); docs/index.md (nav_order 2) and docs/setup.md (a {:toc} list, an
+#                   attribute list, include, highlight, raw, a link written with the baseurl and an attribute list,
+#                   an if block); _posts/2026-01-10-first-walk.md (tags as words, categories, link) and
+#                   _posts/2026-02-01-second-walk.md (no title, a dated time with an offset, an image written with
+#                   the site's url, an unknown page value); _drafts/third-walk.md; _guides/packing.md and boots.md
+#                   (nav_order; boots unpublished); assets/img/logo.png, ridge.jpg, assets/files/map.pdf; README.md
+#                   (no front matter); Gemfile; scripts/build.md (excluded); _includes/warning.html; 404.html;
+#                   feed.html (no front matter).
+#   other.zip       README.md, docs/a.md and mkdocs.yml: not a Jekyll site.
+#   empty.zip       _config.yml, _layouts/default.html, README.md and an index.html with no front matter.
+- id: importer-jekyll-001
+  title: "a zip of a Jekyll blog becomes the site: pages by folder, a collection, posts newest first, its media"
+  given: "lake-notes.zip"
+  when: "convert with files: [lake-notes.zip]"
+  then: "the site title and description from _config.yml; the home page first and titled by the site; pages nested by folder in nav_order then title order; the guides collection as a page holding its documents in nav_order; a Posts page holding both posts newest first; the README, Gemfile, excluded folder, includes, drafts, the 404 page and HTML without front matter are not pages; Liquid tags with a plain equivalent are converted and the rest counted; kramdown attributes and the TOC list are gone; links through post_url, link, baseurl and the site's url reach the new slugs; the three files pages use are handed over as data; nothing fetched"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { files: [{ name: lake-notes.zip, data: "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" }] } }
+        expect:
+          body:
+            - plugin: importer-jekyll
+              result:
+                title: Lake Notes
+                site: { description: Walks and gear from the lake club }
+                items:
+                  - { id: item-1, title: Lake Notes, slug: lake-notes, parent: null, order: 0, indent: 0, content: "<p>Welcome. Walks and gear from the lake club.</p>", metadata: { sourceType: jekyll, jekyll: { path: index.md, kind: page } } }
+                  - { id: item-2, title: Docs, slug: docs, parent: null, order: 1, content: '<p>Start with <a href="docs/setup">setup</a>.</p>', metadata: { jekyll: { path: docs/index.md } } }
+                  - id: item-3
+                    title: Setup
+                    slug: docs/setup
+                    parent: item-2
+                    order: 0
+                    indent: 1
+                    content: '<h2>Install</h2><pre><code class="language-bash">bundle exec jekyll serve</code></pre><p>Use {{ site.title }} in layouts.</p><p>Download the <a href="files/map.pdf">map</a>. Dark.</p>'
+                  - { id: item-4, title: About, slug: about, parent: null, order: 2, content: '<p>Read <a href="posts/first-walk">the first walk</a> or the <a href="docs/setup">setup</a>.</p><p><media-image source="files/logo.png" alt="Logo"></media-image></p>' }
+                  - { id: item-5, title: Guides, slug: guides, parent: null, order: 3, content: "<p></p>", metadata: { jekyll: { kind: collection } } }
+                  - { id: item-6, title: Boots, slug: guides/boots, parent: item-5, order: 0, content: "<p>Good boots.</p>", metadata: { jekyll: { path: _guides/boots.md, kind: doc }, published: false } }
+                  - { id: item-7, title: Packing, slug: guides/packing, parent: item-5, order: 1, content: "<p>Pack light.</p>" }
+                  - { id: item-8, title: Posts, slug: posts, parent: null, order: 4, content: "<p></p>", metadata: { jekyll: { kind: posts } } }
+                  - { id: item-9, title: Second Walk, slug: posts/second-walk, parent: item-8, order: 0, indent: 1, content: '<p><media-image source="files/ridge.jpg" alt="Ridge"></media-image></p>', metadata: { jekyll: { kind: post }, created: 1769954400 } }
+                  - { id: item-10, title: First Walk, slug: posts/first-walk, parent: item-8, order: 1, content: '<p>Short. Back to <a href="about">about</a>.</p>', metadata: { created: 1768003200, tags: [easy, hike] } }
+                files:
+                  - { path: files/map.pdf, data: "JVBERi0xLjQKJXN5bnRoZXRpYwo=" }
+                  - { path: files/logo.png, data: "iVBORw0KGgoBAgP/" }
+                  - { path: files/ridge.jpg, data: "/9j/4AAQSkZJRgkIBw==" }
+                stats: { pages: 10, posts: 2, media: 3, drafts: 1, unmapped: { "liquid:if": 1, "liquid:include": 1, "liquid:output": 1 } }
+          notContains: [item-11, "Lake notes repository", "Build script", "Not found", "Careful", "Not yet", "TOC", ".note", ".btn", hideInMenu]
+          fetch: { count: 0 }
+- id: importer-jekyll-002
+  title: "a Just the Docs site in a repository's docs folder is nested by parent and ordered by nav_order"
+  given: "acme/toolkit: README.md, src/main.js, and docs/ with _config.yml (baseurl /toolkit), index.md (nav_order 1), getting-started.md (nav_order 2), configure.md and install.md (parent Getting Started; nav_order 1 and 2), reference.md (nav_order 3), reference/api.md (parent Reference), hidden.md (title Changelog, nav_exclude) and images/flow.png"
+  when: "convert with the repository URL"
+  then: "docs/ is the site; children sit under the page their parent names, by nav_order, whatever folder they are in; the excluded page is hidden in the menu; a relative .html link and a link written with the baseurl and {% link %} reach the new slugs; the image is listed by its raw URL for core to fetch; ten requests, all by import-source to GitHub's two hosts"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
+    fetch:
+      "https://api.github.com/repos/acme/toolkit": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/acme/toolkit/git/trees/main?recursive=1":
+        status: 200
+        body: { tree: [{ path: README.md, type: blob }, { path: docs/_config.yml, type: blob }, { path: docs/index.md, type: blob }, { path: docs/getting-started.md, type: blob }, { path: docs/install.md, type: blob }, { path: docs/configure.md, type: blob }, { path: docs/reference.md, type: blob }, { path: docs/reference/api.md, type: blob }, { path: docs/hidden.md, type: blob }, { path: docs/images/flow.png, type: blob }, { path: src/main.js, type: blob }] }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/_config.yml": { status: 200, body: "title: Toolkit\ntheme: just-the-docs\nbaseurl: /toolkit\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/index.md": { status: 200, body: "---\ntitle: Home\nnav_order: 1\n---\nSee [getting started](getting-started.html).\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/getting-started.md": { status: 200, body: "---\ntitle: Getting Started\nnav_order: 2\nhas_children: true\n---\nThe basics.\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/install.md": { status: 200, body: "---\ntitle: Install\nparent: Getting Started\nnav_order: 2\n---\n![Flow](images/flow.png) then [configure](configure.html) and the [API]({{ site.baseurl }}{% link reference/api.md %}).\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/configure.md": { status: 200, body: "---\ntitle: Configure\nparent: Getting Started\nnav_order: 1\n---\nSet it up.\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/reference.md": { status: 200, body: "---\ntitle: Reference\nnav_order: 3\n---\nAll of it.\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/reference/api.md": { status: 200, body: "---\ntitle: API\nparent: Reference\n---\nCalls.\n" }
+      "https://raw.githubusercontent.com/acme/toolkit/main/docs/hidden.md": { status: 200, body: "---\ntitle: Changelog\nnav_exclude: true\n---\nOld.\n" }
+      toolkit.example.org: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { url: "https://github.com/acme/toolkit" } }
+        expect:
+          body:
+            - result:
+                title: Toolkit
+                items:
+                  - { id: item-1, title: Home, slug: home, parent: null, order: 0, content: '<p>See <a href="getting-started">getting started</a>.</p>', metadata: { sourceType: jekyll, jekyll: { path: docs/index.md, kind: page } } }
+                  - { id: item-2, title: Getting Started, slug: getting-started, parent: null, order: 1, content: "<p>The basics.</p>" }
+                  - { id: item-3, title: Configure, slug: getting-started/configure, parent: item-2, order: 0, indent: 1, content: "<p>Set it up.</p>" }
+                  - { id: item-4, title: Install, slug: getting-started/install, parent: item-2, order: 1, indent: 1, content: '<p><media-image source="files/flow.png" alt="Flow"></media-image> then <a href="getting-started/configure">configure</a> and the <a href="reference/api">API</a>.</p>' }
+                  - { id: item-5, title: Reference, slug: reference, parent: null, order: 2, content: "<p>All of it.</p>" }
+                  - { id: item-6, title: API, slug: reference/api, parent: item-5, order: 0, content: "<p>Calls.</p>" }
+                  - { id: item-7, title: Changelog, slug: hidden, parent: null, order: 3, content: "<p>Old.</p>", metadata: { hideInMenu: true } }
+                files:
+                  - { path: files/flow.png, url: "https://raw.githubusercontent.com/acme/toolkit/main/docs/images/flow.png" }
+                stats: { pages: 7, posts: 0, media: 1, drafts: 0 }
+          absent: [site, truncated]
+          notContains: [item-8, unmapped, README.md]
+          fetch: { count: 10, notContains: [toolkit.example.org] }
+- id: importer-jekyll-003
+  title: "what is not a Jekyll site, a zip or a GitHub repository is an error"
+  given: "other.zip (no _config.yml); empty.zip (a Jekyll site whose only candidates are a README and HTML with no front matter); an upload that is not named .zip; one that is not a zip; a URL on another host; no input"
+  when: "convert"
+  then: "error results naming the problem; nothing is fetched"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
+    fetch:
+      jekyll.example.org: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { files: [{ name: other.zip, data: "UEsDBBQAAAAIAAAAIVy/xd3BDwAAAA0AAAAJAAAAUkVBRE1FLm1kU1bwyy9R8ErNrszJ4QIAUEsDBBQAAAAIAAAAIVwfCOpGBAAAAAIAAAAJAAAAZG9jcy9hLm1kq+ACAFBLAwQUAAAACAAAACFcFzWfxA8AAAANAAAACgAAAG1rZG9jcy55bWwrzixJjc9LzE21UqjgAgBQSwECFAMUAAAACAAAACFcv8XdwQ8AAAANAAAACQAAAAAAAAAAAAAAgAEAAAAAUkVBRE1FLm1kUEsBAhQDFAAAAAgAAAAhXB8I6kYEAAAAAgAAAAkAAAAAAAAAAAAAAIABNgAAAGRvY3MvYS5tZFBLAQIUAxQAAAAIAAAAIVwXNZ/EDwAAAA0AAAAKAAAAAAAAAAAAAACAAWEAAABta2RvY3MueW1sUEsFBgAAAAADAAMApgAAAJgAAAAAAA==" }] } }
+        expect: { body: [{ result: { error: "no Jekyll site found in other (expected a _config.yml)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { files: [{ name: empty.zip, data: "UEsDBBQAAAAIAAAAIVzPvjbgCwAAAAkAAAAJAAAAUkVBRE1FLm1kU1YISk1MyU3lAgBQSwMEFAAAAAgAAAAhXNYSfpAPAAAADQAAAAsAAABfY29uZmlnLnltbCvJLMlJtVJwzS0oqeQCAFBLAwQUAAAACAAAACFccV85DAoAAAAIAAAAFQAAAF9sYXlvdXRzL2RlZmF1bHQuaHRtbLMpsLPRL7DjAgBQSwMEFAAAAAgAAAAhXItiEL8ZAAAAFwAAAAoAAABpbmRleC5odG1ssymwy8tXSCvKzytRyE0sKUktstEvsOMCAFBLAQIUAxQAAAAIAAAAIVzPvjbgCwAAAAkAAAAJAAAAAAAAAAAAAACAAQAAAABSRUFETUUubWRQSwECFAMUAAAACAAAACFc1hJ+kA8AAAANAAAACwAAAAAAAAAAAAAAgAEyAAAAX2NvbmZpZy55bWxQSwECFAMUAAAACAAAACFccV85DAoAAAAIAAAAFQAAAAAAAAAAAAAAgAFqAAAAX2xheW91dHMvZGVmYXVsdC5odG1sUEsBAhQDFAAAAAgAAAAhXItiEL8ZAAAAFwAAAAoAAAAAAAAAAAAAAIABpwAAAGluZGV4Lmh0bWxQSwUGAAAAAAQABADrAAAA6AAAAAAA" }] } }
+        expect: { body: [{ result: { error: "no pages found in empty" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { files: [{ name: site.tar.gz, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "expected a .zip of the Jekyll site" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { files: [{ name: site.zip, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "the file is not a zip archive" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: { url: "https://jekyll.example.org/blog/" } }
+        expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-jekyll, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }

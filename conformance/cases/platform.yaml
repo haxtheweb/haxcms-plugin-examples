@@ -226,3 +226,36 @@
   run:
     validate: fx-secret-bad
     expect: { errors: ["not in the manifest's egress", "is not x-secret"] }
+- id: plat-017
+  title: "an importer is offered by title, with what to ask for, on the surfaces it names, and only while it is on"
+  spec: spec/07-registries-settings-assets.md
+  given: "fx-chooser implements import.platform with input [upload, url], uploads [.txt] and surfaces [admin, mcp]"
+  when: "ask for the choices on each surface, list implementers for MCP, import an upload, then disable the plugin"
+  then: "admin and MCP list it with its title, description and inputs; the CLI does not; the upload converts; once off it is offered nowhere"
+  run:
+    plugins: [fx-chooser]
+    steps:
+      - choices: admin
+        expect: { body: { import.platform: [{ id: fx-chooser, title: fx-chooser (conformance fixture), description: "Conformance fixture; see conformance/fixtures/README.md.", input: [upload, url], uploads: [.txt] }] }, absent: [surfaces] }
+      - choices: cli
+        expect: { notContains: [fx-chooser] }
+      - implementers: { name: import.platform, surface: mcp }
+        expect: { body: [{ id: fx-chooser, surfaces: [admin, mcp] }] }
+      - implementers: { name: import.platform, surface: cli }
+        expect: { notContains: [fx-chooser] }
+      - contract: { name: import.platform, op: convert, plugin: fx-chooser, input: { files: [{ name: notes.txt, data: "aGVsbG8=" }] } }
+        expect: { body: [{ plugin: fx-chooser, result: { title: Chosen, items: [{ title: notes, content: "<p>hello</p>" }] } }], fetch: { count: 0 } }
+      - disable: fx-chooser
+      - choices: admin
+        expect: { notContains: [fx-chooser] }
+      - choices: mcp
+        expect: { notContains: [fx-chooser] }
+- id: plat-018
+  title: "a chosen contract needs something to ask for, file types need a file input, and a hidden plugin cannot be chosen"
+  spec: spec/07-registries-settings-assets.md
+  given: "a hidden plugin implementing import.platform with uploads and no input"
+  when: "validate"
+  then: "three errors"
+  run:
+    validate: fx-chooser-hidden
+    expect: { errors: ["is chosen by the caller: say what to ask for", "this entry asks for no file", "a hidden plugin is never offered"] }

@@ -18,5 +18,6 @@ runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
   php: src/php/Plugin.php
-implements: [import.platform]
+implements:
+  - { name: import.platform, input: [html], uploads: [.html, .htm] }
 staticCapable: false

@@ -4,7 +4,7 @@
   when: "convert with the repository URL"
   then: "five items in book order with front matter or heading titles; markdown converted by import-markdown; the image and csv listed in files; nothing fetched outside GitHub's hosts"
   run:
-    with: [core-plugins/import-markdown, core-plugins/import-source]
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
     fetch:
       "https://api.github.com/repos/stat-lab/intro-stats": { status: 200, body: { default_branch: main } }
       "https://api.github.com/repos/stat-lab/intro-stats/git/trees/main?recursive=1":
@@ -110,7 +110,7 @@
   when: "convert with files: [handbook.zip]"
   then: "Welcome, the Safety landing page, Rules and Spills under it; the link points at the Rules slug; nothing fetched"
   run:
-    with: [core-plugins/import-markdown, core-plugins/import-source]
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
     steps:
       - contract: { name: import.platform, op: convert, plugin: importer-quarto, input: { files: [{ name: handbook.zip, data: "UEsDBBQAAAAIAFqTWF1MLTejgQAAANkAAAAZAAAAaGFuZGJvb2stbWFpbi9fcXVhcnRvLnltbGWNMQ7CMAxF95zCyohE2XsCBjZOkMRGCi1xSYxobo8bIgRis/97/l4yXynIaACkLjTCk3yJQsb0oZEosyJ7ch6OLqFnnqzmJSJ5lzdFF6mbhBwmwpYETkJJypsD7CEmpHW43/CTFH0eOWn52V1Iqu3k/7r7zTrkx0zlq+gH7gbNX1BLAwQUAAAACABak1hd9mlZHX0AAACMAAAAFwAAAGhhbmRib29rLW1haW4vaW5kZXgucW1kHcyxCsIwEIDh/Z7i6KSFxD3g4OALuDgUhyO9xsC10eRKCOK7Wzv+//AZY0CjCju8s/g0M5htwY1pxEGfjHkVLo9DoYm1nfay73k84hRzUQvgnMOP9SSSVjWV8hKXgDt67q6N8ZWTsteYlu4LF6nUClamjH1IIWxeb/8I/ABQSwMEFAAAAAgAWpNYXarDUJ4vAAAANAAAAB4AAABoYW5kYm9vay1tYWluL3NhZmV0eS9ydWxlcy5xbWRTVggqzUkt5uIy1FPwy1dIy89P4TICM1OKMvOygRKK0cWZ6XmxGiBSryAvXZMLAFBLAwQUAAAACABak1hdQKYv2xgAAAAWAAAAHgAAAGhhbmRib29rLW1haW4vc2FmZXR5L3NwaWxscy5tZHPOSU3MUyguyMzJKVZILFHIz0tO1eMCAFBLAwQUAAAACABak1hd+ItLYw4AAAAMAAAAFwAAAGhhbmRib29rLW1haW4vUkVBRE1FLm1k88svUUhUKEhMT9XjAgBQSwMEFAAAAAgAWpNYXUp/0j4MAAAADAAAAB0AAABoYW5kYm9vay1tYWluL3NhZmV0eS9zaWduLnBuZ+sM8HPn5ZLiMgACAFBLAQIUAxQAAAAIAFqTWF1MLTejgQAAANkAAAAZAAAAAAAAAAAAAACAAQAAAABoYW5kYm9vay1tYWluL19xdWFydG8ueW1sUEsBAhQDFAAAAAgAWpNYXfZpWR19AAAAjAAAABcAAAAAAAAAAAAAAIABuAAAAGhhbmRib29rLW1haW4vaW5kZXgucW1kUEsBAhQDFAAAAAgAWpNYXarDUJ4vAAAANAAAAB4AAAAAAAAAAAAAAIABagEAAGhhbmRib29rLW1haW4vc2FmZXR5L3J1bGVzLnFtZFBLAQIUAxQAAAAIAFqTWF1Api/bGAAAABYAAAAeAAAAAAAAAAAAAACAAdUBAABoYW5kYm9vay1tYWluL3NhZmV0eS9zcGlsbHMubWRQSwECFAMUAAAACABak1hd+ItLYw4AAAAMAAAAFwAAAAAAAAAAAAAAgAEpAgAAaGFuZGJvb2stbWFpbi9SRUFETUUubWRQSwECFAMUAAAACABak1hdSn/SPgwAAAAMAAAAHQAAAAAAAAAAAAAAgAFsAgAAaGFuZGJvb2stbWFpbi9zYWZldHkvc2lnbi5wbmdQSwUGAAAAAAYABgC0AQAAswIAAAAA" }] } }
         expect:
@@ -130,7 +130,7 @@
   when: "convert"
   then: "error results and no fetch at all"
   run:
-    with: [core-plugins/import-markdown, core-plugins/import-source]
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
     fetch:
       gitlab.com: { status: 200, body: "should not be read" }
     steps:
@@ -146,7 +146,7 @@
   when: "convert each"
   then: "error results naming the problem"
   run:
-    with: [core-plugins/import-markdown, core-plugins/import-source]
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
     fetch:
       "https://api.github.com/repos/acme/notes": { status: 200, body: { default_branch: trunk } }
       "https://api.github.com/repos/acme/notes/git/trees/trunk?recursive=1": { status: 200, body: { tree: [{ path: notes.md, type: blob }] } }

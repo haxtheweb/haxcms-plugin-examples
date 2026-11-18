@@ -1,0 +1,11 @@
+specVersion: "0.1.0"
+id: fx-chooser-hidden
+uuid: d5176360-308b-575c-8373-6a88b2f93c08
+title: fx-chooser-hidden (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md. Deliberately invalid.
+version: 0.1.0
+runtimes: [nodejs]
+hidden: true
+# a chosen contract with nothing to ask for, file types with no file input, and hidden from the people who choose
+implements:
+  - { name: import.platform, uploads: [.zip] }

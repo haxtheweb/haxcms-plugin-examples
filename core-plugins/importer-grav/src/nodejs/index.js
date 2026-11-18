@@ -129,72 +129,6 @@ function normalizePath(path) {
   return parts.join("/");
 }
 
-// ---- a YAML subset: block maps, block lists, scalars, [a, b] lists, | and > text. Enough for Grav page headers and site.yaml. ----
-
-const KEY = /^("[^"]*"|'[^']*'|[^\s"'#][^:#]*?)\s*:(?:\s+(.*))?$/;
-const isItem = (t) => t === "-" || t.startsWith("- ");
-const stripComment = (v) => (/^["']/.test(v) ? v : v.replace(/\s+#.*$/, "").trim());
-function scalar(v) {
-  v = v.trim();
-  if (v.startsWith('"')) { const m = /^"((?:\\.|[^"\\])*)"/.exec(v); return m ? m[1].replace(/\\(.)/g, "$1") : v.slice(1); }
-  if (v.startsWith("'")) { const m = /^'((?:''|[^'])*)'/.exec(v); return m ? m[1].replace(/''/g, "'") : v.slice(1); }
-  v = stripComment(v);
-  if (v.startsWith("[") && v.endsWith("]")) { const inner = v.slice(1, -1).trim(); return inner === "" ? [] : inner.split(",").map((x) => scalar(x)); }
-  return v;
-}
-function yamlBlock(st, indent) {
-  const l = st.lines[st.i];
-  if (!l || l.indent < indent) return null;
-  return isItem(l.text) ? yamlList(st, l.indent) : yamlMap(st, l.indent);
-}
-function yamlList(st, indent) {
-  const out = [];
-  while (st.i < st.lines.length) {
-    const l = st.lines[st.i];
-    if (l.indent !== indent || !isItem(l.text)) break;
-    const rest = l.text.slice(1).replace(/^ +/, "");
-    const offset = l.text.length - rest.length;
-    if (rest === "") { st.i++; const n = st.lines[st.i]; out.push(n && n.indent > indent ? yamlBlock(st, n.indent) : null); continue; }
-    if (isItem(rest) || KEY.test(rest)) { st.lines[st.i] = { indent: indent + offset, text: rest }; out.push(yamlBlock(st, indent + offset)); continue; }
-    st.i++;
-    out.push(scalar(rest));
-  }
-  return out;
-}
-function yamlMap(st, indent) {
-  const out = {};
-  while (st.i < st.lines.length) {
-    const l = st.lines[st.i];
-    if (l.indent < indent || (l.indent === indent && isItem(l.text))) break;
-    st.i++;
-    if (l.indent > indent) continue;
-    const m = KEY.exec(l.text);
-    if (!m) continue;
-    const key = scalar(m[1]);
-    const v = m[2] === undefined ? "" : stripComment(m[2]);
-    if (v === "") {
-      const n = st.lines[st.i];
-      out[key] = n && (n.indent > indent || (n.indent === indent && isItem(n.text))) ? yamlBlock(st, n.indent) : null;
-    } else if (/^[|>][-+0-9]*$/.test(v)) {
-      const parts = [];
-      while (st.i < st.lines.length && st.lines[st.i].indent > indent) parts.push(st.lines[st.i++].text);
-      out[key] = parts.join(v[0] === "|" ? "\n" : " ");
-    } else out[key] = scalar(v);
-  }
-  return out;
-}
-export function parseYaml(text) {
-  const lines = [];
-  for (const raw of String(text).replace(/\r\n?/g, "\n").split("\n")) {
-    if (/^\s*(#.*)?$/.test(raw) || /^(---|\.\.\.)\s*$/.test(raw)) continue;
-    const indent = /^ */.exec(raw)[0].length;
-    lines.push({ indent, text: raw.slice(indent).replace(/\s+$/, "") });
-  }
-  if (!lines.length) return {};
-  const v = yamlBlock({ lines, i: 0 }, lines[0].indent);
-  return isObject(v) ? v : {};
-}
-
 // ---- Grav helpers ----
 
 const isFalse = (v) => ["false", "0", "no", "off"].includes(String(v ?? "").trim().toLowerCase());
@@ -250,12 +184,6 @@ export function parseDate(text) {
   const sec = t && t[3] !== undefined ? Number(t[3]) : 0;
   if (h > 23 || mi > 59 || sec > 59) return null;
   return Date.UTC(y, mo - 1, d, h, mi, sec) / 1000;
-}
-
-/** The page header (YAML between --- lines) and the markdown after it. */
-function frontMatter(md) {
-  const m = /^---[ \t]*\n([\s\S]*?)\n---[ \t]*(\n|$)/.exec(md);
-  return m ? { data: parseYaml(m[1]), body: md.slice(m[0].length) } : { data: {}, body: md };
 }
 
 // ---- reading the site: a GitHub repository or an uploaded zip of one, both through import-source ----
@@ -338,10 +266,16 @@ function buildNodes(folders, lang) {
   return nodes;
 }
 
-/** Header, body, title and date of a node from its page file. */
-function readNode(node, text) {
-  const fm = frontMatter(text.replace(/\r\n?/g, "\n"));
-  node.header = fm.data;
+/** Front matter and configuration are read by import-frontmatter.data; this is its result, or an error. */
+async function frontMatterCall(ctx, op, input) {
+  const r = await ctx.contracts.call("import-frontmatter.data", op, input);
+  if (!r || (op === "split" ? !Array.isArray(r.results) : r.data === undefined && r.error === undefined)) throw new Error(`front matter could not be read: ${(r && r.error) || "no result"}`);
+  return r;
+}
+
+/** Header, body, title and date of a node from its page file, split by import-frontmatter. */
+function readNode(node, fm) {
+  node.header = mapOf(fm.data);
   let body = fm.body;
   let title = stringOf(node.header.title);
   if (title === "") {
@@ -538,9 +472,9 @@ async function importSite(ctx, src) {
   // configuration: the site's title and description, its language, its home page, whether pages run Twig
   const configPaths = root.user === null ? [] : [`${root.user}config/site.yaml`, `${root.user}config/system.yaml`].filter((p) => src.paths.has(p));
   const configs = await src.readMany(configPaths, false);
-  const yamlOf = (p) => (typeof configs.get(p) === "string" ? parseYaml(configs.get(p)) : {});
-  const site = root.user === null ? {} : yamlOf(`${root.user}config/site.yaml`);
-  const system = root.user === null ? {} : yamlOf(`${root.user}config/system.yaml`);
+  const yamlOf = async (p) => (typeof configs.get(p) === "string" ? mapOf((await frontMatterCall(ctx, "parse", { format: "yaml", text: configs.get(p) })).data) : {});
+  const site = root.user === null ? {} : await yamlOf(`${root.user}config/site.yaml`);
+  const system = root.user === null ? {} : await yamlOf(`${root.user}config/system.yaml`);
   const lang = stringList(mapOf(system.languages).supported)[0] || "";
   const home = prefixless(normalizePath(stringOf(mapOf(system.home).alias) || "/home"));
 
@@ -556,10 +490,10 @@ async function importSite(ctx, src) {
     wanted.push(`${root.pages}${n.file}`);
   }
   const texts = await src.readMany(wanted, false);
-  for (const n of nodes.values()) {
-    const text = n.file && !n.capped ? texts.get(`${root.pages}${n.file}`) : null;
-    if (typeof text === "string") readNode(n, text);
-  }
+  // and their headers are split in one call
+  const readable = [...nodes.values()].filter((n) => n.file && !n.capped && typeof texts.get(`${root.pages}${n.file}`) === "string");
+  const split = readable.length ? (await frontMatterCall(ctx, "split", { texts: readable.map((n) => texts.get(`${root.pages}${n.file}`)) })).results : [];
+  readable.forEach((n, i) => readNode(n, split[i] && typeof split[i].body === "string" ? split[i] : { data: {}, body: "" }));
 
   const st = { src, root, twig: isTrue(mapOf(mapOf(system.pages).process).twig), unmapped: new Map(), media: [], fileNames: new Set(), filesByPath: new Map(), slugByKey: new Map(), dirByKey: new Map() };
   const items = [];

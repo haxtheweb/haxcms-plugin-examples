@@ -19,7 +19,8 @@ entry:
   nodejs: src/nodejs/index.js
   php: src/php/Plugin.php
 dependencies: [import-markdown]   # each page's Markdown is converted by import-markdown via the import.file contract
-implements: [import.platform]
+implements:
+  - { name: import.platform, input: [url] }
 capabilities: ["network:egress"]
 egress:
   - input: url

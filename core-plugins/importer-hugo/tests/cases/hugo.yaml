@@ -1,0 +1,178 @@
+# Executable cases for importer-hugo (run by harness/run-cases.mjs in Node and PHP, with a parity check).
+# Fixtures are synthetic and written inline as base64 zips (built with Python's zipfile, entries sorted by name):
+#   field-notes.zip  a Hugo site as GitHub's "Download ZIP" gives it (everything under field-notes-main/):
+#                    hugo.toml (baseURL https://notes.example.org/guide/, title, params.description, params.edition,
+#                    languages en + fr); content/_index.md (YAML; the home page; a site link and a ref shortcode);
+#                    content/about.md (TOML; weight 5; an alias; a param shortcode; an image under static/) and
+#                    about.fr.md; content/gear.html (JSON front matter; weight 10; draft; HTML body);
+#                    content/posts/_index.md (weight 1); content/posts/first-walk.md (dated, tagged; relref, a
+#                    relative link, the summary divider, a youtube shortcode); content/posts/second-walk/index.md (a
+#                    page bundle; TOML; newer date with an offset; slug; figure, an unknown paired shortcode,
+#                    highlight, a fenced block, a link to a file, an attribute block) with ridge.jpg, map.pdf and
+#                    notes.md beside it; content/docs/setup/install.md (no front matter; an unknown shortcode);
+#                    content/legacy.adoc; static/images/logo.png; layouts/shortcodes/notice.html.
+#   other.zip        README.md, docs/a.md and package.json: not a Hugo site.
+#   empty.zip        hugo.toml and layouts/index.html: a Hugo site with no content.
+- id: importer-hugo-001
+  title: "a zip of a Hugo site becomes the site: its content tree in Hugo's order, three front matter formats, its media"
+  given: "field-notes.zip"
+  when: "convert with files: [field-notes.zip]"
+  then: "the site title and description from hugo.toml; the home page first, then by weight, then the rest by title; a section's posts newest first; the bundle is one page and what sits beside it is not; folders without a page file keep their pages together; YAML, TOML and JSON front matter all give titles, dates, tags and draft state; shortcodes with a plain equivalent are converted and the others counted; links reach the new slugs; the three files pages use are handed over as data; nothing fetched"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { files: [{ name: field-notes.zip, data: "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AAAAAAAAAAAAgAEuAwAAZmllbGQtbm90ZXMtbWFpbi9jb250ZW50L3Bvc3RzL19pbmRleC5tZFBLAQIUAxQAAAAIAAAAIVwiuAIUmQAAALMAAAAsAAAAAAAAAAAAAACAAZ4DAABmaWVsZC1ub3Rlcy1tYWluL2NvbnRlbnQvcG9zdHMvZmlyc3Qtd2Fsay5tZFBLAQIUAxQAAAAIAAAAIVzuUoLI0wAAACYBAAAzAAAAAAAAAAAAAACAAYEEAABmaWVsZC1ub3Rlcy1tYWluL2NvbnRlbnQvcG9zdHMvc2Vjb25kLXdhbGsvaW5kZXgubWRQSwECFAMUAAAACAAAACFcmfVHuBYAAAAUAAAAMgAAAAAAAAAAAAAAgAGlBQAAZmllbGQtbm90ZXMtbWFpbi9jb250ZW50L3Bvc3RzL3NlY29uZC13YWxrL21hcC5wZGZQSwECFAMUAAAACAAAACFcARAx4SgAAAAmAAAAMwAAAAAAAAAAAAAAgAELBgAAZmllbGQtbm90ZXMtbWFpbi9jb250ZW50L3Bvc3RzL3NlY29uZC13YWxrL25vdGVzLm1kUEsBAhQDFAAAAAgAAAAhXH38wrIPAAAADQAAADQAAAAAAAAAAAAAAIABhAYAAGZpZWxkLW5vdGVzLW1haW4vY29udGVudC9wb3N0cy9zZWNvbmQtd2Fsay9yaWRnZS5qcGdQSwECFAMUAAAACAAAACFcVEaO2JgAAADVAAAAGgAAAAAAAAAAAAAAgAHlBgAAZmllbGQtbm90ZXMtbWFpbi9odWdvLnRvbWxQSwECFAMUAAAACAAAACFc/3IBXSkAAAAnAAAALwAAAAAAAAAAAAAAgAG1BwAAZmllbGQtbm90ZXMtbWFpbi9sYXlvdXRzL3Nob3J0Y29kZXMvbm90aWNlLmh0bWxQSwECFAMUAAAACAAAACFcYWsarg4AAAAMAAAAJwAAAAAAAAAAAAAAgAErCAAAZmllbGQtbm90ZXMtbWFpbi9zdGF0aWMvaW1hZ2VzL2xvZ28ucG5nUEsFBgAAAAAPAA8AHQUAAH4IAAAAAA==" }] } }
+        expect:
+          body:
+            - plugin: importer-hugo
+              result:
+                title: Field Notes
+                site: { description: Notes from the lake }
+                items:
+                  - id: item-1
+                    title: Welcome
+                    slug: welcome
+                    parent: null
+                    order: 0
+                    indent: 0
+                    content: '<p>Start with the <a href="posts">posts</a> or the <a href="gear">gear list</a>.</p>'
+                    metadata: { sourceType: hugo, hugo: { path: content/_index.md, kind: home } }
+                  - id: item-2
+                    title: Posts
+                    slug: posts
+                    parent: null
+                    order: 1
+                    content: "<p>All posts.</p>"
+                    metadata: { hugo: { path: content/posts/_index.md, kind: section } }
+                  - id: item-3
+                    title: Second Walk
+                    slug: posts/walk-two
+                    parent: item-2
+                    order: 0
+                    indent: 1
+                    content: '<p><media-image source="files/ridge.jpg" alt="The ridge"></media-image></p><p><em>The ridge</em></p><p>Bring water.</p><pre><code class="language-bash">hugo server</code></pre><pre><code>{{&lt; kept &gt;}}</code></pre><p>Download the <a href="files/map.pdf">map</a>.</p>'
+                    metadata: { hugo: { path: content/posts/second-walk/index.md, kind: bundle }, created: 1769932800 }
+                  - id: item-4
+                    title: First Walk
+                    slug: posts/first-walk
+                    parent: item-2
+                    order: 1
+                    content: '<p>Short. See <a href="posts/walk-two">the second</a> and <a href="about">about</a>.</p><p><video-player source="https://www.youtube.com/watch?v=dQw4w9WgXcQ"></video-player></p>'
+                    metadata: { hugo: { kind: page }, created: 1768003200, tags: [easy] }
+                  - id: item-5
+                    title: About
+                    slug: about
+                    parent: null
+                    order: 2
+                    content: '<p>Edition 2026. <media-image source="files/logo.png" alt="Logo"></media-image></p>'
+                    metadata: { hugo: { path: content/about.md } }
+                  - id: item-6
+                    title: Gear List
+                    slug: gear
+                    order: 3
+                    content: "<ul><li>Boots</li></ul>\n<p>See <a href=\"about\">who we are</a>.</p>"
+                    metadata: { hugo: { path: content/gear.html }, published: false }
+                  - id: item-7
+                    title: Docs
+                    slug: docs
+                    parent: null
+                    order: 4
+                    content: "<p></p>"
+                    metadata: { hugo: { path: content/docs, kind: section } }
+                  - id: item-8
+                    title: Setup
+                    slug: docs/setup
+                    parent: item-7
+                    order: 0
+                    indent: 1
+                    content: "<p></p>"
+                  - id: item-9
+                    title: Install Guide
+                    slug: docs/setup/install
+                    parent: item-8
+                    indent: 2
+                    content: "<p>Run it.</p>"
+                files:
+                  - { path: files/ridge.jpg, data: "/9j/4AAQSkZJRgkIBw==" }
+                  - { path: files/map.pdf, data: "JVBERi0xLjQKJXN5bnRoZXRpYwo=" }
+                  - { path: files/logo.png, data: "iVBORw0KGgoBAgP/" }
+                stats: { pages: 9, media: 3, languageFiles: 1, unmapped: { "format:adoc": 1, "shortcode:notice": 1, "shortcode:tweet": 1 } }
+          # the bundle's notes.md, the French page and the layouts are not pages; the divider and the attribute block are gone
+          notContains: [item-10, "A propos", "A resource of the bundle", "more--", ".lead", hideInMenu]
+          fetch: { count: 0 }
+- id: importer-hugo-002
+  title: "a Hugo site in a subfolder of a GitHub repository is found and read through import-source"
+  given: "acme/handbook: a README, a config.json and a package.json at the top (not a Hugo site: nothing of Hugo beside them), and docs/ with config.yaml, layouts/, static/img/flow.png and content/guide/ (_index.md, intro.md with weight 1 and headless, setup.md with weight 2)"
+  when: "convert with the repository URL"
+  then: "docs/ is the site; pages in weight order under their section; the headless page is hidden in the menu; a link by folder, a link to a content file, a relref and a link written with the site's own address all reach the new slugs; the image under static/ is listed by its raw URL for core to fetch; six requests, all by import-source to GitHub's two hosts"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
+    fetch:
+      "https://api.github.com/repos/acme/handbook": { status: 200, body: { default_branch: main } }
+      "https://api.github.com/repos/acme/handbook/git/trees/main?recursive=1":
+        status: 200
+        body: { tree: [{ path: README.md, type: blob }, { path: config.json, type: blob }, { path: package.json, type: blob }, { path: docs, type: tree }, { path: docs/config.yaml, type: blob }, { path: docs/content/guide/_index.md, type: blob }, { path: docs/content/guide/intro.md, type: blob }, { path: docs/content/guide/setup.md, type: blob }, { path: docs/layouts/index.html, type: blob }, { path: docs/static/img/flow.png, type: blob }] }
+      "https://raw.githubusercontent.com/acme/handbook/main/docs/config.yaml": { status: 200, body: "title: Handbook\nbaseURL: https://acme.example.com/\n" }
+      "https://raw.githubusercontent.com/acme/handbook/main/docs/content/guide/_index.md": { status: 200, body: "---\ntitle: Guide\n---\nRead [setup](setup/) first.\n" }
+      "https://raw.githubusercontent.com/acme/handbook/main/docs/content/guide/intro.md": { status: 200, body: "---\ntitle: Intro\nweight: 1\nheadless: true\n---\nHello. [Next]({{< relref \"setup.md\" >}})\n" }
+      "https://raw.githubusercontent.com/acme/handbook/main/docs/content/guide/setup.md": { status: 200, body: "---\ntitle: Setup\nweight: 2\n---\n![Diagram](/img/flow.png) and [the intro](intro.md), or [the site](https://acme.example.com/guide/).\n" }
+      acme.example.com: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { url: "https://github.com/acme/handbook" } }
+        expect:
+          body:
+            - result:
+                title: Handbook
+                items:
+                  - { id: item-1, title: Guide, slug: guide, parent: null, order: 0, indent: 0, content: '<p>Read <a href="guide/setup">setup</a> first.</p>', metadata: { sourceType: hugo, hugo: { path: docs/content/guide/_index.md, kind: section } } }
+                  - { id: item-2, title: Intro, slug: guide/intro, parent: item-1, order: 0, indent: 1, content: '<p>Hello. <a href="guide/setup">Next</a></p>', metadata: { hideInMenu: true } }
+                  - { id: item-3, title: Setup, slug: guide/setup, parent: item-1, order: 1, content: '<p><media-image source="files/flow.png" alt="Diagram"></media-image> and <a href="guide/intro">the intro</a>, or <a href="guide">the site</a>.</p>' }
+                files:
+                  - { path: files/flow.png, url: "https://raw.githubusercontent.com/acme/handbook/main/docs/static/img/flow.png" }
+                stats: { pages: 3, media: 1, languageFiles: 0 }
+          absent: [site, truncated]
+          notContains: [item-4, unmapped]
+          fetch: { count: 6, notContains: [acme.example.com] }
+- id: importer-hugo-003
+  title: "what is not a Hugo site, a zip or a GitHub repository is an error"
+  given: "other.zip (no Hugo configuration); empty.zip (a Hugo site with no content); an upload that is not named .zip; one that is not a zip; a URL on another host; no input"
+  when: "convert"
+  then: "error results naming the problem; nothing is fetched"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source]
+    fetch:
+      hugo.example.org: { status: 200, body: "should not be read" }
+    steps:
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { files: [{ name: other.zip, data: "UEsDBBQAAAAIAAAAIVyTwP5ADQAAAAsAAAAJAAAAUkVBRE1FLm1kU1bwyy9R8ChNz+cCAFBLAwQUAAAACAAAACFcHwjqRgQAAAACAAAACQAAAGRvY3MvYS5tZKvgAgBQSwMEFAAAAAgAAAAhXEO/pqMEAAAAAgAAAAwAAABwYWNrYWdlLmpzb26rrgUAUEsBAhQDFAAAAAgAAAAhXJPA/kANAAAACwAAAAkAAAAAAAAAAAAAAIABAAAAAFJFQURNRS5tZFBLAQIUAxQAAAAIAAAAIVwfCOpGBAAAAAIAAAAJAAAAAAAAAAAAAACAATQAAABkb2NzL2EubWRQSwECFAMUAAAACAAAACFcQ7+mowQAAAACAAAADAAAAAAAAAAAAAAAgAFfAAAAcGFja2FnZS5qc29uUEsFBgAAAAADAAMAqAAAAI0AAAAAAA==" }] } }
+        expect: { body: [{ result: { error: "no Hugo site found in other (expected hugo.toml, hugo.yaml or hugo.json, or config.* beside a content folder)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { files: [{ name: empty.zip, data: "UEsDBBQAAAAIAAAAIVzMrnmFEgAAABAAAAAJAAAAaHVnby50b21sK8ksyUlVsFVQcs0tKKlU4gIAUEsDBBQAAAAIAAAAIVxxXzkMCgAAAAgAAAASAAAAbGF5b3V0cy9pbmRleC5odG1ssymws9EvsOMCAFBLAQIUAxQAAAAIAAAAIVzMrnmFEgAAABAAAAAJAAAAAAAAAAAAAACAAQAAAABodWdvLnRvbWxQSwECFAMUAAAACAAAACFccV85DAoAAAAIAAAAEgAAAAAAAAAAAAAAgAE5AAAAbGF5b3V0cy9pbmRleC5odG1sUEsFBgAAAAACAAIAdwAAAHMAAAAAAA==" }] } }
+        expect: { body: [{ result: { error: "no pages found under content/ in empty" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { files: [{ name: site.tar.gz, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "expected a .zip of the Hugo site" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { files: [{ name: site.zip, data: "bm90IGEgemlw" }] } }
+        expect: { body: [{ result: { error: "the file is not a zip archive" } }] }
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: { url: "https://hugo.example.org/docs/" } }
+        expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
+      - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: {} }
+        expect: { body: [{ result: { error: "url or files is required" } }] }
+- id: importer-hugo-004
+  title: "the static site importers are offered on every surface with what to ask for; the helpers they use never are"
+  given: "importer-hugo, importer-jekyll, importer-astro and importer-grav on, with import-markdown, import-frontmatter and import-source"
+  when: "ask for the choices on the dashboard, the CLI and MCP, then turn importer-jekyll off"
+  then: "each importer is listed by title and description with input [url, upload] and .zip uploads; no helper is offered; once off, Jekyll is not listed anywhere and the others still are"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source, core-plugins/importer-jekyll, core-plugins/importer-astro, core-plugins/importer-grav]
+    steps:
+      - choices: admin
+        expect:
+          contains: ['"id":"importer-hugo","title":"Import from Hugo","description":"Turns a Hugo site (a GitHub repository or a zip of one) into a new site, one page per content page.","input":["url","upload"],"uploads":[".zip"]', '"id":"importer-jekyll"', '"id":"importer-astro"', '"id":"importer-grav"']
+          notContains: [import-markdown, import-frontmatter, import-source]
+      - implementers: { name: import.platform, surface: cli }
+        expect: { contains: [importer-hugo, importer-jekyll, importer-astro, importer-grav], notContains: [import-markdown, import-frontmatter, import-source] }
+      - implementers: { name: import.platform, surface: mcp }
+        expect: { contains: [importer-hugo, importer-jekyll, importer-astro, importer-grav], notContains: [import-markdown, import-frontmatter, import-source] }
+      - disable: importer-jekyll
+      - choices: admin
+        expect: { contains: [importer-hugo, importer-astro, importer-grav], notContains: [importer-jekyll] }
+      - implementers: { name: import.platform, surface: cli }
+        expect: { notContains: [importer-jekyll] }
