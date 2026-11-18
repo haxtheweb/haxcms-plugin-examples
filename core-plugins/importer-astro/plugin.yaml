@@ -1,0 +1,27 @@
+# Astro importer: reads an Astro site as data, from a GitHub repository or an uploaded zip. A Starlight site gives its
+# docs in the order of the sidebar in astro.config.* (read as data, never executed) or of its folders. Any other Astro
+# site gives its markdown pages, the static markup of its .astro pages, and its content collections. Nothing of Astro
+# runs (no components, no expressions, no integrations). Implements import.platform; markdown goes to import.file
+# (import-markdown), front matter to import-frontmatter, and the repository or zip is read by import-source, all
+# through the platform, so this plugin reaches no network itself.
+specVersion: "0.1.0"
+id: importer-astro
+uuid: 2a7c9e40-6b15-4d8f-93e2-c5b1f8a07d36
+title: Import from Astro
+description: Turns an Astro or Starlight site (a GitHub repository or a zip of one) into a new site.
+version: 0.1.0
+category: integration
+icon: icons:file-upload
+tags: [import, astro, starlight]
+docs: { readme: README.md, agents: AGENTS.md }
+core: true
+license: Apache-2.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+implements: [import.platform]
+# markdown is converted by import.file, front matter is read by import-frontmatter.data, and the repository or zip is
+# listed and read by import-source.tree
+dependencies: [import-markdown, import-frontmatter, import-source]
+staticCapable: false
