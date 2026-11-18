@@ -14,6 +14,11 @@ Entry format:
 ## 0.1.0 (draft)
 - Initial draft. No upgrade recipes needed yet.
 
+### Choosing an importer on every surface (0.1.0 draft)
+- Change: an implementer of a contract the caller chooses (`import.platform`) says what to ask for in its `implements` entry: `input` (url, upload, html, xml), `uploads` (file types for a picker) and optional `surfaces` (admin, cli, mcp). Both contributions responses carry `choices` for `admin`; the CLI and MCP list `cli` and `mcp`. A hidden plugin is never offered. Engines gain `contractImplementers(name, { surface })` and `contractChoices(surface)`; cases gain `choices` and `implementers: { name, surface }` steps.
+- Upgrade recipe: a plugin that implements `import.platform` replaces `implements: [import.platform]` with `- { name: import.platform, input: [...] }`, listing the inputs its convert reads (`input.url` → url, `input.files` → upload, `input.html` → html, `input.xml` → xml) and, for file inputs, `uploads: [.ext]`. The validator now refuses a chosen implementer without `input`, and one that is `hidden`. A backend adds `choices` to its contributions responses and the `contractChoices` adapter method.
+- Fixture: `conformance/fixtures/fx-chooser`, `fx-chooser-hidden` (plat-017, plat-018); `core-plugins/importer-hugo` (importer-hugo-004).
+
 ### Stacks of plugins and the log (0.1.0 draft)
 - Change: spec/06 says how plugins stack and how to reach a plugin that may be off (a hook you define, a contract, or the log). Backends deliver log entries to `log.sink` implementers and have a log call for core.
 - Upgrade recipe: nothing breaks. A plugin that wrote to the log to be seen should keep doing so; it now reaches the `log` plugin when that is on. A plugin that fired another plugin's hook never worked and still does not: define a contract in the plugin that should be called, or a hook in the plugin where the event happens.

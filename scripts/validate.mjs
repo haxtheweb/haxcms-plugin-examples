@@ -421,6 +421,12 @@ function validatePlugin(manifestPath) {
     if (e && e.accepts && def && def.dispatch !== "accepts") err(`/implements/${i}/accepts`, `${n} does not dispatch by file type`);
     if (def && def.dispatch === "provides" && !(e && e.provides)) err(`/implements/${i}`, `${n} dispatches by named result: list what you provide ({ name: ${n}, provides: [area.result] })`);
     if (e && e.provides && def && def.dispatch !== "provides") err(`/implements/${i}/provides`, `${n} does not dispatch by named result`);
+    // a contract the caller chooses an implementer for (import.platform) is offered to people on the import screens,
+    // the CLI and MCP: each implementer says what it asks for, so no surface has to know a plugin to build its form
+    if (def && def.dispatch === "chosen" && !(e && e.input)) err(`/implements/${i}`, `${n} is chosen by the caller: say what to ask for ({ name: ${n}, input: [url, upload] })`);
+    for (const k of ["input", "uploads", "surfaces"]) if (e && e[k] && def && def.dispatch !== "chosen") err(`/implements/${i}/${k}`, `${n} is not chosen by the caller`);
+    if (e && e.uploads && !(e.input || []).some((v) => v !== "url")) err(`/implements/${i}/uploads`, "uploads lists file types for upload, html or xml input; this entry asks for no file");
+    if (def && def.dispatch === "chosen" && m.hidden === true) err(`/implements/${i}`, `${n} is chosen by people, and a hidden plugin is never offered: drop hidden or the contract`);
   }
   for (const c of implNames) {
     const def = coreContracts[c];

@@ -18,7 +18,8 @@ runtimes: [nodejs, php]
 entry:
   nodejs: src/nodejs/index.js
   php: src/php/Plugin.php
-implements: [import.platform]
+implements:
+  - { name: import.platform, input: [url, upload], uploads: [.html, .htm] }
 capabilities: ["network:egress"]
 egress:
   - input: url

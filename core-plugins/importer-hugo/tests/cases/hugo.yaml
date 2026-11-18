@@ -155,3 +155,24 @@
         expect: { body: [{ result: { error: "url must be a GitHub repository (https://github.com/<owner>/<repo>)" } }], fetch: { count: 0 } }
       - contract: { name: import.platform, op: convert, plugin: importer-hugo, input: {} }
         expect: { body: [{ result: { error: "url or files is required" } }] }
+- id: importer-hugo-004
+  title: "the static site importers are offered on every surface with what to ask for; the helpers they use never are"
+  given: "importer-hugo, importer-jekyll, importer-astro and importer-grav on, with import-markdown, import-frontmatter and import-source"
+  when: "ask for the choices on the dashboard, the CLI and MCP, then turn importer-jekyll off"
+  then: "each importer is listed by title and description with input [url, upload] and .zip uploads; no helper is offered; once off, Jekyll is not listed anywhere and the others still are"
+  run:
+    with: [core-plugins/import-markdown, core-plugins/import-frontmatter, core-plugins/import-source, core-plugins/importer-jekyll, core-plugins/importer-astro, core-plugins/importer-grav]
+    steps:
+      - choices: admin
+        expect:
+          contains: ['"id":"importer-hugo","title":"Import from Hugo","description":"Turns a Hugo site (a GitHub repository or a zip of one) into a new site, one page per content page.","input":["url","upload"],"uploads":[".zip"]', '"id":"importer-jekyll"', '"id":"importer-astro"', '"id":"importer-grav"']
+          notContains: [import-markdown, import-frontmatter, import-source]
+      - implementers: { name: import.platform, surface: cli }
+        expect: { contains: [importer-hugo, importer-jekyll, importer-astro, importer-grav], notContains: [import-markdown, import-frontmatter, import-source] }
+      - implementers: { name: import.platform, surface: mcp }
+        expect: { contains: [importer-hugo, importer-jekyll, importer-astro, importer-grav], notContains: [import-markdown, import-frontmatter, import-source] }
+      - disable: importer-jekyll
+      - choices: admin
+        expect: { contains: [importer-hugo, importer-astro, importer-grav], notContains: [importer-jekyll] }
+      - implementers: { name: import.platform, surface: cli }
+        expect: { notContains: [importer-jekyll] }

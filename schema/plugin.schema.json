@@ -328,12 +328,40 @@
                   "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)+$"
                 },
                 "description": "For contracts that dispatch by what is provided (insights.check): the named results this implementer produces, such as link.status. Advertised to the front end by contract name and these names, never by plugin id, so a core screen can turn a feature on when some enabled plugin provides it."
+              },
+              "input": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "enum": ["url", "upload", "html", "xml"]
+                },
+                "description": "For contracts the caller chooses an implementer for (import.platform): what the chooser asks a person for. url: a link (input.url); upload: one or more files (input.files, base64); html / xml: a file or pasted text passed as input.html / input.xml. Required for those contracts."
+              },
+              "uploads": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^\\.[a-z0-9]+$"
+                },
+                "description": "For contracts the caller chooses an implementer for: the file extensions a file picker offers for upload, html or xml input (.zip, .imscc). Only a hint for the chooser; the implementer still checks what it gets."
+              },
+              "surfaces": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "enum": ["admin", "cli", "mcp"]
+                },
+                "description": "For contracts the caller chooses an implementer for: where it is offered. admin: the dashboard and site screens; cli: the hax CLI; mcp: haxcms-mcp. Defaults to all three. A hidden plugin is never offered anywhere."
               }
             }
           }
         ]
       },
-      "description": "Core (or plugin-defined) contracts this plugin implements. An entry is the contract name, or { name, accepts } when the contract dispatches by file type, or { name, provides } when it dispatches by named result."
+      "description": "Core (or plugin-defined) contracts this plugin implements. An entry is the contract name, or { name, accepts } when the contract dispatches by file type, or { name, provides } when it dispatches by named result, or { name, input, uploads?, surfaces? } when the caller chooses one implementer (import.platform)."
     },
     "hooks": {
       "type": "array",

@@ -392,8 +392,31 @@ export class MemoryBackend {
     const items = r.result.items || outlineFromHtml(r.result.html || "", { method: input.method || "site", type: input.type || "", parentId: input.parentId || null, titleValue: title });
     return { status: 200, body: { plugin: r.plugin, title, items, ...(r.result.files ? { files: r.result.files.map((f) => f.path) } : {}) } };
   }
-  // what an import screen (or any chooser) lists for a contract
-  contractImplementers(name) { return this.plugins.filter((x) => x.status === "active" && implEntry(x.manifest, name)).map((x) => ({ id: x.id, title: x.manifest.title, description: x.manifest.description, ...(implEntry(x.manifest, name).accepts ? { accepts: implEntry(x.manifest, name).accepts } : {}), ...(implEntry(x.manifest, name).provides ? { provides: implEntry(x.manifest, name).provides } : {}) })); }
+  // what an import screen (or any chooser) lists for a contract. opts.surface (admin, cli, mcp) keeps the implementers
+  // offered there; a hidden plugin is never offered for a contract the caller chooses (spec/07, Choices)
+  contractImplementers(name, opts = {}) {
+    const chosen = (CORE_CONTRACTS[name] || {}).dispatch === "chosen";
+    const out = [];
+    for (const x of this.plugins) {
+      const e = x.status === "active" && implEntry(x.manifest, name);
+      if (!e || (chosen && x.manifest.hidden === true)) continue;
+      if (opts && opts.surface && !(e.surfaces || ["admin", "cli", "mcp"]).includes(opts.surface)) continue;
+      const row = { id: x.id, title: x.manifest.title, description: x.manifest.description };
+      for (const k of ["accepts", "provides", "input", "uploads", "surfaces"]) if (e[k]) row[k] = e[k];
+      out.push(row);
+    }
+    return out;
+  }
+  // choices (spec/07): for every core contract the caller chooses one implementer for, what one surface offers
+  contractChoices(surface) {
+    const out = {};
+    for (const [name, def] of Object.entries(CORE_CONTRACTS)) {
+      if (def.dispatch !== "chosen") continue;
+      const impl = this.contractImplementers(name, { surface }).map(({ surfaces, ...rest }) => (void surfaces, rest));
+      if (impl.length) out[name] = impl;
+    }
+    return out;
+  }
   // what the front end is told (spec/07, Front-end extension points): contract name -> the named results active
   // implementers provide; plugin titles only for display, so core screens key on contract and result names
   advertisedContracts() {

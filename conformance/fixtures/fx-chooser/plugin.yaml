@@ -1,0 +1,13 @@
+specVersion: "0.1.0"
+id: fx-chooser
+uuid: c2d7ae5c-4822-5f8a-b194-b0ac20d1cfc2
+title: fx-chooser (conformance fixture)
+description: Conformance fixture; see conformance/fixtures/README.md.
+version: 0.1.0
+runtimes: [nodejs, php]
+entry:
+  nodejs: src/nodejs/index.js
+  php: src/php/Plugin.php
+# offered on the dashboard and to MCP, not in the CLI
+implements:
+  - { name: import.platform, input: [upload, url], uploads: [.txt], surfaces: [admin, mcp] }

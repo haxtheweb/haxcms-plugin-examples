@@ -19,7 +19,7 @@ Those three are `examples/` in this repository. Everything else that proves a ru
 
 - **Views** (core, optional first, later required): entity `view` (site scope, with write routes), a separate read-only system entity for built-in views (two entities), contracts `views.source` and `views.display`, a `x-hax-public: true` results operation with its own anonymous filtering, `rebuild.after` writing snapshots and feeds to `managedFiles`, an upgrade step from `site.json`, `legacy` aliases for `/x/api/v1/views`.
 - **Comments:** `comment` entity in `siteData`, `personalData: true`, signed-in HAXcms users only until local login lands, `optional` read access by setting, injected thread element, moderation panel, cascade delete through entity hooks, read-only snapshot at rebuild for static sites, `suggests` views.
-- **Custom importer:** provider contract `import.platform` with `inputMode: url|upload` and `surfaces: [admin, cli, mcp]`; cannot override a core importer; guarded fetch, secret settings, declared egress; progress reserved.
+- **Custom importer:** provider contract `import.platform` with `input: [url, upload]`, `uploads: [.zip]` and optional `surfaces: [admin, cli, mcp]` on its `implements` entry (spec/07, Choices); cannot override a core importer; guarded fetch, secret settings, declared egress; progress reserved.
 - **PSU pack** (HAXiam contrib, locked): themes, skeletons, `polaris-` elements, locale overlay, restricted assets, built in the owner's own repo with `hax plugin build`; legacy registry paths reserved so existing sites keep working.
 
 ## Implement now versus reserve
